@@ -10,6 +10,7 @@ This file tracks the overarching progress of the application. The project is ini
 - [x] Build out the core Glassmorphic Medical Dashboard UI.
 - [x] Create the first AI mock endpoint for "Symptom Analysis" built with `scikit-learn`.
 - [x] Initialize main GitHub repository and link it.
+- [x] **Documentation Shell**: Create `architecture.md`, `implementation_plan.md`, and `enhancements.md`.
 
 ---
 
@@ -22,7 +23,7 @@ This file tracks the overarching progress of the application. The project is ini
 
 ### Frontend Integration
 - [ ] **API Connection**: Use `fetch`/`axios` in Next.js to dynamically fetch dashboard stats from the FastAPI backend.
-- [ ] **Symptom Checker UI**: Build the actual frontend form/flow for patients to enter their symptoms and submit them to the `/api/v1/diagnosis/symptoms` endpoint.
+- [x] **Symptom Checker UI**: Build the actual frontend form/flow for patients to enter their symptoms and submit them to the `/api/v1/diagnosis/symptoms` endpoint.
 - [ ] **Login & Registration Pages**: Create the UI views for onboarding.
 
 ### AI Model Integration

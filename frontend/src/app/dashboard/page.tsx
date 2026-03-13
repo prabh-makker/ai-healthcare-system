@@ -1,31 +1,31 @@
 "use client";
 
 import React from 'react';
-import { 
-  Activity, 
-  Users, 
-  Calendar, 
-  ShieldCheck, 
-  TrendingUp, 
-  Search, 
+import {
+  Activity,
+  Users,
+  Calendar,
+  ShieldCheck,
+  TrendingUp,
+  Search,
   Bell,
   Plus,
   ArrowUpRight,
   ChevronRight
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
-const SidebarLink = ({ icon: Icon, label, active = false }: { icon: any, label: string, active?: boolean }) => (
-  <div className={`flex items-center space-x-3 p-3 rounded-xl cursor-pointer transition-all duration-300 group ${
-    active ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20' : 'text-zinc-500 hover:bg-white/5 hover:text-white'
-  }`}>
+const SidebarLink = ({ icon: Icon, label, active = false, href = "#" }: { icon: any, label: string, active?: boolean, href?: string }) => (
+  <Link href={href} className={`flex items-center space-x-3 p-3 rounded-xl cursor-pointer transition-all duration-300 group ${active ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20' : 'text-zinc-500 hover:bg-white/5 hover:text-white'
+    }`}>
     <Icon size={20} className={active ? '' : 'group-hover:scale-110 transition-transform'} />
     <span className="font-medium">{label}</span>
-  </div>
+  </Link>
 );
 
 const StatCard = ({ label, value, icon: Icon, trend, color }: { label: string, value: string, icon: any, trend: string, color: string }) => (
-  <motion.div 
+  <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     whileHover={{ y: -5 }}
@@ -61,10 +61,10 @@ export default function Dashboard() {
         </div>
 
         <nav className="space-y-2 flex-1">
-          <SidebarLink icon={Activity} label="Overview" active />
-          <SidebarLink icon={Users} label="Patient Registry" />
-          <SidebarLink icon={Calendar} label="Schedule" />
-          <SidebarLink icon={TrendingUp} label="Diagnostics" />
+          <SidebarLink icon={Activity} label="Overview" active href="/dashboard" />
+          <SidebarLink icon={Users} label="Patient Registry" href="/dashboard/patients" />
+          <SidebarLink icon={Calendar} label="Schedule" href="/dashboard/schedule" />
+          <SidebarLink icon={TrendingUp} label="Diagnostics" href="/dashboard/symptoms" />
         </nav>
 
         <div className="glass-card p-6 rounded-3xl bg-sky-500/5">
@@ -88,53 +88,53 @@ export default function Dashboard() {
           <div className="flex items-center space-x-6">
             <div className="flex items-center glass-card px-4 py-2.5 rounded-2xl text-zinc-400 focus-within:text-white transition-colors">
               <Search size={18} />
-              <input 
-                type="text" 
-                placeholder="Search patient ID..." 
+              <input
+                type="text"
+                placeholder="Search patient ID..."
                 className="bg-transparent border-none outline-none ml-3 text-sm w-48 font-medium"
               />
             </div>
-            
+
             <div className="relative glass-card p-2.5 rounded-2xl text-zinc-400 hover:text-white cursor-pointer transition-all">
               <Bell size={20} />
               <div className="absolute top-2 right-2 w-2 h-2 bg-sky-500 rounded-full ring-4 ring-[#050505]" />
             </div>
 
-            <button className="bg-sky-500 hover:bg-sky-400 text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2 transition-all shadow-xl shadow-sky-500/20 active:scale-95">
+            <Link href="/dashboard/symptoms" className="bg-sky-500 hover:bg-sky-400 text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2 transition-all shadow-xl shadow-sky-500/20 active:scale-95">
               <Plus size={20} strokeWidth={3} />
               <span>Initiate Triage</span>
-            </button>
+            </Link>
           </div>
         </header>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-          <StatCard 
-            label="Verified Patients" 
-            value="1,492" 
-            icon={Users} 
-            trend="+12.5%" 
+          <StatCard
+            label="Verified Patients"
+            value="1,492"
+            icon={Users}
+            trend="+12.5%"
             color="bg-sky-500"
           />
-          <StatCard 
-            label="Inference Load" 
-            value="8.2ms" 
-            icon={Activity} 
-            trend="-24.1%" 
+          <StatCard
+            label="Inference Load"
+            value="8.2ms"
+            icon={Activity}
+            trend="-24.1%"
             color="bg-violet-500"
           />
-          <StatCard 
-            label="Model Precision" 
-            value="98.4%" 
-            icon={ShieldCheck} 
-            trend="+1.2%" 
+          <StatCard
+            label="Model Precision"
+            value="98.4%"
+            icon={ShieldCheck}
+            trend="+1.2%"
             color="bg-emerald-500"
           />
-          <StatCard 
-            label="Growth Velocity" 
-            value="15.8%" 
-            icon={TrendingUp} 
-            trend="+5.4%" 
+          <StatCard
+            label="Growth Velocity"
+            value="15.8%"
+            icon={TrendingUp}
+            trend="+5.4%"
             color="bg-amber-500"
           />
         </div>
@@ -178,10 +178,10 @@ export default function Dashboard() {
                       <td className="px-8 py-6">
                         <div className="flex items-center space-x-3">
                           <div className="w-32 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                            <motion.div 
+                            <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${row.conf}%` }}
-                              className="h-full bg-sky-500" 
+                              className="h-full bg-sky-500"
                             />
                           </div>
                           <span className="text-xs font-bold">{row.conf}%</span>
