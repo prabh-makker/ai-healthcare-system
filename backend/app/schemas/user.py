@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
@@ -10,12 +10,12 @@ class UserRole(str, Enum):
     ADMIN = "admin"
 
 class UserBase(BaseModel):
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     is_active: Optional[bool] = True
     role: UserRole = UserRole.PATIENT
 
 class UserCreate(UserBase):
-    email: EmailStr
+    email: str
     password: str
 
 class UserUpdate(UserBase):
