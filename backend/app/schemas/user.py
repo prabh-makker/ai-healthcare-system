@@ -1,36 +1,48 @@
 from pydantic import BaseModel
 from typing import Optional, List
-from uuid import UUID
 from datetime import datetime
 from enum import Enum
 
+
 class UserRole(str, Enum):
-    PATIENT = "patient"
-    DOCTOR = "doctor"
-    ADMIN = "admin"
+    PATIENT = "PATIENT"
+    DOCTOR = "DOCTOR"
+    ADMIN = "ADMIN"
+
 
 class UserBase(BaseModel):
     email: Optional[str] = None
     is_active: Optional[bool] = True
     role: UserRole = UserRole.PATIENT
 
-class UserCreate(UserBase):
+
+class UserCreate(BaseModel):
     email: str
     password: str
+    role: str = "PATIENT"
 
-class UserUpdate(UserBase):
+
+class UserUpdate(BaseModel):
+    email: Optional[str] = None
     password: Optional[str] = None
+    is_active: Optional[bool] = None
 
-class UserOut(UserBase):
-    id: UUID
+
+class UserOut(BaseModel):
+    id: str
+    email: str
+    role: str
+    is_active: bool
     created_at: datetime
 
     class Config:
         from_attributes = True
 
+
 class Token(BaseModel):
     access_token: str
     token_type: str
+
 
 class TokenPayload(BaseModel):
     sub: Optional[str] = None
