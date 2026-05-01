@@ -1,0 +1,123 @@
+version: "3.9"
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: healthcare-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-healthcare}
+      POSTGRES_USER: ${POSTGRES_USER:-healthcare_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-healthcare_secure_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-healthcare_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - healthcare-network
+
+  # Redis Cache (Optional)
+  redis:
+    image: redis:7-alpine
+    container_name: healthcare-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - healthcare-network
+
+  # Backend API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: healthcare-backend
+    ports:
+      - "${BACKEND_PORT:-8001}:8001"
+    environment:
+      # Application
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+      # Security - MUST change in production
+      SECRET_KEY: ${SECRET_KEY:-change-this-to-a-real-secret-key}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-11520}
+
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-healthcare_user}:${POSTGRES_PASSWORD:-healthcare_secure_password}@postgres:5432/${POSTGRES_DB:-healthcare}
+
+      # ML Models
+      ML_MODEL_PATH: /app/ml-models
+
+      # CORS
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
+
+      # Rate Limiting
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_AUTH_ATTEMPTS: ${RATE_LIMIT_AUTH_ATTEMPTS:-5}
+      RATE_LIMIT_WINDOW_MINUTES: ${RATE_LIMIT_WINDOW_MINUTES:-15}
+
+      # Redis (optional)
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+
+    volumes:
+      - ./ml-models:/app/ml-models:ro
+      - backend_data:/app/data
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+    restart: unless-stopped
+    networks:
+      - healthcare-network
+
+    # Run migrations on startup (optional)
+    # command: sh -c "alembic upgrade head && gunicorn ..."
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: healthcare-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8001}
+      NODE_ENV: ${NODE_ENV:-development}
+
+    depends_on:
+      - backend
+
+    restart: unless-stopped
+    networks:
+      - healthcare-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_data:
+    driver: local
+
+networks:
+  healthcare-network:
+    driver: bridge

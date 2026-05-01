@@ -1,0 +1,1 @@
+{"symptoms": ["fever", "cough", "fatigue", "difficulty_breathing", "loss_of_taste_smell", "headache", "sore_throat"], "classes": ["COVID-19", "Common Cold", "Flu", "Healthy", "Pneumonia"], "accuracy": 1.0}

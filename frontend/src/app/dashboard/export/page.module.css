@@ -1,0 +1,440 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.header {
+  margin-bottom: 32px;
+}
+
+.header h1 {
+  margin: 0 0 8px 0;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.header p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 32px;
+}
+
+/* Form Section */
+.formSection {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.formSection h2 {
+  margin: 0 0 24px 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.exportForm {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.formGroup label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+}
+
+.formGroup small {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: -4px;
+}
+
+.radioGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 400;
+  font-size: 14px;
+}
+
+.radioLabel input[type='radio'] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.radioLabel span {
+  color: #374151;
+}
+
+.formatCards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.formatCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.formatCard:hover {
+  border-color: #d1d5db;
+  background-color: #f9fafb;
+}
+
+.formatCard.selected {
+  border-color: #3b82f6;
+  background-color: #f0f9ff;
+}
+
+.formatIcon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.formatInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.formatName {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.formatDesc {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.dateRange {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.dateRange input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.dateRange input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.dateRange span {
+  color: #9ca3af;
+  font-size: 14px;
+  text-align: center;
+}
+
+.textarea {
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: monospace;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 400;
+  font-size: 14px;
+}
+
+.checkboxLabel input[type='checkbox'] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.checkboxLabel span {
+  color: #374151;
+}
+
+.exportButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 12px;
+}
+
+.exportButton:hover:not(:disabled) {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+}
+
+.exportButton:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.spinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* History Section */
+.historySection {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.historySection h2 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.emptyHistory {
+  text-align: center;
+  padding: 32px 16px;
+  color: #9ca3af;
+}
+
+.emptyHistory p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.emptyHistory small {
+  display: block;
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.historyItem {
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.historyItem:hover {
+  border-color: #d1d5db;
+  background-color: #f9fafb;
+}
+
+.historyItem.completed {
+  border-color: #dcfce7;
+  background-color: #f0fdf4;
+}
+
+.historyItem.failed {
+  border-color: #fee2e2;
+  background-color: #fef2f2;
+}
+
+.historyItem.pending {
+  border-color: #fefce8;
+  background-color: #fffbeb;
+}
+
+.historyHeader {
+  margin-bottom: 8px;
+}
+
+.historyMeta {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+}
+
+.statusIcon {
+  font-size: 16px;
+  font-weight: bold;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.fileName {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+  word-break: break-all;
+}
+
+.fileInfo {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.historyFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.downloadLink {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.downloadLink:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .historySection {
+    position: static;
+  }
+
+  .formatCards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .header h1 {
+    font-size: 24px;
+  }
+
+  .formSection {
+    padding: 16px;
+  }
+
+  .formatCards {
+    grid-template-columns: 1fr;
+  }
+
+  .formatCard {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .dateRange {
+    grid-template-columns: 1fr;
+  }
+
+  .dateRange span {
+    display: none;
+  }
+
+  .dateRange input {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 12px;
+  }
+
+  .header {
+    margin-bottom: 20px;
+  }
+
+  .header h1 {
+    font-size: 20px;
+  }
+
+  .header p {
+    font-size: 13px;
+  }
+
+  .formSection {
+    padding: 12px;
+  }
+
+  .formGroup {
+    gap: 8px;
+  }
+
+  .historySection {
+    padding: 12px;
+  }
+}

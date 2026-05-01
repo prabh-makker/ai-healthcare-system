@@ -1,0 +1,38 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+alembic
+passlib[bcrypt]
+python-jose[cryptography]
+python-dotenv
+python-multipart
+pydantic-settings
+scikit-learn
+joblib
+pandas
+numpy
+
+# Testing dependencies
+pytest
+pytest-cov
+pytest-asyncio
+pytest-mock
+httpx
+
+# Code quality dependencies
+pylint
+mypy
+black
+isort
+
+# Additional production dependencies
+python-multipart
+aiofiles
+
+# Monitoring and Analytics
+sentry-sdk[fastapi]
+prometheus-client
+psutil
+python-json-logger
+gunicorn[uvicorn]
