@@ -2,13 +2,11 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
-  Activity, Users, ShieldCheck, TrendingUp, Bell, Plus,
+  Activity, Users, TrendingUp, Bell, Plus,
   ArrowUpRight, ChevronRight, Clock, ClipboardList, HeartPulse,
-  Pill, Zap, Brain, Stethoscope, Dna, Scan, Fingerprint,
+  Pill, Zap, Brain, Stethoscope, Dna, Fingerprint,
 } from "lucide-react";
-import {
-  motion, useMotionValue, useTransform, useSpring, AnimatePresence,
-} from "framer-motion";
+import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
@@ -28,24 +26,36 @@ interface Stats {
   }>;
 }
 
-// ── Shared background components (same DNA as login) ──────────────────────────
+// ── Background effects (absolute so they respect the main layout) ─────────────
 
 function Particles() {
+  const particles = Array.from({ length: 30 }, (_, i) => ({
+    id: i,
+    w: (i % 3) + 2,
+    h: (i % 3) + 2,
+    alpha: ((i % 5) + 1) * 0.06,
+    left: ((i * 37) % 100),
+    top: ((i * 53) % 100),
+    dur: 4 + (i % 4),
+    dx: (i % 7) - 3,
+    delay: (i % 4) * 0.5,
+  }));
+
   return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {Array.from({ length: 25 }).map((_, i) => (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {particles.map((p) => (
         <motion.div
-          key={i}
+          key={p.id}
           className="absolute rounded-full"
           style={{
-            width: Math.random() * 4 + 1,
-            height: Math.random() * 4 + 1,
-            background: `rgba(14,165,233,${Math.random() * 0.25 + 0.05})`,
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
+            width: p.w,
+            height: p.h,
+            background: `rgba(14,165,233,${p.alpha})`,
+            left: `${p.left}%`,
+            top: `${p.top}%`,
           }}
-          animate={{ y: [0, -40, 0], x: [0, Math.random() * 20 - 10, 0], opacity: [0.1, 0.6, 0.1], scale: [1, 1.6, 1] }}
-          transition={{ duration: Math.random() * 5 + 4, repeat: Infinity, ease: "easeInOut", delay: Math.random() * 3 }}
+          animate={{ y: [0, -50, 0], x: [0, p.dx, 0], opacity: [0.2, 0.9, 0.2], scale: [1, 1.8, 1] }}
+          transition={{ duration: p.dur, repeat: Infinity, ease: "easeInOut", delay: p.delay }}
         />
       ))}
     </div>
@@ -54,21 +64,21 @@ function Particles() {
 
 function GridBackground() {
   return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-[0.025] z-0">
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ opacity: 0.04 }}>
       <div
         className="absolute inset-0"
         style={{
           backgroundImage: `
-            linear-gradient(rgba(14,165,233,0.4) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(14,165,233,0.4) 1px, transparent 1px)
+            linear-gradient(rgba(14,165,233,0.6) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(14,165,233,0.6) 1px, transparent 1px)
           `,
           backgroundSize: "60px 60px",
         }}
       />
       <motion.div
         className="absolute inset-0"
-        style={{ background: "radial-gradient(circle at 50% 50%, rgba(14,165,233,0.12), transparent 70%)" }}
-        animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.6, 0.3] }}
+        style={{ background: "radial-gradient(circle at 50% 30%, rgba(14,165,233,0.2), transparent 70%)" }}
+        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
         transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
       />
     </div>
@@ -76,28 +86,27 @@ function GridBackground() {
 }
 
 function GradientOrbs({ isDoctor }: { isDoctor: boolean }) {
+  const color1 = isDoctor ? "rgba(14,165,233,0.12)" : "rgba(244,63,94,0.12)";
   return (
     <>
       <motion.div
-        className="fixed pointer-events-none z-0"
+        className="absolute pointer-events-none"
         style={{
-          width: 600, height: 600, borderRadius: "50%",
-          background: isDoctor
-            ? "radial-gradient(circle, rgba(14,165,233,0.07), transparent 70%)"
-            : "radial-gradient(circle, rgba(244,63,94,0.07), transparent 70%)",
-          left: "5%", top: "10%",
+          width: 700, height: 700, borderRadius: "50%",
+          background: `radial-gradient(circle, ${color1}, transparent 70%)`,
+          left: "-10%", top: "-10%",
         }}
-        animate={{ x: [0, 60, 0], y: [0, -40, 0], scale: [1, 1.1, 1] }}
+        animate={{ x: [0, 80, 0], y: [0, 40, 0], scale: [1, 1.1, 1] }}
         transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
-        className="fixed pointer-events-none z-0"
+        className="absolute pointer-events-none"
         style={{
-          width: 500, height: 500, borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(139,92,246,0.06), transparent 70%)",
-          right: "5%", bottom: "10%",
+          width: 600, height: 600, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(139,92,246,0.1), transparent 70%)",
+          right: "-5%", bottom: "0%",
         }}
-        animate={{ x: [0, -50, 0], y: [0, 50, 0], scale: [1, 1.2, 1] }}
+        animate={{ x: [0, -60, 0], y: [0, -50, 0], scale: [1, 1.15, 1] }}
         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
       />
     </>
@@ -105,31 +114,28 @@ function GradientOrbs({ isDoctor }: { isDoctor: boolean }) {
 }
 
 function FloatingIcons({ isDoctor }: { isDoctor: boolean }) {
-  const icons = isDoctor
-    ? [
-        { Icon: Stethoscope, pos: { left: "3%", top: "20%" }, delay: 0 },
-        { Icon: Brain, pos: { right: "4%", top: "30%" }, delay: 1 },
-        { Icon: Dna, pos: { left: "6%", bottom: "25%" }, delay: 0.5 },
-        { Icon: Scan, pos: { right: "6%", bottom: "30%" }, delay: 1.5 },
-      ]
-    : [
-        { Icon: HeartPulse, pos: { left: "3%", top: "20%" }, delay: 0 },
-        { Icon: Fingerprint, pos: { right: "4%", top: "30%" }, delay: 1 },
-        { Icon: Activity, pos: { left: "6%", bottom: "25%" }, delay: 0.5 },
-        { Icon: Pill, pos: { right: "6%", bottom: "30%" }, delay: 1.5 },
-      ];
-
+  const doctorIcons = [
+    { Icon: Stethoscope, style: { right: "2%", top: "15%" }, delay: 0 },
+    { Icon: Brain, style: { right: "5%", bottom: "20%" }, delay: 1.2 },
+    { Icon: Dna, style: { right: "18%", top: "8%" }, delay: 0.6 },
+  ];
+  const patientIcons = [
+    { Icon: HeartPulse, style: { right: "2%", top: "15%" }, delay: 0 },
+    { Icon: Fingerprint, style: { right: "5%", bottom: "20%" }, delay: 1.2 },
+    { Icon: Pill, style: { right: "18%", top: "8%" }, delay: 0.6 },
+  ];
+  const icons = isDoctor ? doctorIcons : patientIcons;
   return (
     <>
-      {icons.map(({ Icon, pos, delay }, i) => (
+      {icons.map(({ Icon, style, delay }, i) => (
         <motion.div
           key={i}
-          className="fixed pointer-events-none text-sky-500/8 z-0"
-          style={pos}
-          animate={{ y: [0, -20, 0], rotate: [0, 8, 0], opacity: [0.04, 0.12, 0.04] }}
-          transition={{ duration: 5 + i, repeat: Infinity, ease: "easeInOut", delay }}
+          className="absolute pointer-events-none"
+          style={{ ...style, color: "rgba(14,165,233,0.07)" }}
+          animate={{ y: [0, -25, 0], rotate: [0, 10, 0], opacity: [0.04, 0.14, 0.04] }}
+          transition={{ duration: 5 + i * 1.5, repeat: Infinity, ease: "easeInOut", delay }}
         >
-          <Icon size={48} />
+          <Icon size={56} />
         </motion.div>
       ))}
     </>
@@ -139,10 +145,10 @@ function FloatingIcons({ isDoctor }: { isDoctor: boolean }) {
 function ScanLine() {
   return (
     <motion.div
-      className="absolute left-0 right-0 h-px pointer-events-none z-10"
-      style={{ background: "linear-gradient(90deg, transparent, rgba(14,165,233,0.4), transparent)" }}
+      className="absolute left-0 right-0 h-px pointer-events-none"
+      style={{ background: "linear-gradient(90deg, transparent, rgba(14,165,233,0.5), transparent)" }}
       animate={{ top: ["0%", "100%", "0%"] }}
-      transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+      transition={{ duration: 7, repeat: Infinity, ease: "linear" }}
     />
   );
 }
@@ -150,21 +156,15 @@ function ScanLine() {
 // ── 3D Tilt Stat Card ─────────────────────────────────────────────────────────
 
 function StatCard3D({
-  label, value, icon: Icon, trend, gradient, glowColor, delay,
+  label, value, icon: Icon, trend, gradFrom, gradTo, glowColor, delay,
 }: {
-  label: string;
-  value: string;
-  icon: React.ElementType;
-  trend: string;
-  gradient: string;
-  glowColor: string;
-  delay?: number;
+  label: string; value: string; icon: React.ElementType;
+  trend: string; gradFrom: string; gradTo: string; glowColor: string; delay?: number;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-  const rotateX = useSpring(useTransform(mouseY, [-60, 60], [8, -8]), { stiffness: 200, damping: 20 });
-  const rotateY = useSpring(useTransform(mouseX, [-60, 60], [-8, 8]), { stiffness: 200, damping: 20 });
+  const rotateX = useSpring(useTransform(mouseY, [-60, 60], [10, -10]), { stiffness: 200, damping: 20 });
+  const rotateY = useSpring(useTransform(mouseX, [-60, 60], [-10, 10]), { stiffness: 200, damping: 20 });
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -172,116 +172,116 @@ function StatCard3D({
     mouseY.set(e.clientY - rect.top - rect.height / 2);
   }, [mouseX, mouseY]);
 
-  const handleMouseLeave = useCallback(() => {
-    mouseX.set(0);
-    mouseY.set(0);
-  }, [mouseX, mouseY]);
+  const handleMouseLeave = useCallback(() => { mouseX.set(0); mouseY.set(0); }, [mouseX, mouseY]);
 
   return (
     <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 30, scale: 0.9 }}
+      initial={{ opacity: 0, y: 40, scale: 0.88 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ type: "spring", stiffness: 80, damping: 15, delay: delay || 0 }}
-      style={{ rotateX, rotateY, perspective: 800, transformStyle: "preserve-3d" }}
+      transition={{ type: "spring", stiffness: 70, damping: 14, delay: delay || 0 }}
+      style={{ rotateX, rotateY, perspective: 700, transformStyle: "preserve-3d" }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       className="group relative cursor-default"
     >
-      {/* Glow on hover */}
+      {/* Glow halo */}
       <motion.div
-        className={`absolute -inset-1 rounded-[2.2rem] opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl`}
+        className="absolute -inset-2 rounded-[2.4rem] opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl"
         style={{ background: glowColor }}
       />
 
-      <div className="relative overflow-hidden rounded-[2rem] p-6 glass-card border border-white/[0.08] group-hover:border-white/[0.18] transition-all duration-300">
+      <div className="relative overflow-hidden rounded-[2rem] p-6 glass-card border border-white/[0.08] group-hover:border-white/[0.2] transition-all duration-300">
         <ScanLine />
 
-        {/* Background gradient sweep */}
-        <motion.div
-          className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-[0.07] transition-opacity duration-500`}
+        {/* BG gradient sweep on hover */}
+        <div
+          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+          style={{ background: `linear-gradient(135deg, ${gradFrom}10, ${gradTo}05)` }}
         />
 
         {/* Shimmer */}
         <motion.div
           className="absolute inset-0 opacity-0 group-hover:opacity-100"
-          style={{ background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.04) 50%, transparent 60%)" }}
-          animate={{ backgroundPosition: ["-200% 0", "200% 0"] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          style={{ background: "linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.05) 50%, transparent 65%)" }}
+          animate={{ x: ["-100%", "100%"] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
         />
 
-        <div className="flex justify-between items-start mb-5 relative z-10">
-          <motion.div
-            className={`p-3.5 rounded-2xl bg-gradient-to-br ${gradient} bg-opacity-15`}
-            whileHover={{ rotate: 12, scale: 1.15 }}
-            style={{ transformStyle: "preserve-3d", translateZ: 20 }}
-          >
-            <Icon size={26} className="text-white drop-shadow-lg" />
-          </motion.div>
+        <div className="relative z-10">
+          <div className="flex justify-between items-start mb-5">
+            <motion.div
+              className="p-3.5 rounded-2xl"
+              style={{ background: `linear-gradient(135deg, ${gradFrom}, ${gradTo})`, boxShadow: `0 8px 24px ${gradFrom}40` }}
+              whileHover={{ rotate: 15, scale: 1.2 }}
+            >
+              <Icon size={24} className="text-white drop-shadow" />
+            </motion.div>
 
-          <motion.div
-            className={`flex items-center space-x-1 text-xs font-black px-2.5 py-1.5 rounded-xl ${
-              trend.startsWith("+") ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                : "bg-sky-500/10 text-sky-400 border border-sky-500/20"
-            }`}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: (delay || 0) + 0.3, type: "spring" }}
+            <motion.div
+              className="flex items-center space-x-1 text-xs font-black px-2.5 py-1.5 rounded-xl border"
+              style={
+                trend.startsWith("+")
+                  ? { background: "rgba(16,185,129,0.1)", color: "#34d399", borderColor: "rgba(16,185,129,0.25)" }
+                  : { background: "rgba(14,165,233,0.1)", color: "#38bdf8", borderColor: "rgba(14,165,233,0.25)" }
+              }
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: (delay || 0) + 0.3, type: "spring" }}
+            >
+              <span>{trend}</span>
+              <ArrowUpRight size={11} />
+            </motion.div>
+          </div>
+
+          <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.18em]">{label}</p>
+          <motion.h3
+            className="text-4xl font-black mt-1.5 tracking-tight text-white"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: (delay || 0) + 0.15 }}
           >
-            <span>{trend}</span>
-            <ArrowUpRight size={11} />
-          </motion.div>
+            {value}
+          </motion.h3>
         </div>
-
-        <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.18em] relative z-10">{label}</p>
-        <motion.h3
-          className="text-4xl font-black mt-2 tracking-tight text-white relative z-10"
-          style={{ translateZ: 10 }}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: (delay || 0) + 0.15 }}
-        >
-          {value}
-        </motion.h3>
 
         {/* Animated bottom bar */}
         <motion.div
-          className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${gradient}`}
+          className="absolute bottom-0 left-0 h-0.5 rounded-full"
+          style={{ background: `linear-gradient(90deg, ${gradFrom}, ${gradTo})` }}
           initial={{ width: "0%" }}
           animate={{ width: "100%" }}
-          transition={{ duration: 1.2, delay: (delay || 0) + 0.4, ease: "easeOut" }}
+          transition={{ duration: 1.4, delay: (delay || 0) + 0.4, ease: "easeOut" }}
         />
       </div>
     </motion.div>
   );
 }
 
-// ── Pulse dots ─────────────────────────────────────────────────────────────────
+// ── Shared UI ─────────────────────────────────────────────────────────────────
 
-function PulseDots() {
+function PulseDots({ color = "#0ea5e9" }: { color?: string }) {
   return (
     <div className="flex space-x-1.5">
       {[0, 1, 2].map((i) => (
         <motion.div
           key={i}
-          className="w-1.5 h-1.5 rounded-full bg-sky-500"
-          animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.3, 0.8] }}
-          transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+          className="w-1.5 h-1.5 rounded-full"
+          style={{ background: color }}
+          animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.4, 0.8] }}
+          transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.22 }}
         />
       ))}
     </div>
   );
 }
 
-// ── Status bar ─────────────────────────────────────────────────────────────────
-
 function StatusBar() {
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ delay: 1.2 }}
-      className="flex items-center space-x-4 text-[10px] text-zinc-600 font-mono"
+      transition={{ delay: 1 }}
+      className="flex items-center space-x-4 text-[10px] text-zinc-600 font-mono mt-1"
     >
       <div className="flex items-center space-x-1.5">
         <motion.div
@@ -295,6 +295,29 @@ function StatusBar() {
       <span>AI MODEL LOADED</span>
       <span className="text-zinc-800">|</span>
       <span>TLS 1.3</span>
+    </motion.div>
+  );
+}
+
+function ShimmerButton({ href, children, gradFrom, gradTo, shadow }: {
+  href: string; children: React.ReactNode;
+  gradFrom: string; gradTo: string; shadow: string;
+}) {
+  return (
+    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+      <Link
+        href={href}
+        className="relative overflow-hidden text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2"
+        style={{ background: `linear-gradient(135deg, ${gradFrom}, ${gradTo})`, boxShadow: `0 20px 40px ${shadow}` }}
+      >
+        <motion.div
+          className="absolute inset-0 opacity-30"
+          style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)" }}
+          animate={{ x: ["-100%", "100%"] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+        />
+        <span className="relative z-10 flex items-center space-x-2">{children}</span>
+      </Link>
     </motion.div>
   );
 }
@@ -316,121 +339,82 @@ export default function Dashboard() {
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.1 } },
+    visible: { opacity: 1, transition: { staggerChildren: 0.09, delayChildren: 0.1 } },
   };
   const itemVariants = {
-    hidden: { opacity: 0, y: 24 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] } },
+    hidden: { opacity: 0, y: 28 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } },
   };
 
   const DoctorDashboard = () => (
     <motion.div variants={containerVariants} initial="hidden" animate="visible">
-      {/* Header */}
-      <motion.header variants={itemVariants} className="flex flex-wrap justify-between items-start gap-6 mb-14">
+      <motion.header variants={itemVariants} className="flex flex-wrap justify-between items-start gap-6 mb-12">
         <div>
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3 mb-1">
             <motion.div
-              className="p-2.5 rounded-2xl bg-gradient-to-br from-sky-500 to-cyan-500 shadow-xl shadow-sky-500/30"
+              className="p-2.5 rounded-2xl"
+              style={{ background: "linear-gradient(135deg, #0ea5e9, #06b6d4)", boxShadow: "0 12px 32px rgba(14,165,233,0.35)" }}
               animate={{ rotate: [0, -5, 5, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
             >
               <Stethoscope size={22} className="text-white" />
             </motion.div>
-            <PulseDots />
+            <PulseDots color="#0ea5e9" />
           </div>
-          <motion.h1
-            className="text-5xl font-black tracking-tight bg-gradient-to-br from-sky-200 via-cyan-300 to-blue-400 bg-clip-text text-transparent"
-            animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          <h1
+            className="text-5xl font-black tracking-tight"
+            style={{ backgroundImage: "linear-gradient(135deg, #bae6fd, #7dd3fc, #0ea5e9, #06b6d4)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
           >
             Clinical Dashboard
-          </motion.h1>
-          <p className="text-zinc-500 mt-2 font-bold">
-            Welcome back, Dr. {user?.email?.split("@")[0] || "Physician"}
-          </p>
+          </h1>
+          <p className="text-zinc-500 mt-1 font-bold">Welcome back, Dr. {user?.email?.split("@")[0] || "Physician"}</p>
           <StatusBar />
         </div>
 
         <div className="flex items-center space-x-4">
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="relative glass-card p-3 rounded-2xl text-zinc-400 hover:text-white cursor-pointer transition-all border border-white/[0.06] hover:border-white/[0.15]"
-          >
+          <motion.div whileHover={{ scale: 1.08 }} className="relative glass-card p-3 rounded-2xl text-zinc-400 hover:text-white cursor-pointer transition-all">
             <Bell size={20} />
-            <motion.div
-              className="absolute top-2 right-2 w-2 h-2 bg-sky-500 rounded-full ring-4 ring-[#050505]"
-              animate={{ scale: [1, 1.4, 1] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-            />
+            <motion.div className="absolute top-2 right-2 w-2 h-2 bg-sky-500 rounded-full ring-4 ring-[#050505]" animate={{ scale: [1, 1.5, 1] }} transition={{ duration: 1.5, repeat: Infinity }} />
           </motion.div>
-
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-            <Link
-              href="/dashboard/symptoms"
-              className="relative overflow-hidden bg-gradient-to-r from-sky-500 to-cyan-500 text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2 shadow-xl shadow-sky-500/25"
-            >
-              <motion.div
-                className="absolute inset-0 opacity-30"
-                style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)" }}
-                animate={{ x: ["-100%", "100%"] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              />
-              <Plus size={20} strokeWidth={3} className="relative z-10" />
-              <span className="relative z-10">Initiate Triage</span>
-            </Link>
-          </motion.div>
+          <ShimmerButton href="/dashboard/symptoms" gradFrom="#0ea5e9" gradTo="#06b6d4" shadow="rgba(14,165,233,0.3)">
+            <Plus size={20} strokeWidth={3} />
+            <span>Initiate Triage</span>
+          </ShimmerButton>
         </div>
       </motion.header>
 
-      {/* Stat Cards */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-14">
-        <StatCard3D label="Total Patients" value={stats ? String(stats.total_patients) : "—"} icon={Users} trend="+active" gradient="from-sky-500 to-cyan-500" glowColor="rgba(14,165,233,0.15)" delay={0} />
-        <StatCard3D label="Medical Records" value={stats ? String(stats.total_records) : "—"} icon={Activity} trend="+records" gradient="from-violet-500 to-purple-500" glowColor="rgba(139,92,246,0.15)" delay={0.1} />
-        <StatCard3D label="Model Precision" value="98.4%" icon={Brain} trend="+1.2%" gradient="from-emerald-500 to-teal-500" glowColor="rgba(16,185,129,0.15)" delay={0.2} />
-        <StatCard3D label="Doctors Active" value={stats ? String(stats.total_doctors) : "—"} icon={TrendingUp} trend="+staff" gradient="from-amber-500 to-orange-500" glowColor="rgba(245,158,11,0.15)" delay={0.3} />
+      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
+        <StatCard3D label="Total Patients" value={stats ? String(stats.total_patients) : "—"} icon={Users} trend="+active" gradFrom="#0ea5e9" gradTo="#06b6d4" glowColor="rgba(14,165,233,0.2)" delay={0} />
+        <StatCard3D label="Medical Records" value={stats ? String(stats.total_records) : "—"} icon={Activity} trend="+records" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} />
+        <StatCard3D label="Model Precision" value="98.4%" icon={Brain} trend="+1.2%" gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} />
+        <StatCard3D label="Doctors Active" value={stats ? String(stats.total_doctors) : "—"} icon={TrendingUp} trend="+staff" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} />
       </motion.div>
 
-      {/* Records + Insights */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <section className="xl:col-span-2">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-black tracking-tight bg-gradient-to-r from-sky-200 to-cyan-300 bg-clip-text text-transparent">
+          <div className="flex justify-between items-center mb-5">
+            <h2 className="text-2xl font-black" style={{ backgroundImage: "linear-gradient(135deg, #bae6fd, #7dd3fc)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
               Recent Diagnostic Records
             </h2>
-            <Link href="/dashboard/records" className="text-sky-500 text-sm font-bold hover:text-sky-400 flex items-center space-x-1 group">
-              <span>View All</span>
-              <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+            <Link href="/dashboard/records" className="text-sky-500 text-sm font-bold hover:text-sky-400 flex items-center gap-1 group">
+              <span>View All</span><ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
-
-          <motion.div
-            className="glass-card rounded-[2rem] overflow-hidden border border-white/[0.06] relative"
-            whileHover={{ borderColor: "rgba(255,255,255,0.12)" }}
-          >
+          <div className="glass-card rounded-[2rem] overflow-hidden border border-white/[0.07] relative">
             <ScanLine />
             <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-white/5 bg-white/[0.02]">
-                  {["Diagnosis", "Symptoms", "Confidence", "Date"].map((h) => (
-                    <th key={h} className="px-6 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">{h}</th>
-                  ))}
-                </tr>
-              </thead>
+              <thead><tr className="border-b border-white/5 bg-white/[0.02]">
+                {["Diagnosis","Symptoms","Confidence","Date"].map(h => <th key={h} className="px-6 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">{h}</th>)}
+              </tr></thead>
               <tbody className="divide-y divide-white/[0.04]">
                 {stats?.recent_records?.length ? stats.recent_records.map((r, idx) => (
-                  <motion.tr
-                    key={r.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.6 + idx * 0.08 }}
-                    className="group hover:bg-white/[0.03] transition-colors"
-                  >
+                  <motion.tr key={r.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + idx * 0.07 }} className="hover:bg-white/[0.03] transition-colors">
                     <td className="px-6 py-5 font-bold text-zinc-200">{r.ai_prediction || "Pending"}</td>
-                    <td className="px-6 py-5 text-zinc-400 text-sm">{r.symptoms?.slice(0, 2).join(", ") || "—"}</td>
+                    <td className="px-6 py-5 text-zinc-400 text-sm">{r.symptoms?.slice(0,2).join(", ") || "—"}</td>
                     <td className="px-6 py-5">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-2">
                         <div className="w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                          <motion.div initial={{ width: 0 }} animate={{ width: `${r.confidence_score || 0}%` }} transition={{ duration: 1, delay: 0.7 }} className="h-full bg-gradient-to-r from-sky-500 to-cyan-400 rounded-full" />
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${r.confidence_score || 0}%` }} transition={{ duration: 1, delay: 0.6 }} className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #0ea5e9, #06b6d4)" }} />
                         </div>
                         <span className="text-xs font-bold text-zinc-300">{r.confidence_score ? `${r.confidence_score}%` : "—"}</span>
                       </div>
@@ -438,39 +422,28 @@ export default function Dashboard() {
                     <td className="px-6 py-5 text-zinc-500 text-sm">{r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}</td>
                   </motion.tr>
                 )) : (
-                  <tr><td colSpan={4} className="px-6 py-14 text-center text-zinc-600">No records yet. Run a symptom analysis to begin.</td></tr>
+                  <tr><td colSpan={4} className="px-6 py-12 text-center text-zinc-600 text-sm">No records yet. Run a symptom analysis to begin.</td></tr>
                 )}
               </tbody>
             </table>
-          </motion.div>
+          </div>
         </section>
 
         <section>
-          <h2 className="text-2xl font-black tracking-tight mb-6">AI Insights</h2>
-          <div className="glass-card rounded-[2rem] p-7 space-y-5 border border-white/[0.06] relative overflow-hidden">
+          <h2 className="text-2xl font-black mb-5 text-white">AI Insights</h2>
+          <div className="glass-card rounded-[2rem] p-7 space-y-4 border border-white/[0.07] relative overflow-hidden">
             <ScanLine />
-            {[
-              { title: "System Status", body: "All diagnostic engines online. ML model loaded and running at peak efficiency.", icon: Zap, color: "emerald" },
-              { title: "Quick Actions", body: "Navigate to Diagnostics, Patient Registry, or Records from the sidebar.", icon: Brain, color: "sky" },
-            ].map(({ title, body, icon: I, color }, i) => (
-              <motion.div
-                key={title}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.7 + i * 0.1 }}
-                className={`p-5 rounded-2xl bg-${color}-500/5 border border-${color}-500/10 hover:border-${color}-500/20 transition-all group`}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <I size={14} className={`text-${color}-400`} />
-                  <h4 className="font-bold text-sm">{title}</h4>
-                </div>
-                <p className="text-sm text-zinc-400 leading-relaxed">{body}</p>
-              </motion.div>
-            ))}
+            <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="p-5 rounded-2xl border transition-all" style={{ background: "rgba(16,185,129,0.05)", borderColor: "rgba(16,185,129,0.15)" }}>
+              <div className="flex items-center gap-2 mb-2"><Zap size={13} style={{ color: "#34d399" }} /><h4 className="font-bold text-sm">System Status</h4></div>
+              <p className="text-sm text-zinc-400 leading-relaxed">All diagnostic engines online. ML model loaded and running at peak efficiency.</p>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.7 }} className="p-5 rounded-2xl border transition-all" style={{ background: "rgba(14,165,233,0.05)", borderColor: "rgba(14,165,233,0.15)" }}>
+              <div className="flex items-center gap-2 mb-2"><Brain size={13} style={{ color: "#38bdf8" }} /><h4 className="font-bold text-sm">Quick Actions</h4></div>
+              <p className="text-sm text-zinc-400 leading-relaxed">Navigate to Diagnostics, Patient Registry, or Records from the sidebar.</p>
+            </motion.div>
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Link href="/dashboard/symptoms" className="w-full py-4 rounded-2xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 font-bold transition-all flex items-center justify-center gap-2 text-sky-400">
-                <Activity size={16} />
-                New Diagnostic Analysis
+              <Link href="/dashboard/symptoms" className="w-full py-4 rounded-2xl border font-bold transition-all flex items-center justify-center gap-2 text-sm" style={{ background: "rgba(14,165,233,0.08)", borderColor: "rgba(14,165,233,0.2)", color: "#38bdf8" }}>
+                <Activity size={15} />New Diagnostic Analysis
               </Link>
             </motion.div>
           </div>
@@ -481,109 +454,74 @@ export default function Dashboard() {
 
   const PatientDashboard = () => (
     <motion.div variants={containerVariants} initial="hidden" animate="visible">
-      {/* Header */}
-      <motion.header variants={itemVariants} className="flex flex-wrap justify-between items-start gap-6 mb-14">
+      <motion.header variants={itemVariants} className="flex flex-wrap justify-between items-start gap-6 mb-12">
         <div>
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3 mb-1">
             <motion.div
-              className="p-2.5 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-500 shadow-xl shadow-rose-500/30"
-              animate={{ scale: [1, 1.08, 1] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="p-2.5 rounded-2xl"
+              style={{ background: "linear-gradient(135deg, #f43f5e, #ec4899)", boxShadow: "0 12px 32px rgba(244,63,94,0.35)" }}
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
             >
               <HeartPulse size={22} className="text-white" />
             </motion.div>
-            <PulseDots />
+            <PulseDots color="#f43f5e" />
           </div>
-          <motion.h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-rose-200 via-pink-300 to-red-400 bg-clip-text text-transparent">
+          <h1
+            className="text-5xl font-black tracking-tight"
+            style={{ backgroundImage: "linear-gradient(135deg, #fecdd3, #fda4af, #f43f5e, #ec4899)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
+          >
             My Health Portal
-          </motion.h1>
-          <p className="text-zinc-500 mt-2 font-bold">
-            Welcome back, {user?.email?.split("@")[0] || "Patient"}
-          </p>
+          </h1>
+          <p className="text-zinc-500 mt-1 font-bold">Welcome back, {user?.email?.split("@")[0] || "Patient"}</p>
           <StatusBar />
         </div>
 
         <div className="flex items-center space-x-4">
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="relative glass-card p-3 rounded-2xl text-zinc-400 hover:text-white cursor-pointer transition-all border border-white/[0.06] hover:border-white/[0.15]"
-          >
+          <motion.div whileHover={{ scale: 1.08 }} className="relative glass-card p-3 rounded-2xl text-zinc-400 hover:text-white cursor-pointer transition-all">
             <Bell size={20} />
-            <motion.div
-              className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full ring-4 ring-[#050505]"
-              animate={{ scale: [1, 1.4, 1] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-            />
+            <motion.div className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full ring-4 ring-[#050505]" animate={{ scale: [1, 1.5, 1] }} transition={{ duration: 1.5, repeat: Infinity }} />
           </motion.div>
-
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-            <Link
-              href="/dashboard/symptoms"
-              className="relative overflow-hidden bg-gradient-to-r from-rose-500 to-pink-500 text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2 shadow-xl shadow-rose-500/25"
-            >
-              <motion.div
-                className="absolute inset-0 opacity-30"
-                style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)" }}
-                animate={{ x: ["-100%", "100%"] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              />
-              <Activity size={20} strokeWidth={3} className="relative z-10" />
-              <span className="relative z-10">Check Symptoms</span>
-            </Link>
-          </motion.div>
+          <ShimmerButton href="/dashboard/symptoms" gradFrom="#f43f5e" gradTo="#ec4899" shadow="rgba(244,63,94,0.3)">
+            <Activity size={20} strokeWidth={3} />
+            <span>Check Symptoms</span>
+          </ShimmerButton>
         </div>
       </motion.header>
 
-      {/* Stat Cards */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-14">
-        <StatCard3D label="Health Score" value="Good" icon={HeartPulse} trend="+stable" gradient="from-rose-500 to-pink-500" glowColor="rgba(244,63,94,0.15)" delay={0} />
-        <StatCard3D label="Medical Records" value={stats ? String(stats.recent_records.filter(r => r.patient_id === user?.id).length) : "—"} icon={ClipboardList} trend="+latest" gradient="from-violet-500 to-purple-500" glowColor="rgba(139,92,246,0.15)" delay={0.1} />
-        <StatCard3D label="Appointments" value="1" icon={Clock} trend="tomorrow" gradient="from-emerald-500 to-teal-500" glowColor="rgba(16,185,129,0.15)" delay={0.2} />
-        <StatCard3D label="Medications" value="2 Active" icon={Pill} trend="on track" gradient="from-amber-500 to-orange-500" glowColor="rgba(245,158,11,0.15)" delay={0.3} />
+      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
+        <StatCard3D label="Health Score" value="Good" icon={HeartPulse} trend="+stable" gradFrom="#f43f5e" gradTo="#ec4899" glowColor="rgba(244,63,94,0.2)" delay={0} />
+        <StatCard3D label="Medical Records" value={stats ? String(stats.recent_records.filter(r => r.patient_id === user?.id).length) : "—"} icon={ClipboardList} trend="+latest" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} />
+        <StatCard3D label="Appointments" value="1" icon={Clock} trend="tomorrow" gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} />
+        <StatCard3D label="Medications" value="2 Active" icon={Pill} trend="on track" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} />
       </motion.div>
 
-      {/* Records + Insights */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <section className="xl:col-span-2">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-black tracking-tight bg-gradient-to-r from-rose-200 to-pink-300 bg-clip-text text-transparent">
+          <div className="flex justify-between items-center mb-5">
+            <h2 className="text-2xl font-black" style={{ backgroundImage: "linear-gradient(135deg, #fecdd3, #fda4af)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
               Recent Diagnoses
             </h2>
-            <Link href="/dashboard/records" className="text-rose-500 text-sm font-bold hover:text-rose-400 flex items-center space-x-1 group">
-              <span>View All</span>
-              <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+            <Link href="/dashboard/records" className="text-rose-500 text-sm font-bold hover:text-rose-400 flex items-center gap-1 group">
+              <span>View All</span><ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
-
-          <motion.div
-            className="glass-card rounded-[2rem] overflow-hidden border border-white/[0.06] relative"
-            whileHover={{ borderColor: "rgba(255,255,255,0.12)" }}
-          >
+          <div className="glass-card rounded-[2rem] overflow-hidden border border-white/[0.07] relative">
             <ScanLine />
             <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-white/5 bg-white/[0.02]">
-                  {["AI Prediction", "Specialist", "Confidence", "Date"].map((h) => (
-                    <th key={h} className="px-6 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">{h}</th>
-                  ))}
-                </tr>
-              </thead>
+              <thead><tr className="border-b border-white/5 bg-white/[0.02]">
+                {["AI Prediction","Specialist","Confidence","Date"].map(h => <th key={h} className="px-6 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">{h}</th>)}
+              </tr></thead>
               <tbody className="divide-y divide-white/[0.04]">
                 {stats?.recent_records?.some(r => r.patient_id === user?.id) ? (
                   stats.recent_records.filter(r => r.patient_id === user?.id).map((r, idx) => (
-                    <motion.tr
-                      key={r.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.6 + idx * 0.08 }}
-                      className="group hover:bg-white/[0.03] transition-colors"
-                    >
+                    <motion.tr key={r.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + idx * 0.07 }} className="hover:bg-white/[0.03] transition-colors">
                       <td className="px-6 py-5 font-bold text-zinc-200">{r.ai_prediction || "Pending"}</td>
                       <td className="px-6 py-5 text-zinc-400 text-sm">{r.recommended_specialist || "General Physician"}</td>
                       <td className="px-6 py-5">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-2">
                           <div className="w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                            <motion.div initial={{ width: 0 }} animate={{ width: `${r.confidence_score || 0}%` }} transition={{ duration: 1, delay: 0.7 }} className="h-full bg-gradient-to-r from-rose-500 to-pink-400 rounded-full" />
+                            <motion.div initial={{ width: 0 }} animate={{ width: `${r.confidence_score || 0}%` }} transition={{ duration: 1, delay: 0.6 }} className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #f43f5e, #ec4899)" }} />
                           </div>
                           <span className="text-xs font-bold text-zinc-300">{r.confidence_score ? `${r.confidence_score}%` : "—"}</span>
                         </div>
@@ -592,39 +530,28 @@ export default function Dashboard() {
                     </motion.tr>
                   ))
                 ) : (
-                  <tr><td colSpan={4} className="px-6 py-14 text-center text-zinc-600">No records yet. Run a symptom check to get started.</td></tr>
+                  <tr><td colSpan={4} className="px-6 py-12 text-center text-zinc-600 text-sm">No records yet. Run a symptom check to get started.</td></tr>
                 )}
               </tbody>
             </table>
-          </motion.div>
+          </div>
         </section>
 
         <section>
-          <h2 className="text-2xl font-black tracking-tight mb-6">Health Insights</h2>
-          <div className="glass-card rounded-[2rem] p-7 space-y-5 border border-white/[0.06] relative overflow-hidden">
+          <h2 className="text-2xl font-black mb-5 text-white">Health Insights</h2>
+          <div className="glass-card rounded-[2rem] p-7 space-y-4 border border-white/[0.07] relative overflow-hidden">
             <ScanLine />
-            {[
-              { title: "AI Health Tip", body: "Stay hydrated and monitor your sleep patterns to improve your health score further.", icon: Zap, color: "rose" },
-              { title: "Next Steps", body: "Review recent diagnoses and book with the recommended specialist if symptoms persist.", icon: ClipboardList, color: "violet" },
-            ].map(({ title, body, icon: I, color }, i) => (
-              <motion.div
-                key={title}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.7 + i * 0.1 }}
-                className={`p-5 rounded-2xl bg-${color}-500/5 border border-${color}-500/10 hover:border-${color}-500/20 transition-all`}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <I size={14} className={`text-${color}-400`} />
-                  <h4 className="font-bold text-sm">{title}</h4>
-                </div>
-                <p className="text-sm text-zinc-400 leading-relaxed">{body}</p>
-              </motion.div>
-            ))}
+            <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="p-5 rounded-2xl border transition-all" style={{ background: "rgba(244,63,94,0.05)", borderColor: "rgba(244,63,94,0.15)" }}>
+              <div className="flex items-center gap-2 mb-2"><Zap size={13} style={{ color: "#fb7185" }} /><h4 className="font-bold text-sm">AI Health Tip</h4></div>
+              <p className="text-sm text-zinc-400 leading-relaxed">Stay hydrated and monitor your sleep patterns to improve your health score further.</p>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.7 }} className="p-5 rounded-2xl border transition-all" style={{ background: "rgba(139,92,246,0.05)", borderColor: "rgba(139,92,246,0.15)" }}>
+              <div className="flex items-center gap-2 mb-2"><ClipboardList size={13} style={{ color: "#c4b5fd" }} /><h4 className="font-bold text-sm">Next Steps</h4></div>
+              <p className="text-sm text-zinc-400 leading-relaxed">Review recent diagnoses and book with the recommended specialist if symptoms persist.</p>
+            </motion.div>
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Link href="/dashboard/symptoms" className="w-full py-4 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 font-bold transition-all flex items-center justify-center gap-2 text-rose-400">
-                <Activity size={16} />
-                Analyze New Symptoms
+              <Link href="/dashboard/symptoms" className="w-full py-4 rounded-2xl border font-bold transition-all flex items-center justify-center gap-2 text-sm" style={{ background: "rgba(244,63,94,0.08)", borderColor: "rgba(244,63,94,0.2)", color: "#fb7185" }}>
+                <Activity size={15} />Analyze New Symptoms
               </Link>
             </motion.div>
           </div>
@@ -634,14 +561,14 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="relative min-h-screen">
-      {/* Global background effects */}
+    <div className="relative min-h-full">
+      {/* Background effects — absolute so they fill the main content area */}
       <Particles />
       <GridBackground />
       <GradientOrbs isDoctor={isDoctor} />
       <FloatingIcons isDoctor={isDoctor} />
 
-      {/* Content */}
+      {/* Content on top */}
       <div className="relative z-10">
         <AnimatePresence mode="wait">
           {isDoctor ? <DoctorDashboard key="doctor" /> : <PatientDashboard key="patient" />}
