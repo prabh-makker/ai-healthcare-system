@@ -1,12 +1,24 @@
 @import "tailwindcss";
 
-:root {
+:root,
+.dark {
   --background: #050505;
   --foreground: #ffffff;
   --primary: #0ea5e9;
+  --accent: #0ea5e9;
   --glass-bg: rgba(255, 255, 255, 0.03);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-shine: rgba(255, 255, 255, 0.1);
+}
+
+.light {
+  --background: #f8f9fa;
+  --foreground: #1a1a1a;
+  --primary: #0ea5e9;
+  --accent: #0ea5e9;
+  --glass-bg: rgba(0, 0, 0, 0.03);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-shine: rgba(0, 0, 0, 0.1);
 }
 
 body {

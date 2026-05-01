@@ -171,10 +171,6 @@ export default function Login() {
     setMounted(true);
   }, []);
 
-  // Clear any existing session when visiting login page
-  useEffect(() => {
-    logout();
-  }, [logout]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
