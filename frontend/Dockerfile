@@ -30,10 +30,7 @@ RUN addgroup -g 1001 nextjs && \
 COPY --from=builder --chown=nextjs:nextjs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nextjs /app/public ./public
 COPY --from=builder --chown=nextjs:nextjs /app/package*.json ./
-
-# Install production dependencies only
-RUN npm install --production --legacy-peer-deps && \
-    npm cache clean --force
+COPY --from=builder --chown=nextjs:nextjs /app/node_modules ./node_modules
 
 USER nextjs
 

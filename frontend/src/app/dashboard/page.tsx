@@ -42,34 +42,51 @@ const StatCard = ({
   icon: Icon,
   trend,
   color,
+  delay,
 }: {
   label: string;
   value: string;
   icon: React.ElementType;
   trend: string;
   color: string;
+  delay?: number;
 }) => (
   <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    whileHover={{ y: -5 }}
-    className="glass-card p-6 rounded-[2rem]"
+    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    whileHover={{ y: -8, scale: 1.02 }}
+    transition={{ type: "spring", stiffness: 100, damping: 15, delay: delay || 0 }}
+    className="group relative overflow-hidden rounded-[2rem] p-6 glass-card border border-white/[0.08] hover:border-white/[0.15]"
   >
+    <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-5 transition-opacity duration-500 -z-10`} />
     <div className="flex justify-between items-start mb-4">
-      <div className={`p-3 rounded-2xl ${color} bg-opacity-20`}>
-        <Icon size={24} className={color.replace("bg-", "text-")} />
-      </div>
-      <div
-        className={`flex items-center space-x-1 text-xs font-bold ${
-          trend.startsWith("+") ? "text-emerald-400" : "text-sky-400"
+      <motion.div
+        className={`p-3 rounded-2xl ${color.replace("text-", "bg-")} bg-opacity-10 group-hover:bg-opacity-20 transition-all`}
+        whileHover={{ rotate: 10, scale: 1.1 }}
+      >
+        <Icon size={26} className={color.replace("bg-", "text-")} />
+      </motion.div>
+      <motion.div
+        className={`flex items-center space-x-1.5 text-xs font-black px-2 py-1 rounded-lg ${
+          trend.startsWith("+") ? "bg-emerald-500/10 text-emerald-400" : "bg-sky-500/10 text-sky-400"
         }`}
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: (delay || 0) + 0.2, type: "spring" }}
       >
         <span>{trend}</span>
-        <ArrowUpRight size={14} />
-      </div>
+        <ArrowUpRight size={12} />
+      </motion.div>
     </div>
-    <p className="text-zinc-500 text-sm font-medium uppercase tracking-wider">{label}</p>
-    <h3 className="text-3xl font-bold mt-1 tracking-tight">{value}</h3>
+    <p className="text-zinc-600 text-xs font-black uppercase tracking-[0.15em]">{label}</p>
+    <motion.h3
+      className="text-4xl font-black mt-2 tracking-tight"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: (delay || 0) + 0.1 }}
+    >
+      {value}
+    </motion.h3>
   </motion.div>
 );
 
@@ -85,10 +102,16 @@ export default function Dashboard() {
 
   const DoctorDashboard = () => (
     <>
-      <header className="flex justify-between items-center mb-16">
+      <motion.header
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex justify-between items-center mb-16"
+      >
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-gradient">Clinical Dashboard</h1>
-          <p className="text-zinc-500 mt-2 font-medium">
+          <h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-sky-200 via-blue-400 to-cyan-500 bg-clip-text text-transparent">
+            Clinical Dashboard
+          </h1>
+          <p className="text-zinc-500 mt-3 font-bold text-base">
             Welcome back, Dr. {user?.email?.split("@")[0] || "Physician"}
           </p>
         </div>
@@ -116,7 +139,7 @@ export default function Dashboard() {
             <span>Initiate Triage</span>
           </Link>
         </div>
-      </header>
+      </motion.header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
         <StatCard
@@ -125,6 +148,7 @@ export default function Dashboard() {
           icon={Users}
           trend="+active"
           color="bg-sky-500"
+          delay={0}
         />
         <StatCard
           label="Medical Records"
@@ -132,6 +156,7 @@ export default function Dashboard() {
           icon={Activity}
           trend="+records"
           color="bg-violet-500"
+          delay={0.1}
         />
         <StatCard
           label="Model Precision"
@@ -139,6 +164,7 @@ export default function Dashboard() {
           icon={ShieldCheck}
           trend="+1.2%"
           color="bg-emerald-500"
+          delay={0.2}
         />
         <StatCard
           label="Doctors Active"
@@ -146,13 +172,21 @@ export default function Dashboard() {
           icon={TrendingUp}
           trend="+staff"
           color="bg-amber-500"
+          delay={0.3}
         />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="grid grid-cols-1 xl:grid-cols-3 gap-8"
+      >
         <section className="xl:col-span-2">
           <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold tracking-tight">Recent Diagnostic Records</h2>
+            <h2 className="text-3xl font-black tracking-tight bg-gradient-to-r from-sky-200 to-blue-300 bg-clip-text text-transparent">
+              Recent Diagnostic Records
+            </h2>
             <Link
               href="/dashboard/records"
               className="text-sky-500 text-sm font-bold hover:text-sky-400 flex items-center space-x-1 group"
@@ -247,16 +281,22 @@ export default function Dashboard() {
             </Link>
           </div>
         </section>
-      </div>
+      </motion.div>
     </>
   );
 
   const PatientDashboard = () => (
     <>
-      <header className="flex justify-between items-center mb-16">
+      <motion.header
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex justify-between items-center mb-16"
+      >
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-gradient">My Health Portal</h1>
-          <p className="text-zinc-500 mt-2 font-medium">
+          <h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-rose-200 via-pink-400 to-red-500 bg-clip-text text-transparent">
+            My Health Portal
+          </h1>
+          <p className="text-zinc-500 mt-3 font-bold text-base">
             Welcome back, {user?.email?.split("@")[0] || "Patient"}
           </p>
         </div>
@@ -275,7 +315,7 @@ export default function Dashboard() {
             <span>Check Symptoms</span>
           </Link>
         </div>
-      </header>
+      </motion.header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
         <StatCard
@@ -284,6 +324,7 @@ export default function Dashboard() {
           icon={HeartPulse}
           trend="+stable"
           color="bg-rose-500"
+          delay={0}
         />
         <StatCard
           label="Medical Records"
@@ -291,6 +332,7 @@ export default function Dashboard() {
           icon={ClipboardList}
           trend="+latest"
           color="bg-violet-500"
+          delay={0.1}
         />
         <StatCard
           label="Appointments"
@@ -298,6 +340,7 @@ export default function Dashboard() {
           icon={Clock}
           trend="tomorrow"
           color="bg-emerald-500"
+          delay={0.2}
         />
         <StatCard
           label="Medications"
@@ -305,13 +348,21 @@ export default function Dashboard() {
           icon={Pill}
           trend="on track"
           color="bg-amber-500"
+          delay={0.3}
         />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="grid grid-cols-1 xl:grid-cols-3 gap-8"
+      >
         <section className="xl:col-span-2">
           <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold tracking-tight">Recent Diagnoses</h2>
+            <h2 className="text-3xl font-black tracking-tight bg-gradient-to-r from-rose-200 to-pink-300 bg-clip-text text-transparent">
+              Recent Diagnoses
+            </h2>
             <Link
               href="/dashboard/records"
               className="text-rose-500 text-sm font-bold hover:text-rose-400 flex items-center space-x-1 group"
@@ -407,7 +458,7 @@ export default function Dashboard() {
             </Link>
           </div>
         </section>
-      </div>
+      </motion.div>
     </>
   );
 

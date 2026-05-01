@@ -41,7 +41,7 @@ export default function SymptomChecker() {
     record_id?: string | null;
   } | null>(null);
   const [error, setError] = useState("");
-  const { showToast } = useToast();
+  const { toast: showToast } = useToast();
 
   const toggleSymptom = (id: string) => {
     setSelectedSymptoms((prev) =>

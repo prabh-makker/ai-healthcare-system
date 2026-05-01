@@ -1,4 +1,3 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 
 export class APIError extends Error {
@@ -32,7 +31,7 @@ async function request(path: string, options: RequestInit = {}) {
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
   try {
-    const res = await fetch(`${API_URL}${path}`, {
+    const res = await fetch(path, {
       ...options,
       headers,
       signal: controller.signal,

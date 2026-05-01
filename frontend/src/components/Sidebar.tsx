@@ -3,16 +3,17 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  Activity, 
-  Users, 
-  ClipboardList, 
-  Calendar, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Activity,
+  Users,
+  ClipboardList,
+  Calendar,
+  Settings,
   LogOut,
   HeartPulse,
-  Search
+  Search,
+  BarChart3
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
@@ -55,10 +56,14 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
   const isDoctor = user?.role === "DOCTOR";
 
+  const isAdmin = user?.role === "ADMIN";
+
   const menuItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
     { href: "/dashboard/symptoms", icon: HeartPulse, label: "Diagnostics" },
-    ...(isDoctor ? [
+    ...(isAdmin ? [
+      { href: "/dashboard/admin", icon: BarChart3, label: "Admin" },
+    ] : isDoctor ? [
       { href: "/dashboard/patients", icon: Users, label: "Patients" },
       { href: "/dashboard/records", icon: ClipboardList, label: "Records" },
     ] : [
