@@ -190,7 +190,7 @@ function StatCard3D({
         style={{ background: glowColor }}
       />
 
-      <div className="relative overflow-hidden rounded-[2rem] p-6 glass-card border border-white/[0.08] group-hover:border-white/[0.2] transition-all duration-300">
+      <div className="relative overflow-hidden rounded-[2rem] p-4 md:p-6 glass-card border border-white/[0.08] group-hover:border-white/[0.2] transition-all duration-300">
         <ScanLine />
 
         {/* BG gradient sweep on hover */}
@@ -233,9 +233,10 @@ function StatCard3D({
             </motion.div>
           </div>
 
-          <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.18em]">{label}</p>
+          <p className="text-zinc-400 text-xs font-semibold uppercase tracking-widest">{label}</p>
           <motion.h3
-            className="text-4xl font-black mt-1.5 tracking-tight text-white"
+            className="text-2xl lg:text-3xl font-bold mt-2 tracking-tight"
+            style={{ color: "var(--foreground)", fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: (delay || 0) + 0.15 }}
@@ -281,7 +282,8 @@ function StatusBar() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: 1 }}
-      className="flex items-center space-x-4 text-[10px] text-zinc-600 font-mono mt-1"
+      className="flex items-center space-x-4 text-[11px] font-mono mt-1.5 tracking-wide"
+      style={{ color: "var(--foreground)", opacity: 0.45 }}
     >
       <div className="flex items-center space-x-1.5">
         <motion.div
@@ -383,7 +385,7 @@ export default function Dashboard() {
         </div>
       </motion.header>
 
-      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12 overflow-hidden">
         <StatCard3D label="Total Patients" value={stats ? String(stats.total_patients) : "—"} icon={Users} trend="+active" gradFrom="#0ea5e9" gradTo="#06b6d4" glowColor="rgba(14,165,233,0.2)" delay={0} />
         <StatCard3D label="Medical Records" value={stats ? String(stats.total_records) : "—"} icon={Activity} trend="+records" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} />
         <StatCard3D label="Model Precision" value="98.4%" icon={Brain} trend="+1.2%" gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} />
@@ -393,7 +395,7 @@ export default function Dashboard() {
       <motion.div variants={itemVariants} className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <section className="xl:col-span-2">
           <div className="flex justify-between items-center mb-5">
-            <h2 className="text-2xl font-black" style={{ backgroundImage: "linear-gradient(135deg, #bae6fd, #7dd3fc)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
+            <h2 className="text-xl font-bold" style={{ backgroundImage: "linear-gradient(135deg, #bae6fd, #7dd3fc)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
               Recent Diagnostic Records
             </h2>
             <Link href="/dashboard/records" className="text-sky-500 text-sm font-bold hover:text-sky-400 flex items-center gap-1 group">
@@ -404,19 +406,19 @@ export default function Dashboard() {
             <ScanLine />
             <table className="w-full text-left">
               <thead><tr className="border-b border-white/5 bg-white/[0.02]">
-                {["Diagnosis","Symptoms","Confidence","Date"].map(h => <th key={h} className="px-6 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">{h}</th>)}
+                {["Diagnosis","Symptoms","Confidence","Date"].map(h => <th key={h} className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">{h}</th>)}
               </tr></thead>
               <tbody className="divide-y divide-white/[0.04]">
                 {stats?.recent_records?.length ? stats.recent_records.map((r, idx) => (
                   <motion.tr key={r.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + idx * 0.07 }} className="hover:bg-white/[0.03] transition-colors">
-                    <td className="px-6 py-5 font-bold text-zinc-200">{r.ai_prediction || "Pending"}</td>
-                    <td className="px-6 py-5 text-zinc-400 text-sm">{r.symptoms?.slice(0,2).join(", ") || "—"}</td>
+                    <td className="px-6 py-5 font-bold" style={{ color: "var(--foreground)" }}>{r.ai_prediction || "Pending"}</td>
+                    <td className="px-6 py-5 text-sm" style={{ color: "var(--foreground)", opacity: 0.6 }}>{r.symptoms?.slice(0,2).join(", ") || "—"}</td>
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-2">
                         <div className="w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                           <motion.div initial={{ width: 0 }} animate={{ width: `${r.confidence_score || 0}%` }} transition={{ duration: 1, delay: 0.6 }} className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #0ea5e9, #06b6d4)" }} />
                         </div>
-                        <span className="text-xs font-bold text-zinc-300">{r.confidence_score ? `${r.confidence_score}%` : "—"}</span>
+                        <span className="text-xs font-bold" style={{ color: "var(--foreground)", opacity: 0.8 }}>{r.confidence_score ? `${r.confidence_score}%` : "—"}</span>
                       </div>
                     </td>
                     <td className="px-6 py-5 text-zinc-500 text-sm">{r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}</td>
@@ -430,7 +432,7 @@ export default function Dashboard() {
         </section>
 
         <section>
-          <h2 className="text-2xl font-black mb-5 text-white">AI Insights</h2>
+          <h2 className="text-xl font-bold mb-5" style={{ color: "var(--foreground)" }}>AI Insights</h2>
           <div className="glass-card rounded-[2rem] p-7 space-y-4 border border-white/[0.07] relative overflow-hidden">
             <ScanLine />
             <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="p-5 rounded-2xl border transition-all" style={{ background: "rgba(16,185,129,0.05)", borderColor: "rgba(16,185,129,0.15)" }}>
@@ -489,7 +491,7 @@ export default function Dashboard() {
         </div>
       </motion.header>
 
-      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12 overflow-hidden">
         <StatCard3D label="Health Score" value="Good" icon={HeartPulse} trend="+stable" gradFrom="#f43f5e" gradTo="#ec4899" glowColor="rgba(244,63,94,0.2)" delay={0} />
         <StatCard3D label="Medical Records" value={stats ? String(stats.recent_records.filter(r => r.patient_id === user?.id).length) : "—"} icon={ClipboardList} trend="+latest" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} />
         <StatCard3D label="Appointments" value="1" icon={Clock} trend="tomorrow" gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} />
@@ -499,7 +501,7 @@ export default function Dashboard() {
       <motion.div variants={itemVariants} className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <section className="xl:col-span-2">
           <div className="flex justify-between items-center mb-5">
-            <h2 className="text-2xl font-black" style={{ backgroundImage: "linear-gradient(135deg, #fecdd3, #fda4af)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
+            <h2 className="text-xl font-bold" style={{ backgroundImage: "linear-gradient(135deg, #fecdd3, #fda4af)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
               Recent Diagnoses
             </h2>
             <Link href="/dashboard/records" className="text-rose-500 text-sm font-bold hover:text-rose-400 flex items-center gap-1 group">
@@ -510,20 +512,20 @@ export default function Dashboard() {
             <ScanLine />
             <table className="w-full text-left">
               <thead><tr className="border-b border-white/5 bg-white/[0.02]">
-                {["AI Prediction","Specialist","Confidence","Date"].map(h => <th key={h} className="px-6 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">{h}</th>)}
+                {["AI Prediction","Specialist","Confidence","Date"].map(h => <th key={h} className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">{h}</th>)}
               </tr></thead>
               <tbody className="divide-y divide-white/[0.04]">
                 {stats?.recent_records?.some(r => r.patient_id === user?.id) ? (
                   stats.recent_records.filter(r => r.patient_id === user?.id).map((r, idx) => (
                     <motion.tr key={r.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + idx * 0.07 }} className="hover:bg-white/[0.03] transition-colors">
-                      <td className="px-6 py-5 font-bold text-zinc-200">{r.ai_prediction || "Pending"}</td>
-                      <td className="px-6 py-5 text-zinc-400 text-sm">{r.recommended_specialist || "General Physician"}</td>
+                      <td className="px-6 py-5 font-bold" style={{ color: "var(--foreground)" }}>{r.ai_prediction || "Pending"}</td>
+                      <td className="px-6 py-5 text-sm" style={{ color: "var(--foreground)", opacity: 0.6 }}>{r.recommended_specialist || "General Physician"}</td>
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-2">
                           <div className="w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                             <motion.div initial={{ width: 0 }} animate={{ width: `${r.confidence_score || 0}%` }} transition={{ duration: 1, delay: 0.6 }} className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #f43f5e, #ec4899)" }} />
                           </div>
-                          <span className="text-xs font-bold text-zinc-300">{r.confidence_score ? `${r.confidence_score}%` : "—"}</span>
+                          <span className="text-xs font-bold" style={{ color: "var(--foreground)", opacity: 0.8 }}>{r.confidence_score ? `${r.confidence_score}%` : "—"}</span>
                         </div>
                       </td>
                       <td className="px-6 py-5 text-zinc-500 text-sm">{r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}</td>
@@ -538,7 +540,7 @@ export default function Dashboard() {
         </section>
 
         <section>
-          <h2 className="text-2xl font-black mb-5 text-white">Health Insights</h2>
+          <h2 className="text-xl font-bold mb-5" style={{ color: "var(--foreground)" }}>Health Insights</h2>
           <div className="glass-card rounded-[2rem] p-7 space-y-4 border border-white/[0.07] relative overflow-hidden">
             <ScanLine />
             <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="p-5 rounded-2xl border transition-all" style={{ background: "rgba(244,63,94,0.05)", borderColor: "rgba(244,63,94,0.15)" }}>

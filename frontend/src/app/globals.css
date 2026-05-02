@@ -39,14 +39,24 @@ body {
 
   .glass-card:hover {
     border-color: var(--glass-shine);
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--glass-bg);
+  }
+
+  .light .glass-card:hover {
+    background: rgba(0, 0, 0, 0.04);
   }
 
   .glass-nav {
-    background: rgba(5, 5, 5, 0.8);
+    background: rgba(5, 5, 5, 0.85);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-right: 1px solid var(--glass-border);
+    transition: background 0.3s ease, border-color 0.3s ease;
+  }
+
+  .light .glass-nav {
+    background: rgba(248, 249, 250, 0.92);
+    border-right-color: rgba(0, 0, 0, 0.08);
   }
 
   .text-gradient {

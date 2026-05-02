@@ -35,11 +35,11 @@ const SidebarItem = ({
       whileTap={{ scale: 0.95 }}
       className={`flex items-center space-x-4 px-6 py-4 rounded-2xl transition-all duration-300 group ${
         isActive 
-          ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" 
-          : "text-zinc-500 hover:text-white hover:bg-white/5"
+          ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20"
+          : "text-zinc-500 hover:text-[var(--foreground)] hover:bg-black/5"
       }`}
     >
-      <Icon size={22} className={isActive ? "text-white" : "group-hover:text-white transition-colors"} />
+      <Icon size={22} className={isActive ? "text-white" : "transition-colors"} style={isActive ? {} : { color: "inherit" }} />
       <span className="font-bold tracking-tight">{label}</span>
       {isActive && (
         <motion.div
@@ -74,7 +74,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-80 h-screen sticky top-0 bg-[#080808] border-r border-white/5 p-8 flex flex-col">
+    <aside className="w-80 h-screen sticky top-0 border-r p-8 flex flex-col glass-nav" style={{ color: "var(--foreground)" }}>
       <div className="flex items-center space-x-3 px-2 mb-12">
         <div className="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-sky-500/20">
           <Activity size={24} className="text-white" strokeWidth={3} />
