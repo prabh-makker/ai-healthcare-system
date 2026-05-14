@@ -206,7 +206,7 @@ export default function Login() {
       if (loggedUser.role !== role) {
         setError(`Access denied. This is a ${role.toLowerCase()} portal, but you are registered as a ${loggedUser.role.toLowerCase()}.`);
         setLoading(false);
-        logout();
+        await logout();
         return;
       }
 
