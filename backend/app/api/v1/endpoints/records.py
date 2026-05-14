@@ -71,23 +71,29 @@ def get_records(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Enforce maximum limit to prevent pagination bombs
+    if limit > 100:
+        raise HTTPException(status_code=400, detail="Limit cannot exceed 100.")
+    if skip < 0:
+        raise HTTPException(status_code=400, detail="Skip cannot be negative.")
+
+    query = db.query(MedicalRecord)
+
     if current_user.role == UserRole.PATIENT:
-        records = (
-            db.query(MedicalRecord)
-            .filter(MedicalRecord.patient_id == current_user.id)
-            .order_by(MedicalRecord.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-    else:
-        records = (
-            db.query(MedicalRecord)
-            .order_by(MedicalRecord.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
+        # Patients see only their own records
+        query = query.filter(MedicalRecord.patient_id == current_user.id)
+    elif current_user.role == UserRole.DOCTOR:
+        # Doctors see only records assigned to them
+        query = query.filter(MedicalRecord.doctor_id == current_user.id)
+    # ADMIN sees all records
+
+    records = (
+        query
+        .order_by(MedicalRecord.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
     return [_serialize(r) for r in records]
 
 
