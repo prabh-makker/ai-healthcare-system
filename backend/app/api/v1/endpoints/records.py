@@ -143,15 +143,16 @@ def patch_record(
     record = db.query(MedicalRecord).filter(MedicalRecord.id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
+    # Verify doctor is assigned to this record
+    if str(record.doctor_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="You are not assigned to this record")
     if body.doctor_notes is not None:
         record.doctor_notes = body.doctor_notes
-        record.doctor_id = current_user.id
     if body.status is not None:
         allowed = {"pending", "approved", "reviewed"}
         if body.status not in allowed:
             raise HTTPException(status_code=422, detail=f"status must be one of {allowed}")
         record.status = body.status
-        record.doctor_id = current_user.id
     db.commit()
     db.refresh(record)
     return _serialize(record)
@@ -166,9 +167,19 @@ def delete_record(
     record = db.query(MedicalRecord).filter(MedicalRecord.id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
-    is_owner = str(record.patient_id) == str(current_user.id)
-    if current_user.role == UserRole.PATIENT and not is_owner:
+
+    # Authorization check: only patient owner or assigned doctor can delete
+    is_patient_owner = str(record.patient_id) == str(current_user.id)
+    is_assigned_doctor = str(record.doctor_id) == str(current_user.id)
+    is_admin = current_user.role == UserRole.ADMIN
+
+    if current_user.role == UserRole.PATIENT and not is_patient_owner:
         raise HTTPException(status_code=403, detail="Forbidden")
+    elif current_user.role == UserRole.DOCTOR and not is_assigned_doctor:
+        raise HTTPException(status_code=403, detail="You are not assigned to this record")
+    elif current_user.role not in [UserRole.PATIENT, UserRole.DOCTOR, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
     db.delete(record)
     db.commit()
     return None

@@ -48,9 +48,16 @@ def list_appointments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Validate pagination parameters
+    if limit > 100:
+        raise HTTPException(status_code=400, detail="Limit cannot exceed 100.")
+    if skip < 0:
+        raise HTTPException(status_code=400, detail="Skip cannot be negative.")
+
     if current_user.role == UserRole.ADMIN:
         records = db.query(Appointment).offset(skip).limit(limit).all()
     else:
+        # Non-admin users only see their own appointments
         records = (
             db.query(Appointment)
             .filter(Appointment.patient_id == current_user.id)
@@ -114,6 +121,9 @@ def update_appointment(
     appt = db.query(Appointment).filter(Appointment.id == appt_id).first()
     if not appt:
         raise HTTPException(status_code=404, detail="Appointment not found")
+    # Only patient owner or admin can update appointments
+    if current_user.role == UserRole.DOCTOR:
+        raise HTTPException(status_code=403, detail="Doctors cannot modify appointments")
     if str(appt.patient_id) != str(current_user.id) and current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Forbidden")
 
@@ -143,6 +153,9 @@ def cancel_appointment(
     appt = db.query(Appointment).filter(Appointment.id == appt_id).first()
     if not appt:
         raise HTTPException(status_code=404, detail="Appointment not found")
+    # Only patient owner or admin can cancel appointments
+    if current_user.role == UserRole.DOCTOR:
+        raise HTTPException(status_code=403, detail="Doctors cannot cancel appointments")
     if str(appt.patient_id) != str(current_user.id) and current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Forbidden")
     db.delete(appt)
