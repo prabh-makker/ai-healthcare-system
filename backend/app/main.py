@@ -49,13 +49,13 @@ def get_application() -> FastAPI:
     # Add metrics middleware (will be added via decorator after CORS)
     metrics_enabled = settings.PROMETHEUS_METRICS_ENABLED
 
-    # Add CORS middleware with specific origins
+    # Add CORS middleware with specific origins and methods
     _app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3006", "http://localhost:5173"],
+        allow_origins=settings.get_cors_origins(),
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
         max_age=600,
     )
 

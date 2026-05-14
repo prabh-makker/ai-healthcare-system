@@ -11,7 +11,7 @@ import numpy as np
 from app.core.config import settings
 from app.core.security import get_current_user
 from app.db.session import get_db
-from app.models.models import User, MedicalRecord
+from app.models.models import User, MedicalRecord, UserRole
 
 router = APIRouter()
 
@@ -81,7 +81,6 @@ def analyze_symptoms(
             detail={
                 "message": "None of the submitted symptoms were recognized.",
                 "unknown_symptoms": unknown_symptoms,
-                "available_symptoms": known_symptoms,
             },
         )
 
@@ -151,6 +150,10 @@ def analyze_xray(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Only doctors and admins can analyze X-rays
+    if current_user.role not in [UserRole.DOCTOR, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Only doctors and admins can analyze X-rays.")
+
     if not request.image_base64:
         raise HTTPException(status_code=400, detail="No image provided.")
 
@@ -193,6 +196,10 @@ def analyze_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Only doctors and admins can analyze clinical reports
+    if current_user.role not in [UserRole.DOCTOR, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Only doctors and admins can analyze reports.")
+
     if not request.report_text or len(request.report_text.strip()) < 10:
         raise HTTPException(status_code=400, detail="Report text is too short.")
 
