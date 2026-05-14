@@ -67,7 +67,20 @@ def get_application() -> FastAPI:
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Content-Security-Policy"] = "default-src '*' 'unsafe-inline' 'unsafe-eval'; img-src '*' data: blob:; font-src '*';"
+
+        # Strict Content-Security-Policy - only allow from same origin by default
+        csp = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'nonce-{nonce}'; "
+            "img-src 'self' data: blob: https:; "
+            "font-src 'self' data:; "
+            "connect-src 'self' http://localhost:* https:; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self';"
+        )
+        response.headers["Content-Security-Policy"] = csp
         return response
 
     # Log all requests
