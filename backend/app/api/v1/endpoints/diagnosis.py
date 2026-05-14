@@ -87,11 +87,14 @@ def analyze_symptoms(
     pred_idx = model.predict(profile)[0]
     pred_proba = np.max(model.predict_proba(profile)) * 100
 
-    if isinstance(pred_idx, (int, np.integer)) and classes:
-        disease_name = classes[pred_idx] if pred_idx < len(classes) else str(pred_idx)
-    else:
-        disease_name = str(pred_idx)
+    # Validate model output
+    if not isinstance(pred_idx, (int, np.integer)) or not classes or pred_idx < 0 or pred_idx >= len(classes):
+        raise HTTPException(
+            status_code=500,
+            detail="Model produced invalid output. Please try again."
+        )
 
+    disease_name = classes[int(pred_idx)]
     specialist = SPECIALIST_MAP.get(disease_name, "General Physician")
     confidence = round(float(pred_proba), 2)
 
