@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardBg from "@/components/DashboardBg";
+import { COLOR_CLASS_MAP, type ColorKey } from "@/constants/colors";
 
 interface Record {
   id: string;
@@ -33,9 +34,8 @@ function PatientsContent() {
     // Get user's own records (not system-wide stats which requires ADMIN role)
     api.getRecords(0, 50).then(records => {
       setStats({
-        total_records: 0,
         total_patients: 0,
-        total_doctors: 0,
+        total_records: records.length,
         recent_records: records,
       });
     }).catch(console.error);
@@ -84,10 +84,12 @@ function PatientsContent() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {[
-            { label: "Total Patients", value: String(stats?.total_patients ?? "..."), icon: Users, color: "sky", gradient: "from-sky-500 to-blue-600" },
-            { label: "Total Records", value: String(stats?.total_records ?? "..."), icon: Stethoscope, color: "violet", gradient: "from-violet-500 to-purple-600" },
-            { label: "Active Cases", value: String(stats?.recent_records.length ?? "..."), icon: TrendingUp, color: "emerald", gradient: "from-emerald-500 to-teal-600" },
-          ].map((card, i) => (
+            { label: "Total Patients", value: String(stats?.total_patients ?? "..."), icon: Users, color: "sky" as ColorKey, gradient: "from-sky-500 to-blue-600" },
+            { label: "Total Records", value: String(stats?.total_records ?? "..."), icon: Stethoscope, color: "violet" as ColorKey, gradient: "from-violet-500 to-purple-600" },
+            { label: "Active Cases", value: String(stats?.recent_records.length ?? "..."), icon: TrendingUp, color: "emerald" as ColorKey, gradient: "from-emerald-500 to-teal-600" },
+          ].map((card, i) => {
+            const colorClasses = COLOR_CLASS_MAP[card.color];
+            return (
             <motion.div
               key={card.label}
               initial={{ opacity: 0, y: 20 }}
@@ -97,8 +99,8 @@ function PatientsContent() {
               className="group relative overflow-hidden rounded-[2rem] p-6 glass-card border border-white/[0.08] hover:border-white/[0.15] transition-colors"
             >
               <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
-              <div className={`p-3 rounded-2xl w-fit mb-4 bg-${card.color}-500/10 group-hover:bg-${card.color}-500/20 transition-colors relative z-10`}>
-                <card.icon size={22} className={`text-${card.color}-400 group-hover:text-${card.color}-300 transition-colors`} />
+              <div className={`p-3 rounded-2xl w-fit mb-4 ${colorClasses.bg} ${colorClasses.hover} transition-colors relative z-10`}>
+                <card.icon size={22} className={`${colorClasses.text} group-hover:text-${card.color}-300 transition-colors`} />
               </div>
               <p className="text-zinc-500 text-xs font-black uppercase tracking-[0.2em] relative z-10">{card.label}</p>
               <motion.h3
@@ -112,7 +114,8 @@ function PatientsContent() {
               </motion.h3>
               <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl ${card.gradient} rounded-full opacity-0 group-hover:opacity-10 blur-3xl transition-opacity duration-500 -z-10`} />
             </motion.div>
-          ))}
+            );
+          })}
         </div>
 
         <motion.div

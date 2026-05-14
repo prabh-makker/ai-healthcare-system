@@ -8,6 +8,7 @@ import uuid
 from app.db.session import get_db
 from app.models.models import Appointment, User, UserRole
 from app.core.security import get_current_user
+from app.core.pagination import validate_pagination
 
 router = APIRouter()
 
@@ -49,13 +50,16 @@ def list_appointments(
     current_user: User = Depends(get_current_user),
 ):
     # Validate pagination parameters
-    if limit > 100:
-        raise HTTPException(status_code=400, detail="Limit cannot exceed 100.")
-    if skip < 0:
-        raise HTTPException(status_code=400, detail="Skip cannot be negative.")
+    validate_pagination(skip, limit)
 
     if current_user.role == UserRole.ADMIN:
-        records = db.query(Appointment).offset(skip).limit(limit).all()
+        records = (
+            db.query(Appointment)
+            .order_by(Appointment.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
     else:
         # Non-admin users only see their own appointments
         records = (

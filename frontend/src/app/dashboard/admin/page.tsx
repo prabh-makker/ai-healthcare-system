@@ -6,6 +6,7 @@ import { Users, TrendingUp, Database, Shield, AlertCircle, Activity, Settings, B
 import { api } from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardBg from "@/components/DashboardBg";
+import { COLOR_CLASS_MAP, STATUS_COLOR_MAP } from "@/constants/colors";
 
 interface Stats {
   total_records: number;
@@ -37,19 +38,6 @@ function AdminContent() {
     show: { opacity: 1, y: 0 },
   };
 
-  const colorClassMap: Record<string, { bg: string; text: string; hover: string }> = {
-    sky: { bg: "bg-sky-500/10", text: "text-sky-400", hover: "group-hover:bg-sky-500/20" },
-    rose: { bg: "bg-rose-500/10", text: "text-rose-400", hover: "group-hover:bg-rose-500/20" },
-    violet: { bg: "bg-violet-500/10", text: "text-violet-400", hover: "group-hover:bg-violet-500/20" },
-    emerald: { bg: "bg-emerald-500/10", text: "text-emerald-400", hover: "group-hover:bg-emerald-500/20" },
-  };
-
-  const statusColorMap: Record<string, string> = {
-    sky: "bg-sky-500/10 text-sky-400",
-    rose: "bg-rose-500/10 text-rose-400",
-    violet: "bg-violet-500/10 text-violet-400",
-    emerald: "bg-emerald-500/10 text-emerald-400",
-  };
 
   return (
     <div className="relative min-h-full">
@@ -170,7 +158,7 @@ function AdminContent() {
                   className="flex items-center justify-between"
                 >
                   <span className="text-sm font-medium text-zinc-400">{s.label}</span>
-                  <span className={`inline-block text-[10px] font-black px-2.5 py-1 rounded-lg ${statusColorMap[s.color]} capitalize`}>
+                  <span className={`inline-block text-[10px] font-black px-2.5 py-1 rounded-lg ${STATUS_COLOR_MAP[s.color]} capitalize`}>
                     {s.status}
                   </span>
                 </motion.div>
@@ -212,7 +200,7 @@ function AdminContent() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <p className="font-bold text-sm">{model.label}</p>
-                  <span className={`text-xs font-bold px-2 py-1 rounded-lg ${statusColorMap[model.color]}`}>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-lg ${STATUS_COLOR_MAP[model.color]}`}>
                     {model.status}
                   </span>
                 </div>

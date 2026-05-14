@@ -84,8 +84,11 @@ class RateLimiter:
                     data = json.load(f)
                     self.attempts = data
                     logger.info("Loaded rate limit data from disk")
-        except Exception as e:
-            logger.warning(f"Could not load rate limit data: {e}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Rate limit file corrupted: {self.persist_file} - {e}")
+            self.attempts = {}
+        except IOError as e:
+            logger.error(f"Cannot read rate limit file: {e}")
             self.attempts = {}
 
     def _save_to_disk(self) -> None:

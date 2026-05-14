@@ -6,7 +6,10 @@ from typing import Optional, List
 
 from app.db.session import get_db
 from app.models.models import User, MedicalRecord, UserRole
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_role
+from app.core.pagination import validate_pagination
+from app.core.authorization import check_record_ownership, check_record_modification
+from app.core.constants import RECORD_STATUS_ALLOWED
 
 router = APIRouter()
 
@@ -42,10 +45,8 @@ def _serialize(r: MedicalRecord) -> dict:
 @router.get("/stats/summary")
 def get_stats(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
 ):
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required.")
 
     total_records = db.query(MedicalRecord).count()
     total_patients = db.query(User).filter(User.role == UserRole.PATIENT).count()
@@ -71,11 +72,8 @@ def get_records(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Enforce maximum limit to prevent pagination bombs
-    if limit > 100:
-        raise HTTPException(status_code=400, detail="Limit cannot exceed 100.")
-    if skip < 0:
-        raise HTTPException(status_code=400, detail="Skip cannot be negative.")
+    # Validate pagination parameters
+    validate_pagination(skip, limit)
 
     query = db.query(MedicalRecord)
 
@@ -126,7 +124,7 @@ def get_record(
     record = db.query(MedicalRecord).filter(MedicalRecord.id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
-    if current_user.role == UserRole.PATIENT and str(record.patient_id) != str(current_user.id):
+    if not check_record_ownership(record, current_user):
         raise HTTPException(status_code=403, detail="Forbidden")
     return _serialize(record)
 
@@ -136,22 +134,20 @@ def patch_record(
     record_id: str,
     body: RecordPatch,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.DOCTOR, UserRole.ADMIN)),
 ):
-    if current_user.role != UserRole.DOCTOR:
-        raise HTTPException(status_code=403, detail="Only doctors can update records")
     record = db.query(MedicalRecord).filter(MedicalRecord.id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
-    # Verify doctor is assigned to this record
-    if str(record.doctor_id) != str(current_user.id):
-        raise HTTPException(status_code=403, detail="You are not assigned to this record")
+    # Verify doctor is assigned or admin
+    is_allowed, error_msg = check_record_modification(record, current_user)
+    if not is_allowed:
+        raise HTTPException(status_code=403, detail=error_msg)
     if body.doctor_notes is not None:
         record.doctor_notes = body.doctor_notes
     if body.status is not None:
-        allowed = {"pending", "approved", "reviewed"}
-        if body.status not in allowed:
-            raise HTTPException(status_code=422, detail=f"status must be one of {allowed}")
+        if body.status not in RECORD_STATUS_ALLOWED:
+            raise HTTPException(status_code=422, detail=f"status must be one of {RECORD_STATUS_ALLOWED}")
         record.status = body.status
     db.commit()
     db.refresh(record)
@@ -169,17 +165,9 @@ def delete_record(
         raise HTTPException(status_code=404, detail="Record not found")
 
     # Authorization check: only patient owner or assigned doctor can delete
-    is_patient_owner = str(record.patient_id) == str(current_user.id)
-    is_assigned_doctor = str(record.doctor_id) == str(current_user.id)
-    is_admin = current_user.role == UserRole.ADMIN
-
-    if current_user.role == UserRole.PATIENT and not is_patient_owner:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    elif current_user.role == UserRole.DOCTOR and not is_assigned_doctor:
-        raise HTTPException(status_code=403, detail="You are not assigned to this record")
-    elif current_user.role not in [UserRole.PATIENT, UserRole.DOCTOR, UserRole.ADMIN]:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    is_allowed, error_msg = check_record_modification(record, current_user)
+    if not is_allowed:
+        raise HTTPException(status_code=403, detail=error_msg)
 
     db.delete(record)
     db.commit()
-    return None

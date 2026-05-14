@@ -9,7 +9,8 @@ import uuid
 import numpy as np
 
 from app.core.config import settings
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_role
+from app.core.constants import SPECIALIST_MAP
 from app.db.session import get_db
 from app.models.models import User, MedicalRecord, UserRole
 
@@ -50,13 +51,6 @@ class PredictionResponse(BaseModel):
     record_id: Optional[str] = None
 
 
-specialist_map = {
-    "COVID-19": "Infectious Disease Specialist / Pulmonologist",
-    "Pneumonia": "Pulmonologist",
-    "Flu": "General Physician",
-    "Common Cold": "General Physician",
-    "Healthy": "None required",
-}
 
 
 @router.post("/symptoms", response_model=PredictionResponse)
@@ -98,7 +92,7 @@ def analyze_symptoms(
     else:
         disease_name = str(pred_idx)
 
-    specialist = specialist_map.get(disease_name, "General Physician")
+    specialist = SPECIALIST_MAP.get(disease_name, "General Physician")
     confidence = round(float(pred_proba), 2)
 
     record_id = None
@@ -148,11 +142,8 @@ XRAY_MODEL_FILE = os.path.join(settings.ML_MODEL_PATH, "xray_analysis", "resnet5
 def analyze_xray(
     request: XrayRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.DOCTOR, UserRole.ADMIN)),
 ):
-    # Only doctors and admins can analyze X-rays
-    if current_user.role not in [UserRole.DOCTOR, UserRole.ADMIN]:
-        raise HTTPException(status_code=403, detail="Only doctors and admins can analyze X-rays.")
 
     if not request.image_base64:
         raise HTTPException(status_code=400, detail="No image provided.")
@@ -194,11 +185,8 @@ BERT_MODEL_FILE = os.path.join(settings.ML_MODEL_PATH, "report_analysis", "bert_
 def analyze_report(
     request: ReportRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.DOCTOR, UserRole.ADMIN)),
 ):
-    # Only doctors and admins can analyze clinical reports
-    if current_user.role not in [UserRole.DOCTOR, UserRole.ADMIN]:
-        raise HTTPException(status_code=403, detail="Only doctors and admins can analyze reports.")
 
     if not request.report_text or len(request.report_text.strip()) < 10:
         raise HTTPException(status_code=400, detail="Report text is too short.")
