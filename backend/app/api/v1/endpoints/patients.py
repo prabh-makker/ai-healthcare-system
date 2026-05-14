@@ -1,0 +1,81 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional, List
+from datetime import datetime
+
+from app.db.session import get_db
+from app.models.models import User, PatientProfile, UserRole
+from app.core.security import get_current_user, require_role
+
+router = APIRouter()
+
+
+class PatientProfileUpdate(BaseModel):
+    date_of_birth: Optional[datetime] = None
+    blood_group: Optional[str] = None
+    chronic_conditions: Optional[List[str]] = None
+    emergency_contact: Optional[str] = None
+
+
+def _serialize_profile(user: User, profile: Optional[PatientProfile]) -> dict:
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "role": user.role,
+        "is_active": user.is_active,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "profile": {
+            "date_of_birth": profile.date_of_birth.isoformat() if profile and profile.date_of_birth else None,
+            "blood_group": profile.blood_group if profile else None,
+            "chronic_conditions": profile.chronic_conditions if profile else [],
+            "emergency_contact": profile.emergency_contact if profile else None,
+        } if profile else None,
+    }
+
+
+@router.get("/me")
+def get_my_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile = current_user.patient_profile
+    return _serialize_profile(current_user, profile)
+
+
+@router.post("/me")
+def update_my_profile(
+    body: PatientProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    import uuid
+
+    profile = current_user.patient_profile
+    if not profile:
+        profile = PatientProfile(id=uuid.uuid4(), user_id=current_user.id)
+        db.add(profile)
+
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(profile, field, value)
+
+    db.commit()
+    db.refresh(current_user)
+    return _serialize_profile(current_user, current_user.patient_profile)
+
+
+@router.get("/list")
+def list_patients(
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("DOCTOR", "ADMIN")),
+):
+    patients = (
+        db.query(User)
+        .filter(User.role == UserRole.PATIENT, User.is_active == True)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    return [_serialize_profile(p, p.patient_profile) for p in patients]

@@ -15,7 +15,7 @@
     "diarrhea",
     "stomach_pain"
   ],
-  "classes": [
+  "diseases": [
     "Common Cold",
     "Flu",
     "COVID-19",
@@ -27,7 +27,9 @@
     "Gastritis",
     "Healthy"
   ],
-  "model_type": "RandomForestClassifier",
-  "n_estimators": 10,
-  "version": "1.0"
+  "model_type": "XGBClassifier",
+  "version": "1.0",
+  "training_samples": 100,
+  "n_features": 14,
+  "n_classes": 10
 }

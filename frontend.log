@@ -1,0 +1,15 @@
+
+> frontend@0.1.0 dev
+> next dev --port 3006
+
+⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use :::3006
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3006)
+    at new Promise (<anonymous>) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3006
+}
+[?25h

@@ -16,7 +16,7 @@ from app.models.models import User, MedicalRecord
 router = APIRouter()
 
 ML_PATH = os.path.join(settings.ML_MODEL_PATH, "symptom_analysis")
-MODEL_FILE = os.path.join(ML_PATH, "symptom_rf_model.joblib")
+MODEL_FILE = os.path.join(ML_PATH, "symptom_xgb_model.joblib")
 META_FILE = os.path.join(ML_PATH, "model_metadata.json")
 
 _cached_model = None
@@ -70,7 +70,7 @@ def analyze_symptoms(
 
     model, meta = _load_symptom_model()
     known_symptoms = meta["symptoms"]
-    classes = meta.get("classes", [])
+    classes = meta.get("diseases", meta.get("classes", []))
 
     recognized_symptoms = [s for s in request.symptoms if s in known_symptoms]
     unknown_symptoms = [s for s in request.symptoms if s not in known_symptoms]

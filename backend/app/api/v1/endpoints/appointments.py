@@ -1,0 +1,149 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+import uuid
+
+from app.db.session import get_db
+from app.models.models import Appointment, User, UserRole
+from app.core.security import get_current_user
+
+router = APIRouter()
+
+
+class AppointmentCreate(BaseModel):
+    specialist: str
+    date: str
+    time: str
+    reason: Optional[str] = None
+
+
+class AppointmentUpdate(BaseModel):
+    specialist: Optional[str] = None
+    date: Optional[str] = None
+    time: Optional[str] = None
+    status: Optional[str] = None
+    reason: Optional[str] = None
+
+
+class AppointmentOut(BaseModel):
+    id: str
+    patient_id: str
+    specialist: str
+    date: str
+    time: str
+    status: str
+    reason: Optional[str]
+    created_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/")
+def list_appointments(
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role == UserRole.ADMIN:
+        records = db.query(Appointment).offset(skip).limit(limit).all()
+    else:
+        records = (
+            db.query(Appointment)
+            .filter(Appointment.patient_id == current_user.id)
+            .order_by(Appointment.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+    return [
+        {
+            "id": str(r.id),
+            "patient_id": str(r.patient_id),
+            "specialist": r.specialist,
+            "date": r.date,
+            "time": r.time,
+            "status": r.status,
+            "reason": r.reason,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in records
+    ]
+
+
+@router.post("/", status_code=201)
+def create_appointment(
+    body: AppointmentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    appt = Appointment(
+        id=uuid.uuid4(),
+        patient_id=current_user.id,
+        specialist=body.specialist,
+        date=body.date,
+        time=body.time,
+        reason=body.reason,
+        status="upcoming",
+    )
+    db.add(appt)
+    db.commit()
+    db.refresh(appt)
+    return {
+        "id": str(appt.id),
+        "patient_id": str(appt.patient_id),
+        "specialist": appt.specialist,
+        "date": appt.date,
+        "time": appt.time,
+        "status": appt.status,
+        "reason": appt.reason,
+        "created_at": appt.created_at.isoformat() if appt.created_at else None,
+    }
+
+
+@router.put("/{appt_id}")
+def update_appointment(
+    appt_id: str,
+    body: AppointmentUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    appt = db.query(Appointment).filter(Appointment.id == appt_id).first()
+    if not appt:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    if str(appt.patient_id) != str(current_user.id) and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(appt, field, value)
+
+    db.commit()
+    db.refresh(appt)
+    return {
+        "id": str(appt.id),
+        "patient_id": str(appt.patient_id),
+        "specialist": appt.specialist,
+        "date": appt.date,
+        "time": appt.time,
+        "status": appt.status,
+        "reason": appt.reason,
+        "created_at": appt.created_at.isoformat() if appt.created_at else None,
+    }
+
+
+@router.delete("/{appt_id}", status_code=204)
+def cancel_appointment(
+    appt_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    appt = db.query(Appointment).filter(Appointment.id == appt_id).first()
+    if not appt:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    if str(appt.patient_id) != str(current_user.id) and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    db.delete(appt)
+    db.commit()
