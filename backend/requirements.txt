@@ -12,6 +12,8 @@ scikit-learn
 joblib
 pandas
 numpy
+xgboost
+redis
 
 # Testing dependencies
 pytest

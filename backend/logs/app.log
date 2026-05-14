@@ -1925,3 +1925,6 @@
 {"message": "High number of failed login attempts for fresh-1778780923@test.com: 5", "timestamp": "2026-05-14T17:48:46.972452", "environment": "development", "level": "WARNING", "logger": "app.core.rate_limit"}
 {"message": "HTTP Exception: 401 - Incorrect email or password", "status_code": 401, "detail": "Incorrect email or password", "path": "/api/v1/auth/login", "timestamp": "2026-05-14T17:48:46.974004", "environment": "development", "level": "ERROR", "logger": "app.main"}
 {"message": "Response: 401 for POST /api/v1/auth/login", "status_code": 401, "method": "POST", "path": "/api/v1/auth/login", "timestamp": "2026-05-14T17:48:46.974343", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "Logging configured for production environment", "timestamp": "2026-05-14T18:46:25.938866", "environment": "production", "level": "INFO", "logger": "root"}
+{"message": "Database tables created successfully", "timestamp": "2026-05-14T18:46:26.391161", "environment": "production", "level": "INFO", "logger": "app.main"}
+{"message": "Could not pre-load ML model: No module named 'xgboost'", "timestamp": "2026-05-14T18:46:26.401530", "environment": "production", "level": "WARNING", "logger": "app.main"}

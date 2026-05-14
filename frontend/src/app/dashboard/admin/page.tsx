@@ -135,10 +135,10 @@ function AdminContent() {
             </h3>
             <div className="space-y-4">
               {[
-                { label: "Database", status: "healthy", color: "emerald" },
-                { label: "API Server", status: "healthy", color: "emerald" },
-                { label: "Cache Layer", status: "healthy", color: "emerald" },
-                { label: "AI Models", status: "running", color: "sky" },
+                { label: "Database", status: "healthy", color: "emerald" as const },
+                { label: "API Server", status: "healthy", color: "emerald" as const },
+                { label: "Cache Layer", status: "healthy", color: "emerald" as const },
+                { label: "AI Models", status: "running", color: "sky" as const },
               ].map((s, idx) => (
                 <motion.div
                   key={s.label}
@@ -177,9 +177,9 @@ function AdminContent() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { label: "XGBoost Diagnosis", status: "Active", performance: "98.2%", color: "emerald" },
-              { label: "Symptom Analyzer", status: "Active", performance: "94.1%", color: "sky" },
-              { label: "Feature Extractor", status: "Active", performance: "96.5%", color: "violet" },
+              { label: "XGBoost Diagnosis", status: "Active", performance: "98.2%", color: "emerald" as const },
+              { label: "Symptom Analyzer", status: "Active", performance: "94.1%", color: "sky" as const },
+              { label: "Feature Extractor", status: "Active", performance: "96.5%", color: "violet" as const },
             ].map((model, idx) => (
               <motion.div
                 key={model.label}
