@@ -1,7 +1,8 @@
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, field_validator, field_serializer
+from typing import Optional, List, Any
 from datetime import datetime
 from enum import Enum
+import uuid as _uuid
 
 
 class UserRole(str, Enum):
@@ -29,11 +30,15 @@ class UserUpdate(BaseModel):
 
 
 class UserOut(BaseModel):
-    id: str
+    id: Any
     email: str
     role: str
     is_active: bool
     created_at: datetime
+
+    @field_serializer("id")
+    def serialize_id(self, v: Any) -> str:
+        return str(v)
 
     class Config:
         from_attributes = True

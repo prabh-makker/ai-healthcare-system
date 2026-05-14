@@ -1,4 +1,4 @@
-const REQUEST_TIMEOUT = 30000; // 30 seconds
+const REQUEST_TIMEOUT = 30000;
 
 export class APIError extends Error {
   constructor(
@@ -12,21 +12,14 @@ export class APIError extends Error {
 }
 
 async function request(path: string, options: RequestInit = {}) {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
   };
-
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
 
   if (!(options.body instanceof URLSearchParams)) {
     headers["Content-Type"] = "application/json";
   }
 
-  // Set up timeout
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
@@ -34,30 +27,26 @@ async function request(path: string, options: RequestInit = {}) {
     const res = await fetch(path, {
       ...options,
       headers,
+      credentials: "include", // send httpOnly cookie on every request
       signal: controller.signal,
     });
 
     clearTimeout(timeout);
 
-    // Handle 401 Unauthorized
     if (res.status === 401) {
       const data = await res.json().catch(() => ({}));
-      const isLoginRequest = path.includes("/auth/login");
-      if (!isLoginRequest && typeof window !== "undefined") {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/login";
-      }
-      throw new APIError(401, data.detail || "Your session has expired. Please login again.");
+      const msg = data.error?.message || data.detail || "Your session has expired. Please login again.";
+      throw new APIError(401, msg);
     }
 
-    // Handle 429 Too Many Requests
     if (res.status === 429) {
       const data = await res.json().catch(() => ({}));
-      throw new APIError(429, data.detail || "Too many requests. Please try again later.");
+      const msg = data.error?.message || data.detail || "Too many requests. Please try again later.";
+      throw new APIError(429, msg);
     }
 
-    // Handle other error responses
+    if (res.status === 204) return null;
+
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       const errorMessage = data.error?.message || data.detail || `Request failed with status ${res.status}`;
@@ -68,22 +57,16 @@ async function request(path: string, options: RequestInit = {}) {
   } catch (error) {
     clearTimeout(timeout);
 
-    // Handle network timeout
-    if (error instanceof TypeError && error.name === "AbortError") {
+    if (error instanceof DOMException && error.name === "AbortError") {
       throw new APIError(0, "Request timeout. Please check your connection and try again.");
     }
 
-    // Handle network errors
     if (error instanceof TypeError) {
       throw new APIError(0, "Network error. Please check your connection.");
     }
 
-    // Re-throw APIError
-    if (error instanceof APIError) {
-      throw error;
-    }
+    if (error instanceof APIError) throw error;
 
-    // Generic error handler
     throw new APIError(500, error instanceof Error ? error.message : "An unexpected error occurred");
   }
 }
@@ -109,11 +92,25 @@ export const api = {
 
   getMe: () => request("/api/v1/auth/me"),
 
+  logout: () => request("/api/v1/auth/logout", { method: "POST" }),
+
   // Diagnosis
   analyzeSymptoms: (symptoms: string[], saveRecord: boolean = false) =>
     request("/api/v1/diagnosis/symptoms", {
       method: "POST",
       body: JSON.stringify({ symptoms, save_record: saveRecord }),
+    }),
+
+  analyzeXray: (imageBase64: string) =>
+    request("/api/v1/diagnosis/xray", {
+      method: "POST",
+      body: JSON.stringify({ image_base64: imageBase64 }),
+    }),
+
+  analyzeReport: (reportText: string) =>
+    request("/api/v1/diagnosis/report", {
+      method: "POST",
+      body: JSON.stringify({ report_text: reportText }),
     }),
 
   // Patients
@@ -130,7 +127,7 @@ export const api = {
 
   // Records
   getRecords: (skip = 0, limit = 50) =>
-    request(`/api/v1/records/?skip=${skip}&limit=${limit}`),
+    request(`/api/v1/records?skip=${skip}&limit=${limit}`),
 
   createRecord: (data: Record<string, unknown>) =>
     request("/api/v1/records/", {
@@ -139,6 +136,15 @@ export const api = {
     }),
 
   getRecord: (id: string) => request(`/api/v1/records/${id}`),
+
+  patchRecord: (id: string, data: { doctor_notes?: string; status?: string }) =>
+    request(`/api/v1/records/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  deleteRecord: (id: string) =>
+    request(`/api/v1/records/${id}`, { method: "DELETE" }),
 
   getStats: () => request("/api/v1/records/stats/summary"),
 

@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW_MINUTES: int = 15
 
     # ML Model path
-    ML_MODEL_PATH: str = ""
+    ML_MODEL_PATH: str = "ml_models"
 
     # Logging
     LOG_LEVEL: str = "INFO"

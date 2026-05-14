@@ -52,7 +52,7 @@ def get_application() -> FastAPI:
     # Add CORS middleware with specific origins
     _app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"],
+        allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3006", "http://localhost:5173"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -73,7 +73,6 @@ def get_application() -> FastAPI:
     # Log all requests
     @_app.middleware("http")
     async def log_requests(request: Request, call_next):
-        body = await request.body()
         logger.info(
             f"Request: {request.method} {request.url.path}",
             extra={
@@ -184,9 +183,18 @@ def get_application() -> FastAPI:
 
     @_app.on_event("startup")
     def on_startup():
-        # Import all models so they are registered with Base
         from app.models.models import User, PatientProfile, DoctorProfile, MedicalRecord  # noqa
+        from sqlalchemy import text, inspect
         Base.metadata.create_all(bind=engine)
+        # Add new columns to existing DB if missing (SQLite-safe)
+        with engine.connect() as conn:
+            existing = [c["name"] for c in inspect(engine).get_columns("medical_record")]
+            if "status" not in existing:
+                conn.execute(text("ALTER TABLE medical_record ADD COLUMN status VARCHAR DEFAULT 'pending'"))
+                conn.commit()
+            if "doctor_notes" not in existing:
+                conn.execute(text("ALTER TABLE medical_record ADD COLUMN doctor_notes TEXT"))
+                conn.commit()
         logger.info("Database tables created successfully")
 
     @_app.get("/")

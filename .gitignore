@@ -40,6 +40,9 @@ venv.bak/
 *.sqlite
 *.db
 
+# Claude Code MCP config (contains secrets)
+.mcp.json
+
 # ML Models
 *.pkl
 *.h5

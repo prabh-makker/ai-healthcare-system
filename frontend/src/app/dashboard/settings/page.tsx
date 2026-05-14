@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
-  const { theme, accent, setTheme, setAccent } = useTheme();
+  const { theme, accent, font, setTheme, setAccent, setFont } = useTheme();
   const router = useRouter();
   const [activeSection, setActiveSection] = useState("profile");
 
@@ -204,26 +204,61 @@ export default function SettingsPage() {
 
                 <div>
                   <p className="text-zinc-500 text-sm font-medium mb-4">Accent Color</p>
-                  <div className="flex gap-3">
-                    {(["sky", "violet", "rose", "emerald", "amber"] as const).map((color) => (
+                  <div className="flex gap-3 flex-wrap">
+                    {(["sky", "violet", "rose", "emerald", "amber", "cyan", "pink", "orange", "teal", "indigo"] as const).map((color) => (
                       <button
                         key={color}
                         onClick={() => setAccent(color)}
-                        className={`w-12 h-12 rounded-2xl transition-all hover:scale-110 active:scale-95 ${
+                        className={`w-12 h-12 rounded-2xl transition-all hover:scale-110 active:scale-95 shadow-lg ${
                           {
                             sky: "bg-sky-500",
                             violet: "bg-violet-500",
                             rose: "bg-rose-500",
                             emerald: "bg-emerald-500",
                             amber: "bg-amber-500",
+                            cyan: "bg-cyan-500",
+                            pink: "bg-pink-500",
+                            orange: "bg-orange-500",
+                            teal: "bg-teal-500",
+                            indigo: "bg-indigo-500",
                           }[color]
-                        } shadow-lg ${
+                        } ${
                           accent === color
                             ? "ring-2 ring-white ring-offset-2 ring-offset-[#080808]"
                             : ""
                         }`}
                         title={`${color.charAt(0).toUpperCase() + color.slice(1)} accent`}
                       />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-zinc-500 text-sm font-medium mb-4">Font Family</p>
+                  <div className="flex gap-3 flex-wrap">
+                    {(["geist", "inter", "mono", "serif", "sans"] as const).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setFont(f)}
+                        className={`px-4 py-2 rounded-2xl font-medium transition-all ${
+                          font === f
+                            ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20"
+                            : "text-zinc-500 hover:text-white hover:bg-white/5 border border-white/10"
+                        }`}
+                        style={
+                          f === "mono"
+                            ? { fontFamily: "'Courier New', monospace" }
+                            : f === "serif"
+                            ? { fontFamily: "'Georgia', serif" }
+                            : f === "inter"
+                            ? { fontFamily: "'Inter', sans-serif" }
+                            : f === "sans"
+                            ? { fontFamily: "'Trebuchet MS', sans-serif" }
+                            : {}
+                        }
+                      >
+                        {f === "geist" ? "Geist" : f === "inter" ? "Inter" : f === "mono" ? "Mono" : f === "serif" ? "Serif" : "Sans"}
+                      </button>
                     ))}
                   </div>
                 </div>

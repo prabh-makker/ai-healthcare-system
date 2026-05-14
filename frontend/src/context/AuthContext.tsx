@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 
 interface User {
@@ -16,7 +17,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
   register: (email: string, password: string, role: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -25,25 +26,21 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   login: async () => ({ id: "", email: "", role: "", is_active: false, created_at: "" }),
   register: async () => {},
-  logout: () => {},
+  logout: async () => {},
   isAuthenticated: false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUser = useCallback(async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setLoading(false);
-      return;
-    }
     try {
       const data = await api.getMe();
       setUser(data);
-    } catch {
-      localStorage.removeItem("token");
+    } catch (error) {
+      // /auth/me endpoint has an issue - assume user is not authenticated if call fails
       setUser(null);
     } finally {
       setLoading(false);
@@ -55,8 +52,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUser]);
 
   const login = async (email: string, password: string) => {
-    const data = await api.login(email, password);
-    localStorage.setItem("token", data.access_token);
+    // Backend sets httpOnly cookie
+    await api.login(email, password);
+
+    // Fetch authenticated user from backend
     const userData = await api.getMe();
     setUser(userData);
     return userData;
@@ -66,9 +65,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await api.register(email, password, role);
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
+  const logout = async () => {
+    try {
+      await api.logout();
+    } catch {
+      // ignore network errors on logout
+    }
     setUser(null);
+    router.push("/login");
   };
 
   return (

@@ -1,0 +1,33 @@
+{
+  "symptoms": [
+    "fever",
+    "cough",
+    "headache",
+    "body_ache",
+    "fatigue",
+    "sore_throat",
+    "runny_nose",
+    "chest_pain",
+    "shortness_of_breath",
+    "dizziness",
+    "nausea",
+    "vomiting",
+    "diarrhea",
+    "stomach_pain"
+  ],
+  "classes": [
+    "Common Cold",
+    "Flu",
+    "COVID-19",
+    "Pneumonia",
+    "Bronchitis",
+    "Asthma",
+    "Anxiety Disorder",
+    "Migraine",
+    "Gastritis",
+    "Healthy"
+  ],
+  "model_type": "RandomForestClassifier",
+  "n_estimators": 10,
+  "version": "1.0"
+}

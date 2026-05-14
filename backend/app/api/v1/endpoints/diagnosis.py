@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 import joblib
 import json
 import os
+import uuid
 import numpy as np
 
 from app.core.config import settings
@@ -18,13 +19,11 @@ ML_PATH = os.path.join(settings.ML_MODEL_PATH, "symptom_analysis")
 MODEL_FILE = os.path.join(ML_PATH, "symptom_rf_model.joblib")
 META_FILE = os.path.join(ML_PATH, "model_metadata.json")
 
-# Module-level cache for ML model and metadata
 _cached_model = None
 _cached_meta = None
 
 
-def _load_model():
-    """Load and cache the ML model and metadata. Returns (model, meta) tuple."""
+def _load_symptom_model():
     global _cached_model, _cached_meta
     if _cached_model is None or _cached_meta is None:
         if not os.path.exists(MODEL_FILE) or not os.path.exists(META_FILE):
@@ -34,6 +33,8 @@ def _load_model():
             _cached_meta = json.load(f)
     return _cached_model, _cached_meta
 
+
+# ── Symptom Analysis ──────────────────────────────────────────────────────────
 
 class SymptomRequest(BaseModel):
     symptoms: List[str]
@@ -67,12 +68,10 @@ def analyze_symptoms(
     if not request.symptoms:
         raise HTTPException(status_code=400, detail="No symptoms provided.")
 
-    model, meta = _load_model()
-
+    model, meta = _load_symptom_model()
     known_symptoms = meta["symptoms"]
     classes = meta.get("classes", [])
 
-    # Validate and categorize submitted symptoms
     recognized_symptoms = [s for s in request.symptoms if s in known_symptoms]
     unknown_symptoms = [s for s in request.symptoms if s not in known_symptoms]
 
@@ -95,7 +94,6 @@ def analyze_symptoms(
     pred_idx = model.predict(profile)[0]
     pred_proba = np.max(model.predict_proba(profile)) * 100
 
-    # Convert index to class name if needed
     if isinstance(pred_idx, (int, np.integer)) and classes:
         disease_name = classes[pred_idx] if pred_idx < len(classes) else str(pred_idx)
     else:
@@ -107,6 +105,7 @@ def analyze_symptoms(
     record_id = None
     if request.save_record:
         record = MedicalRecord(
+            id=uuid.uuid4(),
             patient_id=current_user.id,
             symptoms=request.symptoms,
             ai_prediction=disease_name,
@@ -116,7 +115,7 @@ def analyze_symptoms(
         db.add(record)
         db.commit()
         db.refresh(record)
-        record_id = record.id
+        record_id = str(record.id)
 
     return {
         "predicted_disease": disease_name,
@@ -126,3 +125,85 @@ def analyze_symptoms(
         "unknown_symptoms": unknown_symptoms,
         "record_id": record_id,
     }
+
+
+# ── X-Ray Analysis (ResNet50 stub) ────────────────────────────────────────────
+
+class XrayRequest(BaseModel):
+    image_base64: str
+    save_record: bool = False
+
+
+class XrayResponse(BaseModel):
+    predicted_condition: str
+    confidence: float
+    severity: str
+    recommended_action: str
+    record_id: Optional[str] = None
+
+
+XRAY_MODEL_FILE = os.path.join(settings.ML_MODEL_PATH, "xray_analysis", "resnet50_model.h5")
+
+
+@router.post("/xray", response_model=XrayResponse)
+def analyze_xray(
+    request: XrayRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not request.image_base64:
+        raise HTTPException(status_code=400, detail="No image provided.")
+
+    # ResNet50 model not yet trained — return structured stub response
+    if not os.path.exists(XRAY_MODEL_FILE):
+        result = {
+            "predicted_condition": "Model Not Available",
+            "confidence": 0.0,
+            "severity": "unknown",
+            "recommended_action": "X-ray analysis model is not yet deployed. Please consult a radiologist.",
+            "record_id": None,
+        }
+        return result
+
+    # When model is available, run inference here
+    raise HTTPException(status_code=501, detail="X-ray inference not yet implemented.")
+
+
+# ── Clinical Report Analysis (BERT stub) ─────────────────────────────────────
+
+class ReportRequest(BaseModel):
+    report_text: str
+    save_record: bool = False
+
+
+class ReportResponse(BaseModel):
+    summary: str
+    detected_conditions: List[str]
+    urgency: str
+    recommended_specialist: str
+    record_id: Optional[str] = None
+
+
+BERT_MODEL_FILE = os.path.join(settings.ML_MODEL_PATH, "report_analysis", "bert_model")
+
+
+@router.post("/report", response_model=ReportResponse)
+def analyze_report(
+    request: ReportRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not request.report_text or len(request.report_text.strip()) < 10:
+        raise HTTPException(status_code=400, detail="Report text is too short.")
+
+    # BERT model not yet trained — return structured stub response
+    if not os.path.exists(BERT_MODEL_FILE):
+        return {
+            "summary": "BERT clinical NLP model is not yet deployed.",
+            "detected_conditions": [],
+            "urgency": "unknown",
+            "recommended_specialist": "Please consult a physician for manual review.",
+            "record_id": None,
+        }
+
+    raise HTTPException(status_code=501, detail="Report analysis not yet implemented.")

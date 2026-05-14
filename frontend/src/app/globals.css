@@ -26,6 +26,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   overflow-x: hidden;
+  --tw-text-opacity: 1;
 }
 
 @layer utilities {
@@ -65,4 +66,50 @@ body {
     background-clip: text;
     color: transparent;
   }
+
+  /* Light mode text color overrides */
+  .light .text-zinc-500 { @apply text-zinc-600; }
+  .light .text-zinc-600 { @apply text-zinc-700; }
+  .light .text-zinc-700 { @apply text-zinc-800; }
+  .light .text-zinc-300 { @apply text-zinc-600; }
+  .light .text-zinc-400 { @apply text-zinc-700; }
+  .light .text-sky-500 { @apply text-sky-600; }
+  .light .text-sky-400 { @apply text-sky-600; }
+
+  /* Accent color system - remap sky colors to selected accent */
+
+  /* Sky (default) */
+  .accent-sky .bg-sky-500 { @apply bg-sky-500; }
+  .accent-sky .text-sky-500 { @apply text-sky-500; }
+  .accent-sky .text-sky-400 { @apply text-sky-400; }
+
+  /* Violet */
+  .accent-violet .bg-sky-500 { @apply bg-violet-500; }
+  .accent-violet .text-sky-500 { @apply text-violet-500; }
+  .accent-violet .text-sky-400 { @apply text-violet-400; }
+  .accent-violet .shadow-sky-500 { @apply shadow-violet-500; }
+
+  /* Rose */
+  .accent-rose .bg-sky-500 { @apply bg-rose-500; }
+  .accent-rose .text-sky-500 { @apply text-rose-500; }
+  .accent-rose .text-sky-400 { @apply text-rose-400; }
+  .accent-rose .shadow-sky-500 { @apply shadow-rose-500; }
+
+  /* Emerald */
+  .accent-emerald .bg-sky-500 { @apply bg-emerald-500; }
+  .accent-emerald .text-sky-500 { @apply text-emerald-500; }
+  .accent-emerald .text-sky-400 { @apply text-emerald-400; }
+  .accent-emerald .shadow-sky-500 { @apply shadow-emerald-500; }
+
+  /* Amber */
+  .accent-amber .bg-sky-500 { @apply bg-amber-500; }
+  .accent-amber .text-sky-500 { @apply text-amber-500; }
+  .accent-amber .text-sky-400 { @apply text-amber-400; }
+  .accent-amber .shadow-sky-500 { @apply shadow-amber-500; }
+
+  /* Font families */
+  .font-inter { font-family: 'Inter', system-ui, sans-serif; }
+  .font-mono { font-family: 'Courier New', monospace; }
+  .font-serif { font-family: 'Georgia', serif; }
+  /* .font-geist uses default from root */
 }
