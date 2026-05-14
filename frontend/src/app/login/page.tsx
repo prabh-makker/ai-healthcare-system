@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
-import { ShieldCheck, Mail, Lock, ArrowRight, Activity, Fingerprint, Scan } from "lucide-react";
+import { ShieldCheck, Mail, Lock, ArrowRight, Activity, Fingerprint, Scan, Shield } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -153,7 +153,7 @@ function ScanLine() {
 
 export default function Login() {
   const [formData, setFormData] = useState({ username: "", password: "" });
-  const [role, setRole] = useState<"PATIENT" | "DOCTOR">("PATIENT");
+  const [role, setRole] = useState<"PATIENT" | "DOCTOR" | "ADMIN">("PATIENT");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [mounted, setMounted] = useState(false);
@@ -202,15 +202,20 @@ export default function Login() {
 
     try {
       const loggedUser = await login(formData.username, formData.password);
-      
+
       if (loggedUser.role !== role) {
         setError(`Access denied. This is a ${role.toLowerCase()} portal, but you are registered as a ${loggedUser.role.toLowerCase()}.`);
         setLoading(false);
         logout();
         return;
       }
-      
-      router.push("/dashboard");
+
+      // Route based on role
+      if (loggedUser.role === "ADMIN") {
+        router.push("/dashboard/admin");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -317,12 +322,14 @@ export default function Login() {
             <motion.div variants={itemVariants} className="flex p-1 bg-white/5 rounded-2xl mb-8 border border-white/[0.08] relative">
               <motion.div
                 className={`absolute inset-y-1 rounded-xl shadow-lg ${
-                  role === "PATIENT" ? "bg-rose-500/20 border border-rose-500/30" : "bg-sky-500/20 border border-sky-500/30"
+                  role === "PATIENT" ? "bg-rose-500/20 border border-rose-500/30" :
+                  role === "DOCTOR" ? "bg-sky-500/20 border border-sky-500/30" :
+                  "bg-violet-500/20 border border-violet-500/30"
                 }`}
                 initial={false}
                 animate={{
-                  x: role === "PATIENT" ? 0 : "100%",
-                  width: "50%",
+                  x: role === "PATIENT" ? "0%" : role === "DOCTOR" ? "33.33%" : "66.66%",
+                  width: "33.33%",
                 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
               />
@@ -333,8 +340,8 @@ export default function Login() {
                   role === "PATIENT" ? "text-rose-400" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
-                <Activity size={18} />
-                <span className="font-bold text-sm">Patient</span>
+                <Activity size={16} />
+                <span className="font-bold text-xs sm:text-sm">Patient</span>
               </button>
               <button
                 type="button"
@@ -343,8 +350,18 @@ export default function Login() {
                   role === "DOCTOR" ? "text-sky-400" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
-                <ShieldCheck size={18} />
-                <span className="font-bold text-sm">Doctor</span>
+                <ShieldCheck size={16} />
+                <span className="font-bold text-xs sm:text-sm">Doctor</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole("ADMIN")}
+                className={`flex-1 flex items-center justify-center space-x-2 py-3 rounded-xl relative z-10 transition-colors ${
+                  role === "ADMIN" ? "text-violet-400" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                <Shield size={16} />
+                <span className="font-bold text-xs sm:text-sm">Admin</span>
               </button>
             </motion.div>
 
@@ -354,17 +371,21 @@ export default function Login() {
                 <PulseRings />
                 <motion.div
                   className={`w-16 h-16 sm:w-18 sm:h-18 rounded-[1.5rem] flex items-center justify-center shadow-lg relative z-10 ${
-                    role === "PATIENT" 
-                      ? "bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30" 
-                      : "bg-gradient-to-br from-sky-500 to-sky-600 shadow-sky-500/30"
+                    role === "PATIENT"
+                      ? "bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30"
+                      : role === "DOCTOR"
+                      ? "bg-gradient-to-br from-sky-500 to-sky-600 shadow-sky-500/30"
+                      : "bg-gradient-to-br from-violet-500 to-violet-600 shadow-violet-500/30"
                   }`}
                   whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
                   transition={{ duration: 0.5 }}
                 >
                   {role === "PATIENT" ? (
                     <Activity size={36} className="text-white drop-shadow-lg" />
-                  ) : (
+                  ) : role === "DOCTOR" ? (
                     <ShieldCheck size={36} className="text-white drop-shadow-lg" />
+                  ) : (
+                    <Shield size={36} className="text-white drop-shadow-lg" />
                   )}
                 </motion.div>
               </div>
@@ -374,16 +395,18 @@ export default function Login() {
                 style={{
                   backgroundImage: role === "PATIENT"
                     ? "linear-gradient(135deg, #ffffff 0%, #f43f5e 50%, #8b5cf6 100%)"
-                    : "linear-gradient(135deg, #ffffff 0%, #0ea5e9 50%, #8b5cf6 100%)",
+                    : role === "DOCTOR"
+                    ? "linear-gradient(135deg, #ffffff 0%, #0ea5e9 50%, #8b5cf6 100%)"
+                    : "linear-gradient(135deg, #ffffff 0%, #a78bfa 50%, #6d28d9 100%)",
                   WebkitBackgroundClip: "text",
                   backgroundClip: "text",
                   color: "transparent",
                 }}
               >
-                {role === "PATIENT" ? "Patient Login" : "Doctor Login"}
+                {role === "PATIENT" ? "Patient Login" : role === "DOCTOR" ? "Doctor Login" : "Admin Portal"}
               </motion.h2>
               <motion.p className="text-zinc-500 mt-2 font-medium text-sm sm:text-base">
-                {role === "PATIENT" ? "Access your personal health records." : "Secure clinical workstation access."}
+                {role === "PATIENT" ? "Access your personal health records." : role === "DOCTOR" ? "Secure clinical workstation access." : "System administration and management."}
               </motion.p>
 
               {/* Animated typing indicator dots */}
