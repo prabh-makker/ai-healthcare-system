@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # Rate limiting
     RATE_LIMIT_ENABLED: bool = True
-    RATE_LIMIT_AUTH_ATTEMPTS: int = 5
+    RATE_LIMIT_AUTH_ATTEMPTS: int = 3
     RATE_LIMIT_WINDOW_MINUTES: int = 15
 
     # Redis
