@@ -334,7 +334,15 @@ export default function Dashboard() {
 
   useEffect(() => {
     setMounted(true);
-    api.getStats().then(setStats).catch(console.error);
+    // Get user's own records (not system-wide stats which requires ADMIN role)
+    api.getRecords(0, 50).then(records => {
+      setStats({
+        total_records: 0,
+        total_patients: 0,
+        total_doctors: 0,
+        recent_records: records,
+      });
+    }).catch(console.error);
   }, []);
 
   if (!mounted) return null;
