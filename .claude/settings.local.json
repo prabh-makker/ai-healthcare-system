@@ -73,7 +73,9 @@
       "Bash(git commit -m 'Implement file-based persistent rate limiter *)",
       "Bash(curl -s http://localhost:8000/api/v1/health)",
       "Bash(curl -s http://localhost:3006/)",
-      "Bash(netstat -tuln)"
+      "Bash(netstat -tuln)",
+      "Bash(cd \"/c/Users/khalo/ai healthcare\" && grep -r \"redis\\\\|Redis\\\\|REDIS\" backend --include=\"*.py\" | head -20)",
+      "Bash(redis-cli ping *)"
     ]
   }
 }

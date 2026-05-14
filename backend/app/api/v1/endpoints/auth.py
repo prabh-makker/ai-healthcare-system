@@ -11,7 +11,17 @@ from app.schemas.user import UserCreate, UserOut, Token
 from app.core import security
 from app.core.config import settings
 from app.core.security import get_current_user, validate_password_strength, validate_email, sanitize_email, COOKIE_NAME
-from app.core.rate_limit import auth_rate_limiter
+
+# Use Redis rate limiter if enabled, fall back to file-based
+if settings.REDIS_ENABLED:
+    try:
+        from app.core.redis_rate_limit import redis_rate_limiter as auth_rate_limiter
+        logger.info("Using Redis rate limiter")
+    except Exception as e:
+        logger.warning(f"Redis not available, falling back to file-based: {e}")
+        from app.core.rate_limit import auth_rate_limiter
+else:
+    from app.core.rate_limit import auth_rate_limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

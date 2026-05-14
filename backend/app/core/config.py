@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     RATE_LIMIT_AUTH_ATTEMPTS: int = 5
     RATE_LIMIT_WINDOW_MINUTES: int = 15
 
+    # Redis
+    REDIS_ENABLED: bool = True
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+
     # ML Model path
     ML_MODEL_PATH: str = "ml_models"
 
