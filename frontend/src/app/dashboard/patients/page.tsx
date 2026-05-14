@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Users, Search, ArrowUpRight, UserCheck, TrendingUp, Stethoscope } from "lucide-react";
 import { api } from "@/lib/api";
@@ -41,10 +41,14 @@ function PatientsContent() {
     }).catch(console.error);
   }, []);
 
-  const filtered = stats?.recent_records.filter((r) =>
-    search ? r.patient_id.toLowerCase().includes(search.toLowerCase()) ||
-      (r.ai_prediction ?? "").toLowerCase().includes(search.toLowerCase()) : true
-  ) ?? [];
+  // Memoize filtered results to avoid re-filtering on every render
+  const filtered = useMemo(() =>
+    stats?.recent_records.filter((r) =>
+      search ? r.patient_id.toLowerCase().includes(search.toLowerCase()) ||
+        (r.ai_prediction ?? "").toLowerCase().includes(search.toLowerCase()) : true
+    ) ?? [],
+    [stats?.recent_records, search]
+  );
 
   const rowVariants = {
     hidden: { opacity: 0, x: -12 },

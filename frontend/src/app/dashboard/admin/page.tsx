@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardBg from "@/components/DashboardBg";
 import { COLOR_CLASS_MAP, STATUS_COLOR_MAP } from "@/constants/colors";
+import { StatCard } from "@/components/StatCard";
 
 interface Stats {
   total_records: number;
@@ -62,31 +63,20 @@ function AdminContent() {
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12"
         >
           {[
-            { label: "Total Users", value: String((stats?.total_patients ?? 0) + (stats?.total_doctors ?? 0)), icon: Users, color: "sky", gradient: "from-sky-500 to-blue-600" },
-            { label: "Patients", value: String(stats?.total_patients ?? "..."), icon: Activity, color: "rose", gradient: "from-rose-500 to-pink-600" },
-            { label: "Doctors", value: String(stats?.total_doctors ?? "..."), icon: Shield, color: "violet", gradient: "from-violet-500 to-purple-600" },
-            { label: "Diagnoses", value: String(stats?.total_records ?? "..."), icon: Database, color: "emerald", gradient: "from-emerald-500 to-teal-600" },
-          ].map((card) => (
-            <motion.div
-              key={card.label}
-              variants={item}
-              whileHover={{ y: -6, scale: 1.02, transition: { duration: 0.2 } }}
-              className="group relative overflow-hidden rounded-[2rem] p-6 glass-card border border-white/[0.08] hover:border-white/[0.15] transition-colors cursor-default"
-            >
-              <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
-              <div className={`p-3 rounded-2xl w-fit mb-4 ${colorClassMap[card.color].bg} ${colorClassMap[card.color].hover} relative z-10 transition-colors`}>
-                <card.icon size={22} className={colorClassMap[card.color].text} />
-              </div>
-              <p className="text-zinc-500 text-xs font-black uppercase tracking-[0.2em] relative z-10">{card.label}</p>
-              <motion.h3
-                className="text-4xl font-black mt-2 relative z-10"
-                style={{ color: "var(--foreground)" }}
-                initial={{ scale: 0.8 }}
-                animate={{ scale: 1 }}
-              >
-                {card.value}
-              </motion.h3>
-              <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl ${card.gradient} rounded-full opacity-0 group-hover:opacity-10 blur-3xl transition-opacity duration-500 -z-10`} />
+            { label: "Total Users", value: String((stats?.total_patients ?? 0) + (stats?.total_doctors ?? 0)), icon: Users, color: "sky" as const, gradient: "from-sky-500 to-blue-600" },
+            { label: "Patients", value: String(stats?.total_patients ?? "..."), icon: Activity, color: "rose" as const, gradient: "from-rose-500 to-pink-600" },
+            { label: "Doctors", value: String(stats?.total_doctors ?? "..."), icon: Shield, color: "violet" as const, gradient: "from-violet-500 to-purple-600" },
+            { label: "Diagnoses", value: String(stats?.total_records ?? "..."), icon: Database, color: "emerald" as const, gradient: "from-emerald-500 to-teal-600" },
+          ].map((card, idx) => (
+            <motion.div key={card.label} variants={item}>
+              <StatCard
+                label={card.label}
+                value={card.value}
+                icon={card.icon}
+                color={card.color}
+                gradient={card.gradient}
+                delay={idx * 0.1}
+              />
             </motion.div>
           ))}
         </motion.div>

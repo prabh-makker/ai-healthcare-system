@@ -49,14 +49,15 @@ def get_application() -> FastAPI:
     # Add metrics middleware (will be added via decorator after CORS)
     metrics_enabled = settings.PROMETHEUS_METRICS_ENABLED
 
-    # Add CORS middleware with specific origins and methods
+    # Add CORS middleware with explicit method/header allowlists (no wildcards for security)
+    # max_age=600 (10 min) prevents repeated preflight requests
     _app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.get_cors_origins(),
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization"],
-        max_age=600,
+        allow_origins=settings.get_cors_origins(),  # Configured in settings, allows dev/prod URLs
+        allow_credentials=True,  # Allow cookies for session-based auth
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],  # Standard REST + preflight
+        allow_headers=["Content-Type", "Authorization"],  # Request headers allowed from browser
+        max_age=600,  # Cache preflight responses for 10 minutes
     )
 
     # Add security headers middleware
@@ -198,6 +199,9 @@ def get_application() -> FastAPI:
     def on_startup():
         from app.models.models import User, PatientProfile, DoctorProfile, MedicalRecord  # noqa
         from sqlalchemy import text, inspect
+        import os
+        import joblib
+
         Base.metadata.create_all(bind=engine)
         # Add new columns to existing DB if missing (SQLite-safe)
         with engine.connect() as conn:
@@ -209,6 +213,16 @@ def get_application() -> FastAPI:
                 conn.execute(text("ALTER TABLE medical_record ADD COLUMN doctor_notes TEXT"))
                 conn.commit()
         logger.info("Database tables created successfully")
+
+        # Pre-load ML model to avoid latency on first request
+        try:
+            ml_path = os.path.join(settings.ML_MODEL_PATH, "symptom_analysis")
+            model_file = os.path.join(ml_path, "symptom_xgb_model.joblib")
+            if os.path.exists(model_file):
+                joblib.load(model_file)
+                logger.info("ML model pre-loaded successfully")
+        except Exception as e:
+            logger.warning(f"Could not pre-load ML model: {e}")
 
     @_app.get("/")
     async def root():

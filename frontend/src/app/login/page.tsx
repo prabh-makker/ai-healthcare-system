@@ -7,11 +7,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-// Floating particles component
+// Floating particles - creates visual depth perception effect
 function Particles() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {Array.from({ length: 30 }).map((_, i) => (
+      {Array.from({ length: 12 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute rounded-full"
@@ -40,7 +40,7 @@ function Particles() {
   );
 }
 
-// Animated grid background
+// Animated grid with radial gradient pulse for visual interest
 function GridBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-[0.03]">
@@ -91,39 +91,20 @@ function PulseRings() {
   );
 }
 
-// DNA Helix decoration
+// Minimal DNA helix decoration - creates bio-tech aesthetic without excessive animations
 function DNAHelix({ side }: { side: "left" | "right" }) {
   return (
     <div className={`absolute top-0 ${side === "left" ? "-left-20" : "-right-20"} h-full pointer-events-none opacity-20`}>
-      {Array.from({ length: 8 }).map((_, i) => (
+      {Array.from({ length: 4 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute w-3 h-3 rounded-full bg-sky-500"
-          style={{ top: `${i * 13}%` }}
+          style={{ top: `${i * 25}%` }}
           animate={{
             x: side === "left"
               ? [0, 15, 0, -15, 0]
               : [0, -15, 0, 15, 0],
             opacity: [0.3, 0.8, 0.3],
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: i * 0.2,
-          }}
-        />
-      ))}
-      {Array.from({ length: 8 }).map((_, i) => (
-        <motion.div
-          key={`b-${i}`}
-          className="absolute w-2 h-2 rounded-full bg-violet-500"
-          style={{ top: `${i * 13 + 6}%` }}
-          animate={{
-            x: side === "left"
-              ? [0, -15, 0, 15, 0]
-              : [0, 15, 0, -15, 0],
-            opacity: [0.3, 0.6, 0.3],
           }}
           transition={{
             duration: 3,
@@ -160,6 +141,28 @@ export default function Login() {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const router = useRouter();
   const { login, logout } = useAuth();
+
+  // Role-based theme configuration
+  const roleThemes = {
+    PATIENT: {
+      bg: "bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30",
+      textGradient: "linear-gradient(135deg, #ffffff 0%, #f43f5e 50%, #8b5cf6 100%)",
+      textColor: "text-rose-400",
+      icon: <Activity size={36} className="text-white drop-shadow-lg" />,
+      title: "Patient Login",
+      subtitle: "Access your personal health records.",
+    },
+    DOCTOR: {
+      bg: "bg-gradient-to-br from-sky-500 to-sky-600 shadow-sky-500/30",
+      textGradient: "linear-gradient(135deg, #ffffff 0%, #0ea5e9 50%, #8b5cf6 100%)",
+      textColor: "text-sky-400",
+      icon: <ShieldCheck size={36} className="text-white drop-shadow-lg" />,
+      title: "Doctor Login",
+      subtitle: "Secure clinical workstation access.",
+    },
+  } as const;
+
+  const currentTheme = roleThemes[role];
 
   // Mouse tracking for card tilt
   const mouseX = useMotionValue(0);
@@ -351,39 +354,27 @@ export default function Login() {
               <div className="relative mb-6">
                 <PulseRings />
                 <motion.div
-                  className={`w-16 h-16 sm:w-18 sm:h-18 rounded-[1.5rem] flex items-center justify-center shadow-lg relative z-10 ${
-                    role === "PATIENT"
-                      ? "bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30"
-                      : "bg-gradient-to-br from-sky-500 to-sky-600 shadow-sky-500/30"
-                  }`}
+                  className={`w-16 h-16 sm:w-18 sm:h-18 rounded-[1.5rem] flex items-center justify-center shadow-lg relative z-10 ${currentTheme.bg}`}
                   whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
                   transition={{ duration: 0.5 }}
                 >
-                  {role === "PATIENT" ? (
-                    <Activity size={36} className="text-white drop-shadow-lg" />
-                  ) : (
-                    <ShieldCheck size={36} className="text-white drop-shadow-lg" />
-                  )}
+                  {currentTheme.icon}
                 </motion.div>
               </div>
 
               <motion.h2
                 className="text-3xl sm:text-4xl font-black tracking-tight text-center"
                 style={{
-                  backgroundImage: role === "PATIENT"
-                    ? "linear-gradient(135deg, #ffffff 0%, #f43f5e 50%, #8b5cf6 100%)"
-                    : role === "DOCTOR"
-                    ? "linear-gradient(135deg, #ffffff 0%, #0ea5e9 50%, #8b5cf6 100%)"
-                    : "linear-gradient(135deg, #ffffff 0%, #a78bfa 50%, #6d28d9 100%)",
+                  backgroundImage: currentTheme.textGradient,
                   WebkitBackgroundClip: "text",
                   backgroundClip: "text",
                   color: "transparent",
                 }}
               >
-                {role === "PATIENT" ? "Patient Login" : "Doctor Login"}
+                {currentTheme.title}
               </motion.h2>
               <motion.p className="text-zinc-500 mt-2 font-medium text-sm sm:text-base">
-                {role === "PATIENT" ? "Access your personal health records." : "Secure clinical workstation access."}
+                {currentTheme.subtitle}
               </motion.p>
 
               {/* Animated typing indicator dots */}

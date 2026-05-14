@@ -10,6 +10,7 @@ from app.core.security import get_current_user, require_role
 from app.core.pagination import validate_pagination
 from app.core.authorization import check_record_ownership, check_record_modification
 from app.core.constants import RECORD_STATUS_ALLOWED
+from app.core.serializers import serialize_medical_record
 
 router = APIRouter()
 
@@ -24,22 +25,6 @@ class RecordCreate(BaseModel):
 class RecordPatch(BaseModel):
     doctor_notes: Optional[str] = None
     status: Optional[str] = None
-
-
-def _serialize(r: MedicalRecord) -> dict:
-    return {
-        "id": str(r.id),
-        "patient_id": str(r.patient_id),
-        "doctor_id": str(r.doctor_id) if r.doctor_id else None,
-        "symptoms": r.symptoms or [],
-        "ai_prediction": r.ai_prediction,
-        "confidence_score": r.confidence_score,
-        "recommended_specialist": r.recommended_specialist,
-        "image_url": r.image_url,
-        "created_at": r.created_at.isoformat() if r.created_at else None,
-        "status": getattr(r, "status", "pending") or "pending",
-        "doctor_notes": getattr(r, "doctor_notes", None),
-    }
 
 
 @router.get("/stats/summary")
@@ -61,7 +46,7 @@ def get_stats(
         "total_records": total_records,
         "total_patients": total_patients,
         "total_doctors": total_doctors,
-        "recent_records": [_serialize(r) for r in recent_records],
+        "recent_records": [serialize_medical_record(r) for r in recent_records],
     }
 
 
@@ -92,7 +77,7 @@ def get_records(
         .limit(limit)
         .all()
     )
-    return [_serialize(r) for r in records]
+    return [serialize_medical_record(r) for r in records]
 
 
 @router.post("/", status_code=201)
@@ -112,7 +97,7 @@ def create_record(
     db.add(record)
     db.commit()
     db.refresh(record)
-    return _serialize(record)
+    return serialize_medical_record(record)
 
 
 @router.get("/{record_id}")
@@ -126,7 +111,7 @@ def get_record(
         raise HTTPException(status_code=404, detail="Record not found")
     if not check_record_ownership(record, current_user):
         raise HTTPException(status_code=403, detail="Forbidden")
-    return _serialize(record)
+    return serialize_medical_record(record)
 
 
 @router.patch("/{record_id}")
@@ -151,7 +136,7 @@ def patch_record(
         record.status = body.status
     db.commit()
     db.refresh(record)
-    return _serialize(record)
+    return serialize_medical_record(record)
 
 
 @router.delete("/{record_id}", status_code=204)

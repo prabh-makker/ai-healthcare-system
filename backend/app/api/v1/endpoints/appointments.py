@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.models.models import Appointment, User, UserRole
 from app.core.security import get_current_user
 from app.core.pagination import validate_pagination
+from app.core.serializers import serialize_appointment
 
 router = APIRouter()
 
@@ -70,19 +71,7 @@ def list_appointments(
             .limit(limit)
             .all()
         )
-    return [
-        {
-            "id": str(r.id),
-            "patient_id": str(r.patient_id),
-            "specialist": r.specialist,
-            "date": r.date,
-            "time": r.time,
-            "status": r.status,
-            "reason": r.reason,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-        }
-        for r in records
-    ]
+    return [serialize_appointment(r) for r in records]
 
 
 @router.post("/", status_code=201)
@@ -103,16 +92,7 @@ def create_appointment(
     db.add(appt)
     db.commit()
     db.refresh(appt)
-    return {
-        "id": str(appt.id),
-        "patient_id": str(appt.patient_id),
-        "specialist": appt.specialist,
-        "date": appt.date,
-        "time": appt.time,
-        "status": appt.status,
-        "reason": appt.reason,
-        "created_at": appt.created_at.isoformat() if appt.created_at else None,
-    }
+    return serialize_appointment(appt)
 
 
 @router.put("/{appt_id}")
@@ -136,16 +116,7 @@ def update_appointment(
 
     db.commit()
     db.refresh(appt)
-    return {
-        "id": str(appt.id),
-        "patient_id": str(appt.patient_id),
-        "specialist": appt.specialist,
-        "date": appt.date,
-        "time": appt.time,
-        "status": appt.status,
-        "reason": appt.reason,
-        "created_at": appt.created_at.isoformat() if appt.created_at else None,
-    }
+    return serialize_appointment(appt)
 
 
 @router.delete("/{appt_id}", status_code=204)

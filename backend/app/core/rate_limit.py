@@ -5,6 +5,7 @@ import logging
 import json
 import os
 from pathlib import Path
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +74,9 @@ class RateLimiter:
             if failed_count >= self.max_attempts - 1:
                 logger.warning(f"High number of failed login attempts for {identifier}: {failed_count}")
 
-        # Persist to disk
-        self._save_to_disk()
+        # Persist to disk asynchronously (non-blocking)
+        save_thread = threading.Thread(target=self._save_to_disk, daemon=True)
+        save_thread.start()
 
     def _load_from_disk(self) -> None:
         """Load rate limit data from disk."""
