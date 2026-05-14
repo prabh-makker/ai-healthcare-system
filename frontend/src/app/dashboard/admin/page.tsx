@@ -37,6 +37,20 @@ function AdminContent() {
     show: { opacity: 1, y: 0 },
   };
 
+  const colorClassMap: Record<string, { bg: string; text: string; hover: string }> = {
+    sky: { bg: "bg-sky-500/10", text: "text-sky-400", hover: "group-hover:bg-sky-500/20" },
+    rose: { bg: "bg-rose-500/10", text: "text-rose-400", hover: "group-hover:bg-rose-500/20" },
+    violet: { bg: "bg-violet-500/10", text: "text-violet-400", hover: "group-hover:bg-violet-500/20" },
+    emerald: { bg: "bg-emerald-500/10", text: "text-emerald-400", hover: "group-hover:bg-emerald-500/20" },
+  };
+
+  const statusColorMap: Record<string, string> = {
+    sky: "bg-sky-500/10 text-sky-400",
+    rose: "bg-rose-500/10 text-rose-400",
+    violet: "bg-violet-500/10 text-violet-400",
+    emerald: "bg-emerald-500/10 text-emerald-400",
+  };
+
   return (
     <div className="relative min-h-full">
       <DashboardBg accentColor="#8b5cf6" />
@@ -72,8 +86,8 @@ function AdminContent() {
               className="group relative overflow-hidden rounded-[2rem] p-6 glass-card border border-white/[0.08] hover:border-white/[0.15] transition-colors cursor-default"
             >
               <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
-              <div className={`p-3 rounded-2xl w-fit mb-4 bg-${card.color}-500/10 group-hover:bg-${card.color}-500/20 relative z-10 transition-colors`}>
-                <card.icon size={22} className={`text-${card.color}-400`} />
+              <div className={`p-3 rounded-2xl w-fit mb-4 ${colorClassMap[card.color].bg} ${colorClassMap[card.color].hover} relative z-10 transition-colors`}>
+                <card.icon size={22} className={colorClassMap[card.color].text} />
               </div>
               <p className="text-zinc-500 text-xs font-black uppercase tracking-[0.2em] relative z-10">{card.label}</p>
               <motion.h3
@@ -156,7 +170,7 @@ function AdminContent() {
                   className="flex items-center justify-between"
                 >
                   <span className="text-sm font-medium text-zinc-400">{s.label}</span>
-                  <span className={`inline-block text-[10px] font-black px-2.5 py-1 rounded-lg bg-${s.color}-500/10 text-${s.color}-400 capitalize`}>
+                  <span className={`inline-block text-[10px] font-black px-2.5 py-1 rounded-lg ${statusColorMap[s.color]} capitalize`}>
                     {s.status}
                   </span>
                 </motion.div>
@@ -198,7 +212,7 @@ function AdminContent() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <p className="font-bold text-sm">{model.label}</p>
-                  <span className={`text-xs font-bold px-2 py-1 rounded-lg bg-${model.color}-500/10 text-${model.color}-400`}>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-lg ${statusColorMap[model.color]}`}>
                     {model.status}
                   </span>
                 </div>
