@@ -75,7 +75,8 @@
       "Bash(curl -s http://localhost:3006/)",
       "Bash(netstat -tuln)",
       "Bash(cd \"/c/Users/khalo/ai healthcare\" && grep -r \"redis\\\\|Redis\\\\|REDIS\" backend --include=\"*.py\" | head -20)",
-      "Bash(redis-cli ping *)"
+      "Bash(redis-cli ping *)",
+      "Bash(docker-compose up *)"
     ]
   }
 }

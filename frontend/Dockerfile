@@ -3,17 +3,17 @@ FROM node:22-alpine
 WORKDIR /app
 
 # Copy package files
-COPY package.json package-lock.json ./
+COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
 # Copy application
 COPY . .
 
-# Build
+# Build for production
 RUN npm run build
 
-# Run
+# Runtime
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["npm", "start"]
