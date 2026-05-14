@@ -250,7 +250,7 @@ function AdminContent() {
             <div className="space-y-4">
               {[
                 { label: "Rate Limiting", value: "5/15min", icon: Zap },
-                { label: "Token Expiry", value: "8 days", icon: Lock },
+                { label: "Token Expiry", value: "8 hours", icon: Lock },
                 { label: "Encryption", value: "AES-256", icon: Shield },
               ].map((config, idx) => (
                 <motion.div

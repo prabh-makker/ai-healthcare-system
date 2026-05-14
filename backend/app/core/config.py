@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
 
     # Token configuration
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 11520  # 8 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 hours
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     # Database
