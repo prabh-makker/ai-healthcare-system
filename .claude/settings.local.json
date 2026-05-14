@@ -70,7 +70,10 @@
       "mcp__Claude_in_Chrome__select_browser",
       "PowerShell(Get-Process python | Where-Object { $_.CommandLine -match 'uvicorn|fastapi' } | Select-Object Id, ProcessName | Format-List)",
       "Bash(git add *)",
-      "Bash(git commit -m 'Implement file-based persistent rate limiter *)"
+      "Bash(git commit -m 'Implement file-based persistent rate limiter *)",
+      "Bash(curl -s http://localhost:8000/api/v1/health)",
+      "Bash(curl -s http://localhost:3006/)",
+      "Bash(netstat -tuln)"
     ]
   }
 }

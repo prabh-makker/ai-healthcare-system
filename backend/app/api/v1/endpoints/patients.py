@@ -50,13 +50,30 @@ def update_my_profile(
     current_user: User = Depends(get_current_user),
 ):
     import uuid
+    from datetime import datetime
 
     profile = current_user.patient_profile
     if not profile:
         profile = PatientProfile(id=uuid.uuid4(), user_id=current_user.id)
         db.add(profile)
 
+    # Validate input fields
     for field, value in body.model_dump(exclude_unset=True).items():
+        if value is None:
+            setattr(profile, field, value)
+            continue
+
+        # Validate date_of_birth - must be in past
+        if field == "date_of_birth" and isinstance(value, datetime):
+            if value > datetime.now():
+                raise HTTPException(status_code=400, detail="Date of birth cannot be in the future")
+
+        # Validate blood_group - must be valid type
+        if field == "blood_group" and isinstance(value, str):
+            valid_groups = {"O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"}
+            if value and value.upper() not in valid_groups:
+                raise HTTPException(status_code=400, detail=f"Invalid blood group. Must be one of: {', '.join(valid_groups)}")
+
         setattr(profile, field, value)
 
     db.commit()
@@ -71,6 +88,12 @@ def list_patients(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("DOCTOR", "ADMIN")),
 ):
+    # Validate pagination parameters
+    if skip < 0:
+        raise HTTPException(status_code=400, detail="skip must be >= 0")
+    if limit <= 0 or limit > 100:
+        limit = min(limit, 100) if limit > 0 else 50
+
     patients = (
         db.query(User)
         .filter(User.role == UserRole.PATIENT, User.is_active == True)

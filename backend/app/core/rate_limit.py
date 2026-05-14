@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Tuple
 from fastapi import HTTPException, status
 import logging
@@ -24,7 +24,7 @@ class RateLimiter:
         Check if request is allowed based on rate limit.
         Returns (is_allowed, message)
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         window_start = now - timedelta(minutes=self.window_minutes)
 
         # Clean old entries and parse timestamps
@@ -48,11 +48,20 @@ class RateLimiter:
 
         if failed_attempts >= self.max_attempts:
             try:
-                oldest_attempt = datetime.fromisoformat(self.attempts[identifier][-self.max_attempts][0])
-                remaining_time = int(
-                    (oldest_attempt + timedelta(minutes=self.window_minutes) - now).total_seconds() / 60
-                ) + 1
-            except (ValueError, IndexError, TypeError):
+                # Find oldest failed attempt to calculate remaining lockout time
+                failed_attempts_list = [
+                    datetime.fromisoformat(ts)
+                    for ts, success in self.attempts[identifier]
+                    if not success
+                ]
+                if failed_attempts_list:
+                    oldest_failed = min(failed_attempts_list)
+                    remaining_time = int(
+                        (oldest_failed + timedelta(minutes=self.window_minutes) - now).total_seconds() / 60
+                    ) + 1
+                else:
+                    remaining_time = self.window_minutes
+            except (ValueError, TypeError):
                 remaining_time = self.window_minutes
             return False, f"Too many failed login attempts. Try again in {remaining_time} minutes."
 
@@ -63,7 +72,7 @@ class RateLimiter:
         if identifier not in self.attempts:
             self.attempts[identifier] = []
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         self.attempts[identifier].append((now.isoformat(), success))
 
         # Log suspicious activity
