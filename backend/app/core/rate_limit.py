@@ -2,10 +2,9 @@ from datetime import datetime, timedelta
 from typing import Dict, Tuple
 from fastapi import HTTPException, status
 import logging
-import json
-import os
-from pathlib import Path
 import threading
+
+from app.core.file_storage import JSONFileStorage
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +15,9 @@ class RateLimiter:
     def __init__(self, max_attempts: int = 5, window_minutes: int = 15, persist_file: str = ".rate_limit_data.json"):
         self.max_attempts = max_attempts
         self.window_minutes = window_minutes
-        self.persist_file = persist_file
+        self.storage = JSONFileStorage(persist_file)
         # Store: {identifier: [(timestamp_str, was_success), ...]}
-        self.attempts: Dict[str, list] = {}
-        self._load_from_disk()
+        self.attempts: Dict[str, list] = self.storage.load()
 
     def is_allowed(self, identifier: str) -> Tuple[bool, str]:
         """
@@ -75,32 +73,8 @@ class RateLimiter:
                 logger.warning(f"High number of failed login attempts for {identifier}: {failed_count}")
 
         # Persist to disk asynchronously (non-blocking)
-        save_thread = threading.Thread(target=self._save_to_disk, daemon=True)
+        save_thread = threading.Thread(target=self.storage.save, args=(self.attempts,), daemon=True)
         save_thread.start()
-
-    def _load_from_disk(self) -> None:
-        """Load rate limit data from disk."""
-        try:
-            if os.path.exists(self.persist_file):
-                with open(self.persist_file, 'r') as f:
-                    data = json.load(f)
-                    self.attempts = data
-                    logger.info("Loaded rate limit data from disk")
-        except json.JSONDecodeError as e:
-            logger.error(f"Rate limit file corrupted: {self.persist_file} - {e}")
-            self.attempts = {}
-        except IOError as e:
-            logger.error(f"Cannot read rate limit file: {e}")
-            self.attempts = {}
-
-    def _save_to_disk(self) -> None:
-        """Save rate limit data to disk."""
-        try:
-            with open(self.persist_file, 'w') as f:
-                json.dump(self.attempts, f)
-        except Exception as e:
-            logger.error(f"Could not save rate limit data: {e}")
-
 
 # Global rate limiter instance
 auth_rate_limiter = RateLimiter()
