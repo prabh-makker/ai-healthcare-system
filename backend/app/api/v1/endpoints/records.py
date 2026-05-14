@@ -44,6 +44,9 @@ def get_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required.")
+
     total_records = db.query(MedicalRecord).count()
     total_patients = db.query(User).filter(User.role == UserRole.PATIENT).count()
     total_doctors = db.query(User).filter(User.role == UserRole.DOCTOR).count()
