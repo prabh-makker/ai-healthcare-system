@@ -94,8 +94,8 @@ class RedisRateLimiter:
 
 # Initialize global instance
 redis_rate_limiter = RedisRateLimiter(
-    max_attempts=3,
-    window_minutes=15,
+    max_attempts=settings.RATE_LIMIT_AUTH_ATTEMPTS if hasattr(settings, "RATE_LIMIT_AUTH_ATTEMPTS") else 3,
+    window_minutes=settings.RATE_LIMIT_WINDOW_MINUTES if hasattr(settings, "RATE_LIMIT_WINDOW_MINUTES") else 15,
     host=settings.REDIS_HOST if hasattr(settings, "REDIS_HOST") else "localhost",
     port=settings.REDIS_PORT if hasattr(settings, "REDIS_PORT") else 6379,
 )

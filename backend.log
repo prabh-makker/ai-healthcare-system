@@ -1,2 +1,9 @@
-INFO:     Will watch for changes in these directories: ['C:\\Users\\khalo\\ai healthcare\\backend']
-ERROR:    [WinError 10013] An attempt was made to access a socket in a way forbidden by its access permissions
+{"message": "Logging configured for development environment", "timestamp": "2026-05-14T17:45:48.103768", "environment": "development", "level": "INFO", "logger": "root"}
+INFO:     Started server process [40756]
+INFO:     Waiting for application startup.
+{"message": "Database tables created successfully", "timestamp": "2026-05-14T17:45:48.120722", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "ML model pre-loaded successfully", "timestamp": "2026-05-14T17:45:49.220781", "environment": "development", "level": "INFO", "logger": "app.main"}
+INFO:     Application startup complete.
+ERROR:    [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8000): [winerror 10048] only one usage of each socket address (protocol/network address/port) is normally permitted
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.

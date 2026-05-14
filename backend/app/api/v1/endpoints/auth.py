@@ -12,6 +12,8 @@ from app.core import security
 from app.core.config import settings
 from app.core.security import get_current_user, validate_password_strength, validate_email, sanitize_email, COOKIE_NAME
 
+logger = logging.getLogger(__name__)
+
 # Use Redis rate limiter if enabled, fall back to file-based
 if settings.REDIS_ENABLED:
     try:
@@ -23,7 +25,6 @@ if settings.REDIS_ENABLED:
 else:
     from app.core.rate_limit import auth_rate_limiter
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
 COOKIE_MAX_AGE = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60

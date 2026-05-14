@@ -85,5 +85,10 @@ class RateLimiter:
         save_thread = threading.Thread(target=self.storage.save, args=(self.attempts,), daemon=True)
         save_thread.start()
 
-# Global rate limiter instance
-auth_rate_limiter = RateLimiter()
+# Global rate limiter instance (initialized with settings)
+from app.core.config import settings
+
+auth_rate_limiter = RateLimiter(
+    max_attempts=settings.RATE_LIMIT_AUTH_ATTEMPTS,
+    window_minutes=settings.RATE_LIMIT_WINDOW_MINUTES,
+)
