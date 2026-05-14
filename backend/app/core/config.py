@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     # Security
-    SECRET_KEY: str = "dev-secret-key-change-in-production"
+    SECRET_KEY: str
 
     # Token configuration
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 11520  # 8 days
@@ -49,6 +49,16 @@ class Settings(BaseSettings):
     PASSWORD_REQUIRE_UPPERCASE: bool = True
     PASSWORD_REQUIRE_NUMBERS: bool = True
     PASSWORD_REQUIRE_SPECIAL_CHARS: bool = True
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        if not v or len(v) < 32:
+            raise ValueError(
+                "SECRET_KEY must be at least 32 characters. "
+                "Generate a strong key: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
+        return v
 
     def get_cors_origins(self) -> List[str]:
         """Parse CORS origins from comma-separated string"""
