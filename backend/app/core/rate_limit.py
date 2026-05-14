@@ -2,18 +2,23 @@ from datetime import datetime, timedelta
 from typing import Dict, Tuple
 from fastapi import HTTPException, status
 import logging
+import json
+import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 
 class RateLimiter:
-    """Simple in-memory rate limiter for authentication endpoints."""
+    """File-based persistent rate limiter for authentication endpoints."""
 
-    def __init__(self, max_attempts: int = 5, window_minutes: int = 15):
+    def __init__(self, max_attempts: int = 5, window_minutes: int = 15, persist_file: str = ".rate_limit_data.json"):
         self.max_attempts = max_attempts
         self.window_minutes = window_minutes
-        # Store: {identifier: [(timestamp, was_success), ...]}
+        self.persist_file = persist_file
+        # Store: {identifier: [(timestamp_str, was_success), ...]}
         self.attempts: Dict[str, list] = {}
+        self._load_from_disk()
 
     def is_allowed(self, identifier: str) -> Tuple[bool, str]:
         """
@@ -23,12 +28,18 @@ class RateLimiter:
         now = datetime.utcnow()
         window_start = now - timedelta(minutes=self.window_minutes)
 
-        # Clean old entries
+        # Clean old entries and parse timestamps
         if identifier in self.attempts:
-            self.attempts[identifier] = [
-                (timestamp, success) for timestamp, success in self.attempts[identifier]
-                if timestamp > window_start
-            ]
+            valid_attempts = []
+            for timestamp_str, success in self.attempts[identifier]:
+                try:
+                    timestamp = datetime.fromisoformat(timestamp_str)
+                    if timestamp > window_start:
+                        valid_attempts.append((timestamp, success))
+                except (ValueError, TypeError):
+                    # Skip malformed timestamps
+                    pass
+            self.attempts[identifier] = [(t.isoformat(), s) for t, s in valid_attempts]
 
         # Get failed attempts in current window
         if identifier in self.attempts:
@@ -37,9 +48,13 @@ class RateLimiter:
             failed_attempts = 0
 
         if failed_attempts >= self.max_attempts:
-            remaining_time = int(
-                (self.attempts[identifier][-self.max_attempts][0] + timedelta(minutes=self.window_minutes) - now).total_seconds() / 60
-            ) + 1
+            try:
+                oldest_attempt = datetime.fromisoformat(self.attempts[identifier][-self.max_attempts][0])
+                remaining_time = int(
+                    (oldest_attempt + timedelta(minutes=self.window_minutes) - now).total_seconds() / 60
+                ) + 1
+            except (ValueError, IndexError, TypeError):
+                remaining_time = self.window_minutes
             return False, f"Too many failed login attempts. Try again in {remaining_time} minutes."
 
         return True, ""
@@ -49,13 +64,37 @@ class RateLimiter:
         if identifier not in self.attempts:
             self.attempts[identifier] = []
 
-        self.attempts[identifier].append((datetime.utcnow(), success))
+        now = datetime.utcnow()
+        self.attempts[identifier].append((now.isoformat(), success))
 
         # Log suspicious activity
         if not success:
             failed_count = sum(1 for _, s in self.attempts[identifier] if not s)
             if failed_count >= self.max_attempts - 1:
                 logger.warning(f"High number of failed login attempts for {identifier}: {failed_count}")
+
+        # Persist to disk
+        self._save_to_disk()
+
+    def _load_from_disk(self) -> None:
+        """Load rate limit data from disk."""
+        try:
+            if os.path.exists(self.persist_file):
+                with open(self.persist_file, 'r') as f:
+                    data = json.load(f)
+                    self.attempts = data
+                    logger.info("Loaded rate limit data from disk")
+        except Exception as e:
+            logger.warning(f"Could not load rate limit data: {e}")
+            self.attempts = {}
+
+    def _save_to_disk(self) -> None:
+        """Save rate limit data to disk."""
+        try:
+            with open(self.persist_file, 'w') as f:
+                json.dump(self.attempts, f)
+        except Exception as e:
+            logger.error(f"Could not save rate limit data: {e}")
 
 
 # Global rate limiter instance

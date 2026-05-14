@@ -68,7 +68,9 @@
       "Bash(timeout 5)",
       "mcp__Claude_in_Chrome__list_connected_browsers",
       "mcp__Claude_in_Chrome__select_browser",
-      "PowerShell(Get-Process python | Where-Object { $_.CommandLine -match 'uvicorn|fastapi' } | Select-Object Id, ProcessName | Format-List)"
+      "PowerShell(Get-Process python | Where-Object { $_.CommandLine -match 'uvicorn|fastapi' } | Select-Object Id, ProcessName | Format-List)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Implement file-based persistent rate limiter *)"
     ]
   }
 }
