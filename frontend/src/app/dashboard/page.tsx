@@ -503,10 +503,10 @@ export default function Dashboard() {
       </motion.header>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12 overflow-hidden">
-        <StatCard3D label="Health Score" value="Good" icon={HeartPulse} trend="+stable" gradFrom="#f43f5e" gradTo="#ec4899" glowColor="rgba(244,63,94,0.2)" delay={0} onClick={() => router.push("/dashboard/records")} />
+        <StatCard3D label="Health Score" value="Good" icon={HeartPulse} trend="+stable" gradFrom="#f43f5e" gradTo="#ec4899" glowColor="rgba(244,63,94,0.2)" delay={0} />
         <StatCard3D label="Medical Records" value={stats ? String(stats.recent_records.filter(r => r.patient_id === user?.id).length) : "—"} icon={ClipboardList} trend="+latest" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} onClick={() => router.push("/dashboard/records")} />
         <StatCard3D label="Appointments" value="1" icon={Clock} trend="tomorrow" gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} onClick={() => router.push("/dashboard/appointments")} />
-        <StatCard3D label="Medications" value="2 Active" icon={Pill} trend="on track" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} onClick={() => router.push("/dashboard/symptoms")} />
+        <StatCard3D label="Medications" value="2 Active" icon={Pill} trend="on track" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} onClick={() => router.push("/dashboard/medications")} />
       </motion.div>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 xl:grid-cols-3 gap-8">
