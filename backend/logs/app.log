@@ -1928,3 +1928,8 @@
 {"message": "Logging configured for production environment", "timestamp": "2026-05-14T18:46:25.938866", "environment": "production", "level": "INFO", "logger": "root"}
 {"message": "Database tables created successfully", "timestamp": "2026-05-14T18:46:26.391161", "environment": "production", "level": "INFO", "logger": "app.main"}
 {"message": "Could not pre-load ML model: No module named 'xgboost'", "timestamp": "2026-05-14T18:46:26.401530", "environment": "production", "level": "WARNING", "logger": "app.main"}
+{"message": "Logging configured for production environment", "timestamp": "2026-05-14T19:05:14.720487", "environment": "production", "level": "INFO", "logger": "root"}
+{"message": "Database tables created successfully", "timestamp": "2026-05-14T19:05:14.907712", "environment": "production", "level": "INFO", "logger": "app.main"}
+{"message": "ML model pre-loaded successfully", "timestamp": "2026-05-14T19:05:15.942255", "environment": "production", "level": "INFO", "logger": "app.main"}
+{"message": "Request: GET /api/v1/health", "method": "GET", "path": "/api/v1/health", "client": "172.21.0.1", "timestamp": "2026-05-14T19:05:54.842355", "environment": "production", "level": "INFO", "logger": "app.main"}
+{"message": "Response: 200 for GET /api/v1/health", "status_code": 200, "method": "GET", "path": "/api/v1/health", "timestamp": "2026-05-14T19:05:54.862434", "environment": "production", "level": "INFO", "logger": "app.main"}

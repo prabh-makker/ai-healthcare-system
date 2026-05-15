@@ -76,7 +76,14 @@
       "Bash(netstat -tuln)",
       "Bash(cd \"/c/Users/khalo/ai healthcare\" && grep -r \"redis\\\\|Redis\\\\|REDIS\" backend --include=\"*.py\" | head -20)",
       "Bash(redis-cli ping *)",
-      "Bash(docker-compose up *)"
+      "Bash(docker-compose up *)",
+      "Bash(curl -s -f -o /dev/null http://localhost:3006)",
+      "Bash(curl -s -X GET http://localhost:3006/api/v1/health -w \"\\\\nStatus: %{http_code}\\\\n\")",
+      "Bash(docker exec *)",
+      "Bash(docker-compose stop *)",
+      "Bash(docker rm *)",
+      "Bash(docker rmi *)",
+      "Bash(docker-compose build *)"
     ]
   }
 }
