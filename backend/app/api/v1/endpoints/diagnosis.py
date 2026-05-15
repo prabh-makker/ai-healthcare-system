@@ -1,12 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 import joblib
 import json
 import os
 import uuid
 import numpy as np
+import re
 
 from app.core.config import settings
 from app.core.security import get_current_user, require_role
@@ -35,6 +36,38 @@ def _load_symptom_model():
     return _cached_model, _cached_meta
 
 
+def _parse_symptoms_from_text(text: str, known_symptoms: List[str]) -> List[str]:
+    """Extract symptom keywords from free-form user input."""
+    text_lower = text.lower()
+    found = []
+    seen = set()
+
+    for symptom in known_symptoms:
+        if symptom not in seen and re.search(r'\b' + re.escape(symptom) + r'\b', text_lower):
+            found.append(symptom)
+            seen.add(symptom)
+
+    return found
+
+
+def _get_next_symptom_prompt(
+    selected_symptoms: List[str],
+    known_symptoms: List[str],
+    asked_symptoms: List[str] = [],
+) -> tuple:
+    """Generate next turn-based prompt and return (prompt_text, next_symptom_name)."""
+    answered = set(selected_symptoms) | set(asked_symptoms)
+    unasked = [s for s in known_symptoms if s not in answered]
+
+    if not unasked:
+        return "I've gathered enough information. Ready for your diagnosis?", None
+
+    next_symptom = unasked[0]
+    prompt = f"Do you have {next_symptom.replace('_', ' ')}?"
+
+    return prompt, next_symptom
+
+
 # ── Symptom Analysis ──────────────────────────────────────────────────────────
 
 class SymptomRequest(BaseModel):
@@ -49,6 +82,30 @@ class PredictionResponse(BaseModel):
     recognized_symptoms: List[str]
     unknown_symptoms: List[str]
     record_id: Optional[str] = None
+
+
+# ── Chat-Based Diagnosis ──────────────────────────────────────────────────────
+
+class DiagnosisChatRequest(BaseModel):
+    message: str
+    selected_symptoms: List[str] = []
+    asked_symptoms: List[str] = []
+    session_id: Optional[str] = None
+
+
+class CurrentDiagnosis(BaseModel):
+    disease: str
+    confidence: float
+    specialist: str
+
+
+class DiagnosisChatResponse(BaseModel):
+    assistant_message: str
+    updated_symptoms: List[str]
+    current_diagnosis: Dict[str, Any]
+    next_symptom_to_ask: Optional[str] = None
+    conversation_state: str
+    recognized_keywords: List[str] = []
 
 
 
@@ -101,8 +158,8 @@ def analyze_symptoms(
     record_id = None
     if request.save_record:
         record = MedicalRecord(
-            id=uuid.uuid4(),
-            patient_id=current_user.id,
+            id=str(uuid.uuid4()),
+            patient_id=str(current_user.id),
             symptoms=request.symptoms,
             ai_prediction=disease_name,
             confidence_score=confidence,
@@ -120,6 +177,83 @@ def analyze_symptoms(
         "recognized_symptoms": recognized_symptoms,
         "unknown_symptoms": unknown_symptoms,
         "record_id": record_id,
+    }
+
+
+@router.post("/chat", response_model=DiagnosisChatResponse)
+def diagnosis_chat(
+    request: DiagnosisChatRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Chat-based diagnosis supporting turn-based prompts and free-form symptom input."""
+
+    if not request.message or not request.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty.")
+
+    model, meta = _load_symptom_model()
+    known_symptoms = meta["symptoms"]
+    classes = meta.get("diseases", meta.get("classes", []))
+
+    # Parse symptoms from free-form text
+    parsed_symptoms = _parse_symptoms_from_text(request.message, known_symptoms)
+
+    # Merge parsed symptoms with client-provided symptoms, deduplicate and validate
+    seen = set()
+    merged_symptoms = []
+    for s in request.selected_symptoms + parsed_symptoms:
+        if s in known_symptoms and s not in seen:
+            merged_symptoms.append(s)
+            seen.add(s)
+    merged_symptoms.sort()
+
+    # Run XGBoost prediction if symptoms present
+    diagnosis_dict = {}
+    if merged_symptoms:
+        # Cache symptom indices for O(1) lookup
+        symptom_idx_map = {s: i for i, s in enumerate(known_symptoms)}
+        profile = np.zeros(len(known_symptoms))
+        for symp in merged_symptoms:
+            profile[symptom_idx_map[symp]] = 1
+
+        profile = profile.reshape(1, -1)
+        pred_idx = model.predict(profile)[0]
+        pred_proba_full = model.predict_proba(profile)
+        pred_proba = float(np.max(pred_proba_full) * 100)
+
+        if isinstance(pred_idx, (int, np.integer)) and 0 <= pred_idx < len(classes):
+            disease_name = classes[int(pred_idx)]
+            specialist = SPECIALIST_MAP.get(disease_name, "General Physician")
+            diagnosis_dict = {
+                "disease": disease_name,
+                "confidence": round(pred_proba, 2),
+                "specialist": specialist,
+            }
+
+    # Determine conversation state
+    message_lower = request.message.lower().strip()
+    ready_keywords = ["ready", "yes tell me", "show me diagnosis", "what do i have"]
+
+    if len(merged_symptoms) >= 5 or any(kw in message_lower for kw in ready_keywords):
+        conversation_state = "diagnosis_ready"
+        if diagnosis_dict:
+            next_prompt = f"Based on your symptoms, I predict: {diagnosis_dict['disease']} (Confidence: {diagnosis_dict['confidence']}%). Consider seeing a {diagnosis_dict['specialist']}."
+        else:
+            next_prompt = "Need at least one symptom for diagnosis."
+        next_symptom = None
+    else:
+        conversation_state = "collecting_symptoms"
+        next_prompt, next_symptom = _get_next_symptom_prompt(
+            merged_symptoms, known_symptoms, request.asked_symptoms
+        )
+
+    return {
+        "assistant_message": next_prompt,
+        "updated_symptoms": merged_symptoms,
+        "current_diagnosis": diagnosis_dict,
+        "next_symptom_to_ask": next_symptom,
+        "conversation_state": conversation_state,
+        "recognized_keywords": parsed_symptoms,
     }
 
 

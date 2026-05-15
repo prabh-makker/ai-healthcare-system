@@ -1,282 +1,345 @@
 "use client";
 
-import React, { useState } from "react";
-import {
-  Check,
-  AlertCircle,
-  ShieldCheck,
-  Activity,
-  Thermometer,
-  Dna,
-  FileSearch,
-  ArrowRight,
-  ShieldPlus,
-  ChevronLeft,
-  Wind,
-  Brain,
-  Stethoscope,
-} from "lucide-react";
-import { motion } from "framer-motion";
-import Link from "next/link";
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Send, MessageSquare, Pill, AlertCircle, Save } from "lucide-react";
 import { api } from "@/lib/api";
-import { useToast } from "@/components/Toast";
+import { useAuth } from "@/context/AuthContext";
+import DashboardBg from "@/components/DashboardBg";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
-const symptoms = [
-  { id: "fever", label: "High Fever", icon: Thermometer },
-  { id: "cough", label: "Persistent Cough", icon: Wind },
-  { id: "fatigue", label: "Chronic Fatigue", icon: Activity },
-  { id: "difficulty_breathing", label: "Difficulty Breathing", icon: Stethoscope },
-  { id: "loss_of_taste_smell", label: "Loss of Taste/Smell", icon: Dna },
-  { id: "headache", label: "Severe Headache", icon: Brain },
-  { id: "sore_throat", label: "Sore Throat", icon: Activity },
-];
+interface ChatMessageType {
+  id: string;
+  type: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+}
 
-export default function SymptomChecker() {
+interface CurrentDiagnosis {
+  disease?: string;
+  confidence?: number;
+  specialist?: string;
+}
+
+export default function DiagnosticsChat() {
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<{
-    predicted_disease: string;
-    confidence: number;
-    recommended_specialist: string;
-    record_id?: string | null;
-  } | null>(null);
-  const [error, setError] = useState("");
-  const { toast: showToast } = useToast();
+  const [currentDiagnosis, setCurrentDiagnosis] = useState<CurrentDiagnosis>({});
+  const [conversationState, setConversationState] = useState<"collecting_symptoms" | "diagnosis_ready" | "saved">(
+    "collecting_symptoms"
+  );
+  const [askedSymptoms, setAskedSymptoms] = useState<string[]>([]);
+  const [userInput, setUserInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
+  const [messageCounter, setMessageCounter] = useState(0);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const toggleSymptom = (id: string) => {
-    setSelectedSymptoms((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
-  };
+  // Initialize with greeting
+  useEffect(() => {
+    const greeting: ChatMessageType = {
+      id: `${sessionId}-0`,
+      type: "assistant",
+      content: "Hello! 👋 I'm your AI diagnostic assistant. Tell me about your symptoms, or just say 'yes' or 'no' to my questions. What brings you in today?",
+      timestamp: new Date(),
+    };
+    setMessages([greeting]);
+    setMessageCounter(1);
+  }, [sessionId]);
 
-  const handleAnalyze = async () => {
-    if (selectedSymptoms.length === 0) return;
-    setIsAnalyzing(true);
-    setError("");
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (!userInput.trim()) return;
+
+    setError(null);
+    const userMessage = userInput.trim();
+    setUserInput("");
+
+    // Add user message to chat
+    const userMsg: ChatMessageType = {
+      id: `${sessionId}-${messageCounter}`,
+      type: "user",
+      content: userMessage,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setMessageCounter((prev) => prev + 1);
+    setLoading(true);
 
     try {
-      const data = await api.analyzeSymptoms(selectedSymptoms, false);
-      setResult(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to analyze symptoms.");
+      // Call diagnosis chat endpoint
+      const response = await api.diagnosisChat(userMessage, selectedSymptoms, askedSymptoms, sessionId);
+
+      // Update state from response
+      setSelectedSymptoms(response.updated_symptoms);
+      setCurrentDiagnosis(response.current_diagnosis);
+      setConversationState(response.conversation_state);
+      if (response.next_symptom_to_ask) {
+        setAskedSymptoms((prev) => [...prev, response.next_symptom_to_ask!]);
+      }
+
+      // Add assistant message
+      const assistantMsg: ChatMessageType = {
+        id: `${sessionId}-${messageCounter + 1}`,
+        type: "assistant",
+        content: response.assistant_message,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+      setMessageCounter((prev) => prev + 2);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send message");
+      console.error("Chat error:", err);
     } finally {
-      setIsAnalyzing(false);
+      setLoading(false);
     }
   };
 
-  const handleSaveRecord = async () => {
-    if (!result) return;
+  const handleSaveDiagnosis = async () => {
+    if (!currentDiagnosis.disease) {
+      setError("No diagnosis to save.");
+      return;
+    }
+
     try {
       await api.createRecord({
         symptoms: selectedSymptoms,
-        ai_prediction: result.predicted_disease,
-        confidence_score: result.confidence,
-        recommended_specialist: result.recommended_specialist,
+        ai_prediction: currentDiagnosis.disease,
+        confidence_score: currentDiagnosis.confidence || 0,
+        recommended_specialist: currentDiagnosis.specialist || "General Physician",
       });
-      showToast("Record saved successfully!", "success");
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : "Failed to save record.", "error");
+
+      setConversationState("saved");
+      const savedMsg: ChatMessageType = {
+        id: `${sessionId}-${messageCounter}`,
+        type: "assistant",
+        content: "✅ Your diagnosis has been saved to your medical records. You can view it anytime in your records section.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, savedMsg]);
+      setMessageCounter((prev) => prev + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save diagnosis");
     }
   };
 
-  const reset = () => {
+  const handleNewDiagnosis = () => {
     setSelectedSymptoms([]);
-    setResult(null);
-    setError("");
+    setAskedSymptoms([]);
+    setCurrentDiagnosis({});
+    setConversationState("collecting_symptoms");
+    setSessionId(crypto.randomUUID());
+    setError(null);
+
+    const greeting: ChatMessageType = {
+      id: `${sessionId}-1`,
+      type: "assistant",
+      content: "Let's start over. What symptoms are you experiencing?",
+      timestamp: new Date(),
+    };
+    setMessages([greeting]);
+    setMessageCounter(2);
   };
 
   return (
-    <>
-      <header className="max-w-4xl mx-auto mb-16">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center space-x-2 text-zinc-500 hover:text-white transition-colors mb-8 group"
-        >
-          <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-          <span className="font-bold">Return to Dashboard</span>
-        </Link>
-        <h1 className="text-5xl font-bold tracking-tight text-gradient mb-4">
-          Symptom Diagnostic Interface
-        </h1>
-        <p className="text-zinc-500 text-lg font-medium">
-          Select presenting symptoms for real-time AI-powered clinical analysis.
-        </p>
-      </header>
+    <ProtectedRoute>
+      <div className="relative min-h-full">
+        <DashboardBg accentColor="#0ea5e9" />
 
-      <div className="max-w-4xl mx-auto">
-        {error && (
+        <div className="relative z-10 p-12 max-w-5xl h-screen flex flex-col">
+          {/* Header */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm font-medium"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6"
           >
-            {error}
+            <h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-sky-200 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
+              AI Diagnostics
+            </h1>
+            <p className="text-zinc-500 mt-2 font-medium">Chat with our AI to get personalized diagnosis insights</p>
           </motion.div>
-        )}
 
-        {!result ? (
-          <div className="glass-card rounded-[2.5rem] p-10">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-              {symptoms.map((symptom) => {
-                const Icon = symptom.icon;
-                const isSelected = selectedSymptoms.includes(symptom.id);
-                return (
-                  <motion.div
-                    key={symptom.id}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => toggleSymptom(symptom.id)}
-                    className={`flex items-center justify-between p-6 rounded-3xl border cursor-pointer transition-all duration-300 ${
-                      isSelected
-                        ? "bg-sky-500/10 border-sky-500/50 text-white shadow-lg shadow-sky-500/10"
-                        : "bg-white/5 border-white/5 text-zinc-400"
-                    }`}
-                  >
-                    <div className="flex items-center space-x-4">
+          {/* Error Alert */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3"
+            >
+              <AlertCircle size={20} className="text-red-400 flex-shrink-0" />
+              <p className="text-red-400 text-sm">{error}</p>
+            </motion.div>
+          )}
+
+          {/* Main Chat Container */}
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0 overflow-hidden">
+            {/* Chat Messages */}
+            <div className="lg:col-span-2 glass-card rounded-2xl border border-white/[0.08] flex flex-col overflow-hidden">
+              {/* Messages Area */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <AnimatePresence>
+                  {messages.map((msg) => (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}
+                    >
                       <div
-                        className={`p-3 rounded-2xl ${
-                          isSelected ? "bg-sky-500 text-white" : "bg-zinc-800 text-zinc-500"
+                        className={`max-w-[70%] px-4 py-3 rounded-2xl ${
+                          msg.type === "user"
+                            ? "bg-sky-500 text-white"
+                            : "bg-white/5 text-zinc-200 border border-white/10"
                         }`}
                       >
-                        <Icon size={20} />
+                        <p className="text-sm leading-relaxed">{msg.content}</p>
+                        <p className={`text-[10px] mt-1.5 ${msg.type === "user" ? "text-sky-100" : "text-zinc-500"}`}>
+                          {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </p>
                       </div>
-                      <span className="font-bold tracking-tight">{symptom.label}</span>
-                    </div>
-                    {isSelected && (
-                      <div className="w-6 h-6 bg-sky-500 rounded-full flex items-center justify-center">
-                        <Check size={14} strokeWidth={4} />
-                      </div>
-                    )}
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            <div className="flex items-center justify-between bg-white/[0.02] border border-white/5 p-8 rounded-[2rem]">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500">
-                  <ShieldCheck size={28} />
-                </div>
-                <div>
-                  <h4 className="font-bold leading-none mb-1">Secure Analysis</h4>
-                  <p className="text-xs text-zinc-500 font-medium">
-                    HIPAA compliant data transmission.
-                  </p>
-                </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                <div ref={messagesEndRef} />
               </div>
 
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                disabled={selectedSymptoms.length === 0 || isAnalyzing}
-                onClick={handleAnalyze}
-                className={`flex items-center space-x-3 px-10 py-5 rounded-[1.5rem] font-bold transition-all shadow-2xl ${
-                  selectedSymptoms.length > 0 && !isAnalyzing
-                    ? "bg-sky-500 text-white shadow-sky-500/20 hover:bg-sky-400"
-                    : "bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50"
-                }`}
-              >
-                {isAnalyzing ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    <span>Analyzing...</span>
-                  </>
+              {/* Input Area */}
+              <div className="px-6 py-4 border-t border-white/5 flex items-center gap-3">
+                <input
+                  type="text"
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+                  placeholder={
+                    conversationState === "saved"
+                      ? "Diagnosis saved. Start new conversation..."
+                      : "Type your symptoms or reply yes/no..."
+                  }
+                  disabled={conversationState === "saved"}
+                  className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500 transition-all disabled:opacity-50"
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={loading || !userInput.trim() || conversationState === "saved"}
+                  className="p-2.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white rounded-lg transition-all"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Sidebar: Symptoms & Diagnosis */}
+            <div className="flex flex-col gap-6">
+              {/* Selected Symptoms */}
+              <motion.div className="glass-card rounded-2xl p-6 border border-white/[0.08]">
+                <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                  <Pill size={18} className="text-sky-400" />
+                  Selected Symptoms
+                </h3>
+                <div className="space-y-2">
+                  {selectedSymptoms.length === 0 ? (
+                    <p className="text-xs text-zinc-500">No symptoms selected yet</p>
+                  ) : (
+                    selectedSymptoms.map((symptom) => (
+                      <motion.div
+                        key={symptom}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="px-3 py-1.5 bg-sky-500/10 border border-sky-500/20 rounded-lg text-xs font-semibold text-sky-300"
+                      >
+                        ✓ {symptom}
+                      </motion.div>
+                    ))
+                  )}
+                </div>
+                <p className="text-[10px] text-zinc-600 mt-4">
+                  {selectedSymptoms.length} symptom{selectedSymptoms.length !== 1 ? "s" : ""} recorded
+                </p>
+              </motion.div>
+
+              {/* Current Diagnosis */}
+              <motion.div className="glass-card rounded-2xl p-6 border border-white/[0.08]">
+                <h3 className="font-bold text-white mb-4">Current Diagnosis</h3>
+                {currentDiagnosis.disease ? (
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs text-zinc-500 mb-1">Disease/Condition</p>
+                      <p className="text-lg font-bold text-sky-300">{currentDiagnosis.disease}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-zinc-500 mb-1">Confidence</p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-sky-500 to-blue-500"
+                            style={{ width: `${currentDiagnosis.confidence}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-bold text-sky-300">{currentDiagnosis.confidence}%</span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-zinc-500 mb-1">Recommended Specialist</p>
+                      <p className="text-sm text-zinc-300">{currentDiagnosis.specialist}</p>
+                    </div>
+
+                    {conversationState === "diagnosis_ready" && (
+                      <div className="pt-3 space-y-2">
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={handleSaveDiagnosis}
+                          className="w-full px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2 text-sm"
+                        >
+                          <Save size={16} />
+                          Save Diagnosis
+                        </motion.button>
+                        <button
+                          onClick={handleNewDiagnosis}
+                          className="w-full px-4 py-2 bg-white/5 hover:bg-white/10 text-zinc-300 font-semibold rounded-lg transition-all text-sm"
+                        >
+                          New Diagnosis
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ) : (
-                  <>
-                    <Activity size={20} />
-                    <span>Sequence Diagnostic</span>
-                  </>
+                  <div className="flex items-center gap-3 py-4">
+                    <MessageSquare size={32} className="text-zinc-700" />
+                    <p className="text-xs text-zinc-500">Share more symptoms to get a diagnosis</p>
+                  </div>
                 )}
-              </motion.button>
-            </div>
-          </div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="glass-card rounded-[2.5rem] p-12 text-center"
-          >
-            <div
-              className={`w-20 h-20 mx-auto rounded-3xl flex items-center justify-center mb-8 ${
-                result.confidence > 70
-                  ? "bg-amber-500/20 text-amber-500"
-                  : "bg-emerald-500/20 text-emerald-500"
-              }`}
-            >
-              <ShieldPlus size={40} />
-            </div>
+              </motion.div>
 
-            <h2 className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 mb-2">
-              AI Diagnostic Report
-            </h2>
-            <h3 className="text-5xl font-bold tracking-tighter mb-4 text-gradient">
-              {result.predicted_disease}
-            </h3>
-
-            <div className="flex items-center justify-center space-x-3 mb-12">
-              <div className="flex items-center glass-card px-4 py-2 rounded-full border-sky-500/20">
-                <div className="w-2 h-2 bg-sky-500 rounded-full mr-2 animate-pulse" />
-                <span className="text-xs font-bold text-sky-400">
-                  Precision: {result.confidence}%
+              {/* State Indicator */}
+              <div className="text-center text-xs text-zinc-600 py-2">
+                <span
+                  className={`px-3 py-1 rounded-full inline-block ${
+                    conversationState === "collecting_symptoms"
+                      ? "bg-sky-500/20 text-sky-400"
+                      : conversationState === "diagnosis_ready"
+                        ? "bg-emerald-500/20 text-emerald-400"
+                        : "bg-purple-500/20 text-purple-400"
+                  }`}
+                >
+                  {conversationState === "collecting_symptoms"
+                    ? "Collecting Symptoms"
+                    : conversationState === "diagnosis_ready"
+                      ? "Ready to Save"
+                      : "Saved"}
                 </span>
               </div>
             </div>
-
-            <div className="max-w-md mx-auto grid grid-cols-1 gap-4 mb-12">
-              <div className="p-6 rounded-3xl bg-white/5 border border-white/5 text-left">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-8 h-8 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-500">
-                    <FileSearch size={18} />
-                  </div>
-                  <span className="font-bold text-sm tracking-tight text-zinc-300">
-                    Analysis Summary
-                  </span>
-                </div>
-                <p className="text-sm text-zinc-500 leading-relaxed">
-                  Based on the selected symptoms, the system has identified patterns characteristic
-                  of {result.predicted_disease}. Recommendation has been generated for specialist
-                  review.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-3xl bg-sky-500/10 border border-sky-500/10 text-left">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-8 h-8 rounded-xl bg-sky-500/20 flex items-center justify-center text-sky-500">
-                    <AlertCircle size={18} />
-                  </div>
-                  <span className="font-bold text-sm tracking-tight text-sky-400">
-                    Specialist Protocol
-                  </span>
-                </div>
-                <p className="text-sm text-white font-medium leading-relaxed">
-                  Recommended Specialist: <br />
-                  <span className="text-lg font-bold">{result.recommended_specialist}</span>
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-4">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={reset}
-                className="w-full md:w-auto px-10 py-5 rounded-[1.5rem] bg-zinc-800 hover:bg-zinc-700 font-bold transition-all text-zinc-300"
-              >
-                Reset Diagnostic
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleSaveRecord}
-                className="w-full md:w-auto px-10 py-5 rounded-[1.5rem] bg-sky-500 hover:bg-sky-400 text-white font-bold transition-all shadow-xl shadow-sky-500/30 flex items-center justify-center space-x-2"
-              >
-                <span>Save to Medical Record</span>
-                <ArrowRight size={20} />
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
+          </div>
+        </div>
       </div>
-    </>
+    </ProtectedRoute>
   );
 }

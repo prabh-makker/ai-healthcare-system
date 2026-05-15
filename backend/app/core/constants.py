@@ -6,6 +6,11 @@ SPECIALIST_MAP = {
     "Pneumonia": "Pulmonologist",
     "Flu": "General Physician",
     "Common Cold": "General Physician",
+    "Bronchitis": "Pulmonologist",
+    "Asthma": "Pulmonologist",
+    "Anxiety Disorder": "Psychiatrist",
+    "Migraine": "Neurologist",
+    "Gastritis": "Gastroenterologist",
     "Healthy": "None required",
 }
 

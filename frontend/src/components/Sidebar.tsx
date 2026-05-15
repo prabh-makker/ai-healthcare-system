@@ -13,7 +13,11 @@ import {
   LogOut,
   HeartPulse,
   Search,
-  BarChart3
+  BarChart3,
+  Pill,
+  FileCheck,
+  GitBranch,
+  Bell
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
@@ -61,14 +65,23 @@ export default function Sidebar() {
   const menuItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
     { href: "/dashboard/symptoms", icon: HeartPulse, label: "Diagnostics" },
+    { href: "/dashboard/notifications", icon: Bell, label: "Notifications" },
     ...(isAdmin ? [
-      { href: "/dashboard/admin", icon: BarChart3, label: "Admin" },
-    ] : isDoctor ? [
-      { href: "/dashboard/patients", icon: Users, label: "Patients" },
+      { href: "/dashboard/patients", icon: Users, label: "Users" },
       { href: "/dashboard/records", icon: ClipboardList, label: "Records" },
+      { href: "/dashboard/appointments", icon: Calendar, label: "Schedule" },
+      { href: "/dashboard/analytics", icon: BarChart3, label: "Analytics" },
+    ] : isDoctor ? [
+      { href: "/dashboard/my-patients", icon: Users, label: "My Patients" },
+      { href: "/dashboard/approvals", icon: FileCheck, label: "Approvals" },
+      { href: "/dashboard/prescriptions", icon: Pill, label: "Prescriptions" },
+      { href: "/dashboard/records", icon: ClipboardList, label: "Records" },
+      { href: "/dashboard/analytics", icon: BarChart3, label: "Analytics" },
     ] : [
+      { href: "/dashboard/medications", icon: Pill, label: "Medications" },
       { href: "/dashboard/records", icon: ClipboardList, label: "My History" },
       { href: "/dashboard/appointments", icon: Calendar, label: "Appointments" },
+      { href: "/dashboard/timeline", icon: GitBranch, label: "Timeline" },
     ]),
     { href: "/dashboard/search", icon: Search, label: "Search" },
   ];

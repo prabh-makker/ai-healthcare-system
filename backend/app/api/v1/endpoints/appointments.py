@@ -81,8 +81,8 @@ def create_appointment(
     current_user: User = Depends(get_current_user),
 ):
     appt = Appointment(
-        id=uuid.uuid4(),
-        patient_id=current_user.id,
+        id=str(uuid.uuid4()),
+        patient_id=str(current_user.id),
         specialist=body.specialist,
         date=body.date,
         time=body.time,

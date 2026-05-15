@@ -1,12 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any, Dict
 from datetime import datetime
+import logging
 
 from app.db.session import get_db
-from app.models.models import User, PatientProfile, UserRole
+from app.models.models import User, PatientProfile, UserRole, DoctorPatient, MedicalRecord, Appointment
 from app.core.security import get_current_user, require_role
+from sqlalchemy import func
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -81,6 +85,58 @@ def update_my_profile(
     return _serialize_profile(current_user, current_user.patient_profile)
 
 
+@router.get("/admin/doctors-overview")
+def admin_doctors_overview(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Admin: list all doctors with patient counts, record counts."""
+    doctors = db.query(User).filter(
+        User.role == UserRole.DOCTOR, User.is_active == True
+    ).all()
+
+    # Single grouped query per metric instead of N per doctor
+    patient_counts = dict(db.query(DoctorPatient.doctor_id, func.count(DoctorPatient.id)).filter(
+        DoctorPatient.status == "active"
+    ).group_by(DoctorPatient.doctor_id).all())
+
+    record_counts = dict(db.query(MedicalRecord.doctor_id, func.count(MedicalRecord.id)).filter(
+        MedicalRecord.doctor_id.isnot(None)
+    ).group_by(MedicalRecord.doctor_id).all())
+
+    pending_counts = dict(db.query(MedicalRecord.doctor_id, func.count(MedicalRecord.id)).filter(
+        MedicalRecord.status == "pending", MedicalRecord.doctor_id.isnot(None)
+    ).group_by(MedicalRecord.doctor_id).all())
+
+    return [{
+        "id": str(doc.id),
+        "email": doc.email,
+        "name": doc.email.split("@")[0].replace(".", " ").title(),
+        "specialization": doc.doctor_profile.specialization if doc.doctor_profile else "General",
+        "is_available": doc.doctor_profile.availability_status if doc.doctor_profile else True,
+        "patient_count": patient_counts.get(doc.id, 0),
+        "record_count": record_counts.get(doc.id, 0),
+        "pending_approvals": pending_counts.get(doc.id, 0),
+        "created_at": doc.created_at.isoformat() if doc.created_at else None,
+    } for doc in doctors]
+
+
+@router.get("/admin/all-users")
+def admin_all_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Admin: list all users grouped by role."""
+    users = db.query(User).order_by(User.created_at.desc()).all()
+    return [{
+        "id": str(u.id),
+        "email": u.email,
+        "role": u.role.value,
+        "is_active": u.is_active,
+        "created_at": u.created_at.isoformat() if u.created_at else None,
+    } for u in users]
+
+
 @router.get("/list")
 def list_patients(
     skip: int = 0,
@@ -102,3 +158,110 @@ def list_patients(
         .all()
     )
     return [_serialize_profile(p, p.patient_profile) for p in patients]
+
+
+@router.get("/my-patients")
+def get_my_patients(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    skip: int = 0,
+    limit: int = 50,
+) -> List[Dict[str, Any]]:
+    """
+    Get all patients assigned to this doctor.
+    Only doctors can call this endpoint.
+    """
+    if current_user.role != "DOCTOR":
+        raise HTTPException(status_code=403, detail="Only doctors can view their assigned patients")
+
+    # Get all active assignments for this doctor
+    assignments = (
+        db.query(DoctorPatient)
+        .filter(
+            DoctorPatient.doctor_id == current_user.id,
+            DoctorPatient.status == "active"
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    # Build patient objects with profile info
+    result = []
+    for assignment in assignments:
+        patient = db.query(User).filter(User.id == assignment.patient_id).first()
+        profile = db.query(PatientProfile).filter(PatientProfile.user_id == assignment.patient_id).first()
+
+        if patient:
+            result.append({
+                "id": patient.id,
+                "email": patient.email,
+                "name": patient.email.split("@")[0],
+                "chronic_conditions": profile.chronic_conditions if profile else [],
+                "blood_group": profile.blood_group if profile else None,
+                "assigned_date": assignment.assigned_date.isoformat() if assignment.assigned_date else None,
+                "emergency_contact": profile.emergency_contact if profile else None,
+            })
+
+    return result
+
+
+@router.post("/assign/{patient_id}/{doctor_id}")
+def assign_patient_to_doctor(
+    patient_id: str,
+    doctor_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """
+    Assign a patient to a doctor. Only admins can do this.
+    """
+    if current_user.role != "ADMIN":
+        raise HTTPException(status_code=403, detail="Only admins can assign patients to doctors")
+
+    # Verify patient exists and is actually a patient
+    patient = db.query(User).filter(User.id == patient_id).first()
+    if not patient or patient.role != "PATIENT":
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    # Verify doctor exists and is actually a doctor
+    doctor = db.query(User).filter(User.id == doctor_id).first()
+    if not doctor or doctor.role != "DOCTOR":
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
+    # Check if already assigned and active
+    existing = (
+        db.query(DoctorPatient)
+        .filter(
+            DoctorPatient.doctor_id == doctor_id,
+            DoctorPatient.patient_id == patient_id,
+            DoctorPatient.status == "active"
+        )
+        .first()
+    )
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Patient is already assigned to this doctor")
+
+    # Create assignment
+    try:
+        assignment = DoctorPatient(
+            doctor_id=doctor_id,
+            patient_id=patient_id,
+            status="active"
+        )
+        db.add(assignment)
+        db.commit()
+        db.refresh(assignment)
+        logger.info(f"Patient {patient_id} assigned to doctor {doctor_id}")
+        return {
+            "id": assignment.id,
+            "doctor_id": assignment.doctor_id,
+            "patient_id": assignment.patient_id,
+            "assigned_date": assignment.assigned_date.isoformat(),
+            "status": assignment.status,
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error assigning patient: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error assigning patient")

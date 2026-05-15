@@ -33,15 +33,25 @@ function PatientsContent() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    // Get user's own records (not system-wide stats which requires ADMIN role)
-    api.getRecords(0, 50).then(records => {
-      setStats({
-        total_patients: 0,
-        total_records: records.length,
-        recent_records: records,
-      });
-    }).catch(console.error);
-  }, []);
+    // Admin uses system stats; doctor sees their assigned records
+    if (user?.role === "ADMIN") {
+      api.getStats().then(s => {
+        setStats({
+          total_patients: s.total_patients ?? 0,
+          total_records: s.total_records ?? 0,
+          recent_records: s.recent_records ?? [],
+        });
+      }).catch(console.error);
+    } else {
+      api.getRecords(0, 50).then(records => {
+        setStats({
+          total_patients: 0,
+          total_records: records.length,
+          recent_records: records,
+        });
+      }).catch(console.error);
+    }
+  }, [user?.role]);
 
   // Memoize filtered results to avoid re-filtering on every render
   const filtered = useMemo(() =>
@@ -197,7 +207,7 @@ function PatientsContent() {
 
 export default function PatientsPage() {
   return (
-    <ProtectedRoute requiredRole="DOCTOR">
+    <ProtectedRoute requiredRole={["DOCTOR", "ADMIN"]}>
       <PatientsContent />
     </ProtectedRoute>
   );

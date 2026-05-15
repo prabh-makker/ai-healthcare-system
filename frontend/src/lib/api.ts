@@ -94,6 +94,12 @@ export const api = {
 
   logout: () => request("/api/v1/auth/logout", { method: "POST" }),
 
+  changePassword: (oldPassword: string, newPassword: string) =>
+    request("/api/v1/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+    }),
+
   // Diagnosis
   analyzeSymptoms: (symptoms: string[], saveRecord: boolean = false) =>
     request("/api/v1/diagnosis/symptoms", {
@@ -113,6 +119,12 @@ export const api = {
       body: JSON.stringify({ report_text: reportText }),
     }),
 
+  diagnosisChat: (message: string, selectedSymptoms: string[] = [], askedSymptoms: string[] = [], sessionId?: string) =>
+    request("/api/v1/diagnosis/chat", {
+      method: "POST",
+      body: JSON.stringify({ message, selected_symptoms: selectedSymptoms, asked_symptoms: askedSymptoms, session_id: sessionId }),
+    }),
+
   // Patients
   getMyProfile: () => request("/api/v1/patients/me"),
 
@@ -124,6 +136,46 @@ export const api = {
 
   listPatients: (skip = 0, limit = 50) =>
     request(`/api/v1/patients/list?skip=${skip}&limit=${limit}`),
+
+  // Admin
+  getDoctorsOverview: () => request("/api/v1/patients/admin/doctors-overview"),
+
+  getAllUsers: () => request("/api/v1/patients/admin/all-users"),
+
+  setUserActive: (userId: string, isActive: boolean) =>
+    request(`/api/v1/admin/users/${userId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_active: isActive }),
+    }),
+
+  setUserRole: (userId: string, role: string) =>
+    request(`/api/v1/admin/users/${userId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
+
+  deleteUser: (userId: string) =>
+    request(`/api/v1/admin/users/${userId}`, { method: "DELETE" }),
+
+  getAuditLog: (skip = 0, limit = 100) =>
+    request(`/api/v1/admin/audit-log?skip=${skip}&limit=${limit}`),
+
+  getDoctorPerformance: () => request("/api/v1/admin/doctor-performance"),
+
+  bulkAssignPatients: (doctorId: string, patientIds: string[]) =>
+    request("/api/v1/admin/bulk-assign-patients", {
+      method: "POST",
+      body: JSON.stringify({ doctor_id: doctorId, patient_ids: patientIds }),
+    }),
+
+  getSystemHealth: () => request("/api/v1/admin/system-health"),
+
+  getDiagnosesDistribution: () =>
+    request("/api/v1/admin/diagnoses-distribution"),
+
+  exportUsersCSV: () => `/api/v1/admin/export/users`,
+  exportRecordsCSV: () => `/api/v1/admin/export/records`,
+  exportAppointmentsCSV: () => `/api/v1/admin/export/appointments`,
 
   // Records
   getRecords: (skip = 0, limit = 50) =>
@@ -168,4 +220,81 @@ export const api = {
     request(`/api/v1/appointments/${id}`, {
       method: "DELETE",
     }),
+
+  // Bulk approve records
+  bulkApproveRecords: (recordIds: string[], notes?: string, status: string = "approved") =>
+    request("/api/v1/records/bulk-approve", {
+      method: "POST",
+      body: JSON.stringify({ record_ids: recordIds, notes, status }),
+    }),
+
+  getPendingRecords: (skip = 0, limit = 100) =>
+    request(`/api/v1/records/pending/list?skip=${skip}&limit=${limit}`),
+
+  // Prescriptions
+  getPrescriptions: (skip = 0, limit = 50) =>
+    request(`/api/v1/prescriptions/?skip=${skip}&limit=${limit}`),
+
+  createPrescription: (data: Record<string, unknown>) =>
+    request("/api/v1/prescriptions/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updatePrescription: (id: string, data: Record<string, unknown>) =>
+    request(`/api/v1/prescriptions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  deletePrescription: (id: string) =>
+    request(`/api/v1/prescriptions/${id}`, { method: "DELETE" }),
+
+  // Medication adherence
+  logMedicationTaken: (prescriptionId: string, notes: string = "") =>
+    request(`/api/v1/prescriptions/${prescriptionId}/log`, {
+      method: "POST",
+      body: JSON.stringify({ notes }),
+    }),
+
+  getMedicationLogs: (prescriptionId: string) =>
+    request(`/api/v1/prescriptions/${prescriptionId}/logs`),
+
+  getAdherenceSummary: () => request("/api/v1/prescriptions/adherence/summary"),
+
+  // Doctor's assigned patients
+  getMyPatients: (skip = 0, limit = 50) =>
+    request(`/api/v1/patients/my-patients?skip=${skip}&limit=${limit}`),
+
+  assignPatientToDoctor: (patientId: string, doctorId: string) =>
+    request(`/api/v1/patients/assign/${patientId}/${doctorId}`, {
+      method: "POST",
+    }),
+
+  // Notifications
+  getNotifications: (skip = 0, limit = 50, unreadOnly = false) =>
+    request(`/api/v1/notifications/?skip=${skip}&limit=${limit}&unread_only=${unreadOnly}`),
+
+  getUnreadCount: () => request("/api/v1/notifications/unread-count"),
+
+  markNotificationRead: (id: string) =>
+    request(`/api/v1/notifications/${id}/read`, { method: "PATCH" }),
+
+  markAllNotificationsRead: () =>
+    request("/api/v1/notifications/mark-all-read", { method: "PATCH" }),
+
+  deleteNotification: (id: string) =>
+    request(`/api/v1/notifications/${id}`, { method: "DELETE" }),
+
+  // Messages
+  sendMessage: (receiverId: string, content: string) =>
+    request("/api/v1/messages/", {
+      method: "POST",
+      body: JSON.stringify({ receiver_id: receiverId, content }),
+    }),
+
+  getConversations: () => request("/api/v1/messages/conversations"),
+
+  getConversation: (userId: string) =>
+    request(`/api/v1/messages/${userId}`),
 };

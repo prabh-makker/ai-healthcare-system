@@ -335,6 +335,13 @@ export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
   const isDoctor = user?.role === "DOCTOR";
 
+  // Admin sees rich admin dashboard at /dashboard/admin
+  useEffect(() => {
+    if (user?.role === "ADMIN") {
+      router.replace("/dashboard/admin");
+    }
+  }, [user?.role, router]);
+
   useEffect(() => {
     setMounted(true);
     // Get user's own records (not system-wide stats which requires ADMIN role)
@@ -348,7 +355,7 @@ export default function Dashboard() {
     }).catch(console.error);
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted || user?.role === "ADMIN") return null;
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -397,10 +404,10 @@ export default function Dashboard() {
       </motion.header>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12 overflow-hidden">
-        <StatCard3D label="Total Patients" value={stats ? String(stats.total_patients) : "—"} icon={Users} trend="+active" gradFrom="#0ea5e9" gradTo="#06b6d4" glowColor="rgba(14,165,233,0.2)" delay={0} onClick={() => router.push("/dashboard/patients")} />
+        <StatCard3D label="My Patients" value={stats ? String(stats.total_patients) : "—"} icon={Users} trend="+active" gradFrom="#0ea5e9" gradTo="#06b6d4" glowColor="rgba(14,165,233,0.2)" delay={0} onClick={() => router.push("/dashboard/my-patients")} />
         <StatCard3D label="Medical Records" value={stats ? String(stats.total_records) : "—"} icon={Activity} trend="+records" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} onClick={() => router.push("/dashboard/records")} />
-        <StatCard3D label="Model Precision" value="98.4%" icon={Brain} trend="+1.2%" gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} />
-        <StatCard3D label="Doctors Active" value={stats ? String(stats.total_doctors) : "—"} icon={TrendingUp} trend="+staff" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} onClick={() => router.push("/dashboard/patients")} />
+        <StatCard3D label="Approvals Queue" value="Open" icon={Brain} trend="pending" gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} onClick={() => router.push("/dashboard/approvals")} />
+        <StatCard3D label="Prescriptions" value="Manage" icon={TrendingUp} trend="active Rx" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} onClick={() => router.push("/dashboard/prescriptions")} />
       </motion.div>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 xl:grid-cols-3 gap-8">

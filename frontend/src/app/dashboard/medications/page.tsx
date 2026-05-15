@@ -1,64 +1,90 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Pill, Search, Plus, Clock, AlertCircle } from "lucide-react";
+import { Pill, Search, Clock, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardBg from "@/components/DashboardBg";
+import { api, APIError } from "@/lib/api";
 
-interface Medication {
+interface Prescription {
   id: string;
-  name: string;
+  medication_name: string;
   dosage: string;
   frequency: string;
-  prescribedBy: string;
-  startDate: string;
-  status: "active" | "completed" | "paused";
+  doctor_id: string;
+  start_date: string;
+  status: "active" | "completed" | "discontinued";
   instructions: string;
+  created_at: string;
 }
-
-const MOCK_MEDICATIONS: Medication[] = [
-  {
-    id: "1",
-    name: "Lisinopril",
-    dosage: "10mg",
-    frequency: "Once daily",
-    prescribedBy: "Dr. Smith (Cardiologist)",
-    startDate: "2025-03-15",
-    status: "active",
-    instructions: "Take in the morning with or without food",
-  },
-  {
-    id: "2",
-    name: "Metformin",
-    dosage: "500mg",
-    frequency: "Twice daily",
-    prescribedBy: "Dr. Johnson (Endocrinologist)",
-    startDate: "2025-02-20",
-    status: "active",
-    instructions: "Take with meals to minimize stomach upset",
-  },
-  {
-    id: "3",
-    name: "Aspirin",
-    dosage: "81mg",
-    frequency: "Once daily",
-    prescribedBy: "Dr. Smith (Cardiologist)",
-    startDate: "2024-12-01",
-    status: "active",
-    instructions: "Take with water in the morning",
-  },
-];
 
 function MedicationsContent() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
-  const [medications] = useState<Medication[]>(MOCK_MEDICATIONS);
+  const [medications, setMedications] = useState<Prescription[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [takingMed, setTakingMed] = useState<string | null>(null);
+  const [recentlyTaken, setRecentlyTaken] = useState<Set<string>>(new Set());
+  const timeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Cleanup pending timeouts on unmount
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach((t) => clearTimeout(t));
+      timeoutsRef.current.clear();
+    };
+  }, []);
+
+  const handleMarkAsTaken = async (prescriptionId: string) => {
+    setTakingMed(prescriptionId);
+    try {
+      await api.logMedicationTaken(prescriptionId);
+      setRecentlyTaken((prev) => new Set(prev).add(prescriptionId));
+      // Clear any previous timeout for this med, then schedule new one
+      const existing = timeoutsRef.current.get(prescriptionId);
+      if (existing) clearTimeout(existing);
+      const t = setTimeout(() => {
+        setRecentlyTaken((current) => {
+          const updated = new Set(current);
+          updated.delete(prescriptionId);
+          return updated;
+        });
+        timeoutsRef.current.delete(prescriptionId);
+      }, 3000);
+      timeoutsRef.current.set(prescriptionId, t);
+    } catch (err: any) {
+      console.error("Error logging:", err);
+    } finally {
+      setTakingMed(null);
+    }
+  };
+
+  useEffect(() => {
+    const fetchMedications = async () => {
+      try {
+        setLoading(true);
+        const data = await api.getPrescriptions(0, 50);
+        setMedications(data);
+        setError(null);
+      } catch (err: any) {
+        if (err instanceof APIError) {
+          setError(err.message);
+        } else {
+          setError("Failed to load medications");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMedications();
+  }, []);
 
   const filtered = medications.filter((med) =>
-    med.name.toLowerCase().includes(search.toLowerCase()) ||
-    med.prescribedBy.toLowerCase().includes(search.toLowerCase())
+    med.medication_name.toLowerCase().includes(search.toLowerCase())
   );
 
   const activeCount = medications.filter((m) => m.status === "active").length;
@@ -77,8 +103,8 @@ function MedicationsContent() {
         return "bg-emerald-500/10 text-emerald-400";
       case "completed":
         return "bg-zinc-500/10 text-zinc-400";
-      case "paused":
-        return "bg-amber-500/10 text-amber-400";
+      case "discontinued":
+        return "bg-red-500/10 text-red-400";
       default:
         return "bg-zinc-500/10 text-zinc-400";
     }
@@ -98,26 +124,16 @@ function MedicationsContent() {
               {user?.email?.split("@")[0]} — {activeCount} active medication{activeCount !== 1 ? "s" : ""}
             </p>
           </motion.div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center glass-card px-4 py-2.5 rounded-2xl text-zinc-400 focus-within:text-[var(--foreground)] transition-colors">
-              <Search size={18} />
-              <input
-                type="text"
-                placeholder="Search medications..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="bg-transparent border-none outline-none ml-3 text-sm w-48 font-medium"
-                style={{ color: "var(--foreground)" }}
-              />
-            </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold px-6 py-2.5 rounded-2xl hover:shadow-lg hover:shadow-amber-500/20 transition-all"
-            >
-              <Plus size={18} />
-              Add Medication
-            </motion.button>
+          <div className="flex items-center glass-card px-4 py-2.5 rounded-2xl text-zinc-400 focus-within:text-[var(--foreground)] transition-colors">
+            <Search size={18} />
+            <input
+              type="text"
+              placeholder="Search medications..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="bg-transparent border-none outline-none ml-3 text-sm w-48 font-medium"
+              style={{ color: "var(--foreground)" }}
+            />
           </div>
         </header>
 
@@ -159,9 +175,9 @@ function MedicationsContent() {
           <div className="glass-card rounded-[2rem] p-6 border border-white/[0.08]">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-zinc-500 text-sm font-semibold uppercase tracking-wider">Paused</p>
+                <p className="text-zinc-500 text-sm font-semibold uppercase tracking-wider">Discontinued</p>
                 <p className="text-4xl font-black mt-2" style={{ color: "var(--foreground)" }}>
-                  {medications.filter((m) => m.status === "paused").length}
+                  {medications.filter((m) => m.status === "discontinued").length}
                 </p>
               </div>
               <div className="p-3 rounded-2xl bg-amber-500/10">
@@ -171,79 +187,148 @@ function MedicationsContent() {
           </div>
         </motion.div>
 
+        {/* Loading State */}
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex items-center justify-center py-20"
+          >
+            <div className="w-8 h-8 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+          </motion.div>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex items-center gap-3 p-6 bg-red-500/10 border border-red-500/20 rounded-2xl"
+          >
+            <AlertCircle size={24} className="text-red-400 flex-shrink-0" />
+            <div>
+              <p className="text-red-400 font-semibold">Error Loading Medications</p>
+              <p className="text-red-400/80 text-sm">{error}</p>
+            </div>
+          </motion.div>
+        )}
+
         {/* Medications List */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="glass-card rounded-[2rem] p-8 border border-white/[0.08]"
-        >
-          <h2 className="text-xl font-black mb-8 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20">
-              <Pill size={20} className="text-white" />
-            </div>
-            <span className="bg-gradient-to-r from-amber-200 to-orange-300 bg-clip-text text-transparent">
-              Current Medications
-            </span>
-          </h2>
+        {!loading && !error && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="glass-card rounded-[2rem] p-8 border border-white/[0.08]"
+          >
+            <h2 className="text-xl font-black mb-8 flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20">
+                <Pill size={20} className="text-white" />
+              </div>
+              <span className="bg-gradient-to-r from-amber-200 to-orange-300 bg-clip-text text-transparent">
+                Current Medications
+              </span>
+            </h2>
 
-          {filtered.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-zinc-600 font-medium">No medications found</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filtered.map((med, idx) => (
-                <motion.div
-                  key={med.id}
-                  custom={idx}
-                  variants={rowVariants}
-                  initial="hidden"
-                  animate="visible"
-                  whileHover={{ backgroundColor: "rgba(245, 158, 11, 0.05)" }}
-                  className="p-6 rounded-2xl border border-white/5 transition-all duration-200 cursor-default"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>
-                        {med.name}
-                      </h3>
-                      <p className="text-sm text-zinc-500 mt-1">{med.prescribedBy}</p>
+            {filtered.length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="text-zinc-600 font-medium">
+                  {search ? "No medications match your search" : "No medications prescribed yet"}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filtered.map((med, idx) => (
+                  <motion.div
+                    key={med.id}
+                    custom={idx}
+                    variants={rowVariants}
+                    initial="hidden"
+                    animate="visible"
+                    whileHover={{ backgroundColor: "rgba(245, 158, 11, 0.05)" }}
+                    className="p-6 rounded-2xl border border-white/5 transition-all duration-200 cursor-default"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>
+                          {med.medication_name}
+                        </h3>
+                        <p className="text-sm text-zinc-500 mt-1">
+                          Prescribed by your doctor
+                        </p>
+                      </div>
+                      <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${statusColor(med.status)} capitalize`}>
+                        {med.status}
+                      </span>
                     </div>
-                    <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${statusColor(med.status)} capitalize`}>
-                      {med.status}
-                    </span>
-                  </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div>
-                      <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-1">Dosage</p>
-                      <p className="font-bold" style={{ color: "var(--foreground)" }}>
-                        {med.dosage}
-                      </p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div>
+                        <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-1">Dosage</p>
+                        <p className="font-bold" style={{ color: "var(--foreground)" }}>
+                          {med.dosage}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-1">Frequency</p>
+                        <p className="font-bold" style={{ color: "var(--foreground)" }}>
+                          {med.frequency}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-1">Prescribed</p>
+                        <p className="font-bold text-sm" style={{ color: "var(--foreground)" }}>
+                          {new Date(med.start_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-1">Instructions</p>
+                        <p className="text-sm text-zinc-400">{med.instructions}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-1">Frequency</p>
-                      <p className="font-bold" style={{ color: "var(--foreground)" }}>
-                        {med.frequency}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-1">Started</p>
-                      <p className="font-bold text-sm" style={{ color: "var(--foreground)" }}>
-                        {new Date(med.startDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-1">Instructions</p>
-                      <p className="text-sm text-zinc-400">{med.instructions}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </motion.div>
+
+                    {/* Mark as Taken Button (only for active medications) */}
+                    {med.status === "active" && (
+                      <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                        <p className="text-xs text-zinc-500">
+                          Tap to log when you take this medication
+                        </p>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleMarkAsTaken(med.id)}
+                          disabled={takingMed === med.id}
+                          className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${
+                            recentlyTaken.has(med.id)
+                              ? "bg-emerald-500 text-white"
+                              : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400"
+                          }`}
+                        >
+                          {takingMed === med.id ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+                              Logging...
+                            </>
+                          ) : recentlyTaken.has(med.id) ? (
+                            <>
+                              ✓ Logged!
+                            </>
+                          ) : (
+                            <>
+                              💊 Mark as Taken
+                            </>
+                          )}
+                        </motion.button>
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
       </div>
     </div>
   );

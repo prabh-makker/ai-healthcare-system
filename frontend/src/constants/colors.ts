@@ -31,6 +31,7 @@ export const STATUS_COLOR_MAP = {
   rose: "bg-rose-500/10 text-rose-400",
   violet: "bg-violet-500/10 text-violet-400",
   emerald: "bg-emerald-500/10 text-emerald-400",
+  amber: "bg-amber-500/10 text-amber-400",
 } as const;
 
 export type ColorKey = keyof typeof COLOR_CLASS_MAP;

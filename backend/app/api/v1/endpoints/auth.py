@@ -11,6 +11,7 @@ from app.schemas.user import UserCreate, UserOut, Token
 from app.core import security
 from app.core.config import settings
 from app.core.security import get_current_user, validate_password_strength, validate_email, sanitize_email, COOKIE_NAME
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,34 @@ else:
 router = APIRouter()
 
 COOKIE_MAX_AGE = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
+@router.post("/change-password", status_code=204)
+def change_password(
+    req: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Change user password"""
+    # Verify old password
+    if not security.verify_password(req.old_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect current password")
+
+    # Validate new password strength
+    is_valid, error_msg = validate_password_strength(req.new_password)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error_msg)
+
+    # Update password
+    current_user.hashed_password = security.get_password_hash(req.new_password)
+    db.add(current_user)
+    db.commit()
+    logger.info(f"User changed password: {current_user.id}")
 
 
 @router.post("/register", response_model=UserOut, status_code=201)
@@ -99,6 +128,17 @@ def login_access_token(
         raise HTTPException(status_code=400, detail="User account is inactive")
 
     auth_rate_limiter.record_attempt(email_sanitized, True)
+
+    # Update last_login + audit log
+    try:
+        from app.models.models import utc_now
+        from app.api.v1.endpoints.admin import log_action
+        user.last_login = utc_now()
+        db.commit()
+        log_action(db, user, "login", "auth")
+    except Exception as e:
+        logger.warning(f"Audit log failed for {user.email}: {e}")
+        db.rollback()
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = security.create_access_token(user.id, expires_delta=access_token_expires)

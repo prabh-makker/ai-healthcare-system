@@ -203,14 +203,21 @@ def get_application() -> FastAPI:
         import joblib
 
         Base.metadata.create_all(bind=engine)
-        # Add new columns to existing DB if missing (SQLite-safe)
-        with engine.connect() as conn:
-            existing = [c["name"] for c in inspect(engine).get_columns("medical_record")]
-            if "status" not in existing:
-                conn.execute(text("ALTER TABLE medical_record ADD COLUMN status VARCHAR DEFAULT 'pending'"))
-                conn.commit()
-            if "doctor_notes" not in existing:
-                conn.execute(text("ALTER TABLE medical_record ADD COLUMN doctor_notes TEXT"))
+        # Add new columns to existing DB if missing (works for SQLite + PG)
+        insp = inspect(engine)
+        mr_cols = {c["name"] for c in insp.get_columns("medical_record")}
+        user_cols = {c["name"] for c in insp.get_columns("user")}
+        pending_alters = []
+        if "status" not in mr_cols:
+            pending_alters.append("ALTER TABLE medical_record ADD COLUMN status VARCHAR DEFAULT 'pending'")
+        if "doctor_notes" not in mr_cols:
+            pending_alters.append("ALTER TABLE medical_record ADD COLUMN doctor_notes TEXT")
+        if "last_login" not in user_cols:
+            pending_alters.append('ALTER TABLE "user" ADD COLUMN last_login TIMESTAMP')
+        if pending_alters:
+            with engine.connect() as conn:
+                for sql in pending_alters:
+                    conn.execute(text(sql))
                 conn.commit()
         logger.info("Database tables created successfully")
 

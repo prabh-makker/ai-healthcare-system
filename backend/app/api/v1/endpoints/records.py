@@ -15,6 +15,12 @@ from app.core.serializers import serialize_medical_record
 router = APIRouter()
 
 
+@router.post("/test-simple", status_code=200)
+def test_simple():
+    """Simple test endpoint to verify routing works."""
+    return {"message": "test endpoint works"}
+
+
 class RecordCreate(BaseModel):
     symptoms: List[str]
     ai_prediction: Optional[str] = None
@@ -25,6 +31,12 @@ class RecordCreate(BaseModel):
 class RecordPatch(BaseModel):
     doctor_notes: Optional[str] = None
     status: Optional[str] = None
+
+
+class BulkApprove(BaseModel):
+    record_ids: List[str]
+    notes: Optional[str] = None
+    status: Optional[str] = "approved"
 
 
 @router.get("/stats/summary")
@@ -87,8 +99,8 @@ def create_record(
     current_user: User = Depends(get_current_user),
 ):
     record = MedicalRecord(
-        id=uuid.uuid4(),
-        patient_id=current_user.id,
+        id=str(uuid.uuid4()),
+        patient_id=str(current_user.id),
         symptoms=body.symptoms,
         ai_prediction=body.ai_prediction,
         confidence_score=body.confidence_score,
@@ -156,3 +168,77 @@ def delete_record(
 
     db.delete(record)
     db.commit()
+
+
+@router.post("/bulk-approve")
+def bulk_approve_records(
+    body: BulkApprove,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.DOCTOR, UserRole.ADMIN)),
+):
+    """
+    Bulk approve multiple medical records.
+    Only the assigned doctor (or admin) can approve.
+    """
+    if body.status not in RECORD_STATUS_ALLOWED:
+        raise HTTPException(status_code=422, detail=f"status must be one of {RECORD_STATUS_ALLOWED}")
+
+    # Fetch all records in one query
+    found = {r.id: r for r in db.query(MedicalRecord).filter(
+        MedicalRecord.id.in_(body.record_ids)
+    ).all()}
+
+    approved_count = 0
+    failed_records = []
+
+    for record_id in body.record_ids:
+        record = found.get(record_id)
+        if not record:
+            failed_records.append({"id": record_id, "reason": "Not found"})
+            continue
+
+        is_allowed, error_msg = check_record_modification(record, current_user)
+        if not is_allowed:
+            failed_records.append({"id": record_id, "reason": error_msg})
+            continue
+
+        record.status = body.status
+        if body.notes:
+            record.doctor_notes = body.notes
+        approved_count += 1
+
+    db.commit()
+    return {
+        "approved_count": approved_count,
+        "failed_records": failed_records,
+        "total_processed": len(body.record_ids),
+    }
+
+
+@router.get("/pending/list")
+def list_pending_records(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.DOCTOR, UserRole.ADMIN)),
+):
+    """
+    Get pending records for the doctor (records assigned to them, status=pending).
+    Used by the approval queue page.
+    """
+    validate_pagination(skip, limit)
+
+    query = db.query(MedicalRecord).filter(MedicalRecord.status == "pending")
+
+    if current_user.role == UserRole.DOCTOR:
+        query = query.filter(MedicalRecord.doctor_id == current_user.id)
+
+    records = (
+        query
+        .order_by(MedicalRecord.confidence_score.desc().nullslast(), MedicalRecord.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    return [serialize_medical_record(r) for r in records]

@@ -2,16 +2,22 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { User, Shield, Bell, Palette, LogOut, ChevronRight, Sun, Moon } from "lucide-react";
+import { User, Shield, Bell, Palette, LogOut, ChevronRight, Sun, Moon, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { theme, accent, font, setTheme, setAccent, setFont } = useTheme();
   const router = useRouter();
   const [activeSection, setActiveSection] = useState("profile");
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ old: "", new: "", confirm: "" });
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   const sections = [
     { id: "profile", label: "Profile", icon: User },
@@ -23,6 +29,43 @@ export default function SettingsPage() {
   const handleLogout = () => {
     logout();
     router.push("/login");
+  };
+
+  const handlePasswordChange = async () => {
+    setPasswordError("");
+    setPasswordSuccess(false);
+
+    if (!passwordForm.old) {
+      setPasswordError("Current password is required");
+      return;
+    }
+    if (!passwordForm.new) {
+      setPasswordError("New password is required");
+      return;
+    }
+    if (passwordForm.new !== passwordForm.confirm) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
+    if (passwordForm.new.length < 8) {
+      setPasswordError("Password must be at least 8 characters");
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await api.changePassword(passwordForm.old, passwordForm.new);
+      setPasswordSuccess(true);
+      setPasswordForm({ old: "", new: "", confirm: "" });
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setPasswordSuccess(false);
+      }, 2000);
+    } catch (err: any) {
+      setPasswordError(err instanceof Error ? err.message : "Failed to change password");
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   return (
@@ -119,22 +162,126 @@ export default function SettingsPage() {
             >
               <h2 className="text-lg font-bold mb-8">Security</h2>
               <div className="space-y-4">
-                {[
-                  { label: "Password", value: "Last changed: never", action: "Change" },
-                  { label: "Two-Factor Auth", value: "Not enabled", action: "Enable" },
-                  { label: "Active Sessions", value: "1 session", action: "View" },
-                ].map((item) => (
-                  <div key={item.label} className="flex justify-between items-center py-4 border-b border-white/5 last:border-0">
-                    <div>
-                      <p className="font-semibold text-sm">{item.label}</p>
-                      <p className="text-zinc-500 text-xs mt-0.5">{item.value}</p>
-                    </div>
-                    <button className="text-sky-400 text-sm font-bold hover:text-sky-300 transition-colors">
-                      {item.action}
-                    </button>
+                <div className="flex justify-between items-center py-4 border-b border-white/5">
+                  <div>
+                    <p className="font-semibold text-sm">Password</p>
+                    <p className="text-zinc-500 text-xs mt-0.5">Keep your account secure</p>
                   </div>
-                ))}
+                  <button
+                    onClick={() => setShowPasswordModal(true)}
+                    className="text-sky-400 text-sm font-bold hover:text-sky-300 transition-colors"
+                  >
+                    Change
+                  </button>
+                </div>
               </div>
+
+              {showPasswordModal && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                  onClick={() => !passwordLoading && setShowPasswordModal(false)}
+                >
+                  <motion.div
+                    initial={{ scale: 0.95 }}
+                    animate={{ scale: 1 }}
+                    className="glass-card rounded-2xl p-8 max-w-md w-full"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 className="text-xl font-bold mb-6">Change Password</h3>
+
+                    {passwordSuccess && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="mb-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 text-sm"
+                      >
+                        ✓ Password changed successfully
+                      </motion.div>
+                    )}
+
+                    {passwordError && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm"
+                      >
+                        <AlertCircle size={16} />
+                        {passwordError}
+                      </motion.div>
+                    )}
+
+                    <div className="space-y-4 mb-6">
+                      <div>
+                        <label className="block text-xs font-semibold text-zinc-400 mb-2">
+                          Current Password
+                        </label>
+                        <input
+                          type="password"
+                          value={passwordForm.old}
+                          onChange={(e) => setPasswordForm({ ...passwordForm, old: e.target.value })}
+                          placeholder="Enter current password"
+                          disabled={passwordLoading || passwordSuccess}
+                          className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500 transition-all disabled:opacity-50"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-zinc-400 mb-2">
+                          New Password
+                        </label>
+                        <input
+                          type="password"
+                          value={passwordForm.new}
+                          onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
+                          placeholder="Enter new password (min 8 chars)"
+                          disabled={passwordLoading || passwordSuccess}
+                          className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500 transition-all disabled:opacity-50"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-zinc-400 mb-2">
+                          Confirm Password
+                        </label>
+                        <input
+                          type="password"
+                          value={passwordForm.confirm}
+                          onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
+                          placeholder="Confirm new password"
+                          disabled={passwordLoading || passwordSuccess}
+                          className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500 transition-all disabled:opacity-50"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowPasswordModal(false)}
+                        disabled={passwordLoading}
+                        className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-lg font-semibold transition-all disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handlePasswordChange}
+                        disabled={passwordLoading || passwordSuccess}
+                        className="flex-1 px-4 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {passwordLoading ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                            Changing...
+                          </>
+                        ) : (
+                          "Change Password"
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
             </motion.div>
           )}
 
