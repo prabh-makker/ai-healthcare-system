@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { Users, TrendingUp, Database, Shield, AlertCircle, Activity, Settings, Brain, Lock, Zap } from "lucide-react";
 import { api } from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -23,6 +24,7 @@ interface Stats {
 }
 
 function AdminContent() {
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
@@ -63,10 +65,10 @@ function AdminContent() {
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12"
         >
           {[
-            { label: "Total Users", value: String((stats?.total_patients ?? 0) + (stats?.total_doctors ?? 0)), icon: Users, color: "sky" as const, gradient: "from-sky-500 to-blue-600" },
-            { label: "Patients", value: String(stats?.total_patients ?? "..."), icon: Activity, color: "rose" as const, gradient: "from-rose-500 to-pink-600" },
-            { label: "Doctors", value: String(stats?.total_doctors ?? "..."), icon: Shield, color: "violet" as const, gradient: "from-violet-500 to-purple-600" },
-            { label: "Diagnoses", value: String(stats?.total_records ?? "..."), icon: Database, color: "emerald" as const, gradient: "from-emerald-500 to-teal-600" },
+            { label: "Total Users", value: String((stats?.total_patients ?? 0) + (stats?.total_doctors ?? 0)), icon: Users, color: "sky" as const, gradient: "from-sky-500 to-blue-600", onClick: () => router.push("/dashboard/patients") },
+            { label: "Patients", value: String(stats?.total_patients ?? "..."), icon: Activity, color: "rose" as const, gradient: "from-rose-500 to-pink-600", onClick: () => router.push("/dashboard/patients") },
+            { label: "Doctors", value: String(stats?.total_doctors ?? "..."), icon: Shield, color: "violet" as const, gradient: "from-violet-500 to-purple-600", onClick: () => router.push("/dashboard/patients") },
+            { label: "Diagnoses", value: String(stats?.total_records ?? "..."), icon: Database, color: "emerald" as const, gradient: "from-emerald-500 to-teal-600", onClick: () => router.push("/dashboard/records") },
           ].map((card, idx) => (
             <motion.div key={card.label} variants={item}>
               <StatCard
@@ -76,6 +78,7 @@ function AdminContent() {
                 color={card.color}
                 gradient={card.gradient}
                 delay={idx * 0.1}
+                onClick={card.onClick}
               />
             </motion.div>
           ))}

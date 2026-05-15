@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 
@@ -156,10 +157,10 @@ function ScanLine() {
 // ── 3D Tilt Stat Card ─────────────────────────────────────────────────────────
 
 function StatCard3D({
-  label, value, icon: Icon, trend, gradFrom, gradTo, glowColor, delay,
+  label, value, icon: Icon, trend, gradFrom, gradTo, glowColor, delay, href, onClick,
 }: {
   label: string; value: string; icon: React.ElementType;
-  trend: string; gradFrom: string; gradTo: string; glowColor: string; delay?: number;
+  trend: string; gradFrom: string; gradTo: string; glowColor: string; delay?: number; href?: string; onClick?: () => void;
 }) {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -182,7 +183,8 @@ function StatCard3D({
       style={{ rotateX, rotateY, perspective: 700, transformStyle: "preserve-3d" }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className="group relative cursor-default"
+      onClick={onClick}
+      className={`group relative ${onClick || href ? "cursor-pointer" : "cursor-default"}`}
     >
       {/* Glow halo */}
       <motion.div
@@ -328,6 +330,7 @@ function ShimmerButton({ href, children, gradFrom, gradTo, shadow }: {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [mounted, setMounted] = useState(false);
   const isDoctor = user?.role === "DOCTOR";
@@ -394,10 +397,10 @@ export default function Dashboard() {
       </motion.header>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12 overflow-hidden">
-        <StatCard3D label="Total Patients" value={stats ? String(stats.total_patients) : "—"} icon={Users} trend="+active" gradFrom="#0ea5e9" gradTo="#06b6d4" glowColor="rgba(14,165,233,0.2)" delay={0} />
-        <StatCard3D label="Medical Records" value={stats ? String(stats.total_records) : "—"} icon={Activity} trend="+records" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} />
+        <StatCard3D label="Total Patients" value={stats ? String(stats.total_patients) : "—"} icon={Users} trend="+active" gradFrom="#0ea5e9" gradTo="#06b6d4" glowColor="rgba(14,165,233,0.2)" delay={0} onClick={() => router.push("/dashboard/patients")} />
+        <StatCard3D label="Medical Records" value={stats ? String(stats.total_records) : "—"} icon={Activity} trend="+records" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} onClick={() => router.push("/dashboard/records")} />
         <StatCard3D label="Model Precision" value="98.4%" icon={Brain} trend="+1.2%" gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} />
-        <StatCard3D label="Doctors Active" value={stats ? String(stats.total_doctors) : "—"} icon={TrendingUp} trend="+staff" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} />
+        <StatCard3D label="Doctors Active" value={stats ? String(stats.total_doctors) : "—"} icon={TrendingUp} trend="+staff" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} onClick={() => router.push("/dashboard/patients")} />
       </motion.div>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -500,7 +503,7 @@ export default function Dashboard() {
       </motion.header>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12 overflow-hidden">
-        <StatCard3D label="Health Score" value="Good" icon={HeartPulse} trend="+stable" gradFrom="#f43f5e" gradTo="#ec4899" glowColor="rgba(244,63,94,0.2)" delay={0} />
+        <StatCard3D label="Health Score" value="Good" icon={HeartPulse} trend="+stable" gradFrom="#f43f5e" gradTo="#ec4899" glowColor="rgba(244,63,94,0.2)" delay={0} onClick={() => router.push("/dashboard/records")} />
         <StatCard3D label="Medical Records" value={stats ? String(stats.recent_records.filter(r => r.patient_id === user?.id).length) : "—"} icon={ClipboardList} trend="+latest" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} />
         <StatCard3D label="Appointments" value="1" icon={Clock} trend="tomorrow" gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} />
         <StatCard3D label="Medications" value="2 Active" icon={Pill} trend="on track" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} />

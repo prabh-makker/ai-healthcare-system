@@ -317,14 +317,12 @@ export default function Login() {
             {/* Role Selector */}
             <motion.div variants={itemVariants} className="flex p-1 bg-white/5 rounded-2xl mb-8 border border-white/[0.08] relative">
               <motion.div
-                className={`absolute inset-y-1 rounded-xl shadow-lg ${
+                className={`absolute inset-y-1 left-1 rounded-xl shadow-lg ${
                   role === "PATIENT" ? "bg-rose-500/20 border border-rose-500/30" : "bg-sky-500/20 border border-sky-500/30"
                 }`}
+                style={{ width: "calc(50% - 0.25rem)" }}
                 initial={false}
-                animate={{
-                  x: role === "PATIENT" ? "0%" : "50%",
-                  width: "50%",
-                }}
+                animate={{ x: role === "PATIENT" ? "0%" : "100%" }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
               />
               <button
@@ -353,29 +351,46 @@ export default function Login() {
             <motion.div variants={itemVariants} className="flex flex-col items-center mb-8 sm:mb-10">
               <div className="relative mb-6">
                 <PulseRings />
-                <motion.div
-                  className={`w-16 h-16 sm:w-18 sm:h-18 rounded-[1.5rem] flex items-center justify-center shadow-lg relative z-10 ${currentTheme.bg}`}
-                  whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  {currentTheme.icon}
-                </motion.div>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={role}
+                    initial={{ opacity: 0, scale: 0.8, rotate: -90 }}
+                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, rotate: 90 }}
+                    transition={{ duration: 0.3 }}
+                    className={`w-16 h-16 sm:w-18 sm:h-18 rounded-[1.5rem] flex items-center justify-center shadow-lg relative z-10 ${currentTheme.bg}`}
+                    whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
+                  >
+                    {currentTheme.icon}
+                  </motion.div>
+                </AnimatePresence>
               </div>
 
-              <motion.h2
-                className="text-3xl sm:text-4xl font-black tracking-tight text-center"
-                style={{
-                  backgroundImage: currentTheme.textGradient,
-                  WebkitBackgroundClip: "text",
-                  backgroundClip: "text",
-                  color: "transparent",
-                }}
-              >
-                {currentTheme.title}
-              </motion.h2>
-              <motion.p className="text-zinc-500 mt-2 font-medium text-sm sm:text-base">
-                {currentTheme.subtitle}
-              </motion.p>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={role}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.25 }}
+                  className="flex flex-col items-center"
+                >
+                  <h2
+                    className="text-3xl sm:text-4xl font-black tracking-tight text-center"
+                    style={{
+                      backgroundImage: currentTheme.textGradient,
+                      WebkitBackgroundClip: "text",
+                      backgroundClip: "text",
+                      color: "transparent",
+                    }}
+                  >
+                    {currentTheme.title}
+                  </h2>
+                  <p className="text-zinc-500 mt-2 font-medium text-sm sm:text-base">
+                    {currentTheme.subtitle}
+                  </p>
+                </motion.div>
+              </AnimatePresence>
 
               {/* Animated typing indicator dots */}
               <div className="flex space-x-1.5 mt-3">

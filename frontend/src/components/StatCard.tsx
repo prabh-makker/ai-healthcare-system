@@ -13,6 +13,8 @@ interface StatCardProps {
   gradient?: string;
   delay?: number;
   trend?: string;
+  onClick?: () => void;
+  href?: string;
 }
 
 export function StatCard({
@@ -23,6 +25,8 @@ export function StatCard({
   gradient = "from-sky-500 to-blue-600",
   delay = 0,
   trend,
+  onClick,
+  href,
 }: StatCardProps) {
   const colorClasses = COLOR_CLASS_MAP[color];
 
@@ -32,7 +36,8 @@ export function StatCard({
       whileHover={{ y: -6, scale: 1.02, transition: { duration: 0.2 } }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="group relative overflow-hidden rounded-[2rem] p-6 glass-card border border-white/[0.08] hover:border-white/[0.15] transition-colors"
+      onClick={onClick}
+      className={`group relative overflow-hidden rounded-[2rem] p-6 glass-card border border-white/[0.08] hover:border-white/[0.15] transition-colors ${onClick || href ? "cursor-pointer" : ""}`}
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
       <div className={`p-3 rounded-2xl w-fit mb-4 ${colorClasses.bg} ${colorClasses.hover} transition-colors relative z-10`}>

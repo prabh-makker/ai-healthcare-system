@@ -14,6 +14,10 @@ RUN npm install --legacy-peer-deps
 # Copy application
 COPY . .
 
+# Build-time env vars for Next.js rewrites
+ARG API_BACKEND_URL=http://localhost:8006
+ENV API_BACKEND_URL=$API_BACKEND_URL
+
 # Build for production
 RUN npm run build
 

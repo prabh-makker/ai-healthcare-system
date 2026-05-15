@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { Users, Search, ArrowUpRight, UserCheck, TrendingUp, Stethoscope } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -27,6 +28,7 @@ interface Stats {
 
 function PatientsContent() {
   const { user } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [search, setSearch] = useState("");
 
@@ -88,9 +90,9 @@ function PatientsContent() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {[
-            { label: "Total Patients", value: String(stats?.total_patients ?? "..."), icon: Users, color: "sky" as ColorKey, gradient: "from-sky-500 to-blue-600" },
-            { label: "Total Records", value: String(stats?.total_records ?? "..."), icon: Stethoscope, color: "violet" as ColorKey, gradient: "from-violet-500 to-purple-600" },
-            { label: "Active Cases", value: String(stats?.recent_records.length ?? "..."), icon: TrendingUp, color: "emerald" as ColorKey, gradient: "from-emerald-500 to-teal-600" },
+            { label: "Total Patients", value: String(stats?.total_patients ?? "..."), icon: Users, color: "sky" as ColorKey, gradient: "from-sky-500 to-blue-600", onClick: () => router.push("/dashboard/patients") },
+            { label: "Total Records", value: String(stats?.total_records ?? "..."), icon: Stethoscope, color: "violet" as ColorKey, gradient: "from-violet-500 to-purple-600", onClick: () => router.push("/dashboard/records") },
+            { label: "Active Cases", value: String(stats?.recent_records.length ?? "..."), icon: TrendingUp, color: "emerald" as ColorKey, gradient: "from-emerald-500 to-teal-600", onClick: () => router.push("/dashboard/records") },
           ].map((card, i) => {
             const colorClasses = COLOR_CLASS_MAP[card.color];
             return (
@@ -100,7 +102,8 @@ function PatientsContent() {
               whileHover={{ y: -6, scale: 1.02, transition: { duration: 0.2 } }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              className="group relative overflow-hidden rounded-[2rem] p-6 glass-card border border-white/[0.08] hover:border-white/[0.15] transition-colors"
+              onClick={card.onClick}
+              className="group relative overflow-hidden rounded-[2rem] p-6 glass-card border border-white/[0.08] hover:border-white/[0.15] transition-colors cursor-pointer"
             >
               <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
               <div className={`p-3 rounded-2xl w-fit mb-4 ${colorClasses.bg} ${colorClasses.hover} transition-colors relative z-10`}>
