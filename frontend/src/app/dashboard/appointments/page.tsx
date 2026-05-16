@@ -12,6 +12,7 @@ import { api, APIError } from "@/lib/api";
 interface Appointment {
   id: string;
   patient_id: string;
+  patient_email?: string;
   specialist: string;
   date: string;
   time: string;
@@ -49,7 +50,7 @@ const statusConfig = {
 
 function AppointmentsContent() {
   const { user } = useAuth();
-  const [filter, setFilter] = useState<"all" | "upcoming" | "completed">("all");
+  const [filter, setFilter] = useState<"all" | "upcoming" | "completed" | "cancelled">("all");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +147,7 @@ function AppointmentsContent() {
         </motion.header>
 
         <div className="flex gap-2 mb-8">
-          {(["all", "upcoming", "completed"] as const).map((f) => (
+          {(["all", "upcoming", "completed", "cancelled"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -223,6 +224,9 @@ function AppointmentsContent() {
                         </div>
                         <div>
                           <p className="font-bold" style={{ color: "var(--foreground)" }}>{appt.specialist}</p>
+                          {appt.patient_email && (
+                            <p className="text-sky-400 text-xs font-semibold mt-0.5">{appt.patient_email}</p>
+                          )}
                           <p className="text-zinc-500 text-sm mt-0.5">{appt.reason || "No reason provided"}</p>
                         </div>
                       </div>

@@ -71,7 +71,7 @@ def list_appointments(
             .limit(limit)
             .all()
         )
-    return [serialize_appointment(r) for r in records]
+    return [serialize_appointment(r, db) for r in records]
 
 
 @router.post("/", status_code=201)

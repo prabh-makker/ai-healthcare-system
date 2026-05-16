@@ -137,56 +137,6 @@ function MedicationsContent() {
           </div>
         </header>
 
-        {/* Summary Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
-        >
-          <div className="glass-card rounded-[2rem] p-6 border border-white/[0.08]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-zinc-500 text-sm font-semibold uppercase tracking-wider">Active</p>
-                <p className="text-4xl font-black mt-2" style={{ color: "var(--foreground)" }}>
-                  {activeCount}
-                </p>
-              </div>
-              <div className="p-3 rounded-2xl bg-emerald-500/10">
-                <Pill size={24} className="text-emerald-400" />
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-card rounded-[2rem] p-6 border border-white/[0.08]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-zinc-500 text-sm font-semibold uppercase tracking-wider">Total</p>
-                <p className="text-4xl font-black mt-2" style={{ color: "var(--foreground)" }}>
-                  {medications.length}
-                </p>
-              </div>
-              <div className="p-3 rounded-2xl bg-sky-500/10">
-                <Clock size={24} className="text-sky-400" />
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-card rounded-[2rem] p-6 border border-white/[0.08]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-zinc-500 text-sm font-semibold uppercase tracking-wider">Discontinued</p>
-                <p className="text-4xl font-black mt-2" style={{ color: "var(--foreground)" }}>
-                  {medications.filter((m) => m.status === "discontinued").length}
-                </p>
-              </div>
-              <div className="p-3 rounded-2xl bg-amber-500/10">
-                <AlertCircle size={24} className="text-amber-400" />
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
         {/* Loading State */}
         {loading && (
           <motion.div

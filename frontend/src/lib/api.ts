@@ -119,10 +119,22 @@ export const api = {
       body: JSON.stringify({ report_text: reportText }),
     }),
 
-  diagnosisChat: (message: string, selectedSymptoms: string[] = [], askedSymptoms: string[] = [], sessionId?: string) =>
+  diagnosisChat: (
+    message: string,
+    selectedSymptoms: string[] = [],
+    askedSymptoms: string[] = [],
+    sessionId?: string,
+    lastAskedSymptom?: string,
+  ) =>
     request("/api/v1/diagnosis/chat", {
       method: "POST",
-      body: JSON.stringify({ message, selected_symptoms: selectedSymptoms, asked_symptoms: askedSymptoms, session_id: sessionId }),
+      body: JSON.stringify({
+        message,
+        selected_symptoms: selectedSymptoms,
+        asked_symptoms: askedSymptoms,
+        last_asked_symptom: lastAskedSymptom ?? null,
+        session_id: sessionId,
+      }),
     }),
 
   // Patients

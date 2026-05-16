@@ -90,6 +90,7 @@ class DiagnosisChatRequest(BaseModel):
     message: str
     selected_symptoms: List[str] = []
     asked_symptoms: List[str] = []
+    last_asked_symptom: Optional[str] = None
     session_id: Optional[str] = None
 
 
@@ -198,10 +199,23 @@ def diagnosis_chat(
     # Parse symptoms from free-form text
     parsed_symptoms = _parse_symptoms_from_text(request.message, known_symptoms)
 
+    # Handle "yes" confirmation of last asked symptom
+    YES_WORDS = {"yes", "yeah", "y", "yep", "yup", "sure", "correct", "right"}
+    NO_WORDS = {"no", "nope", "nah", "n", "not", "dont", "don't"}
+    message_tokens = set(request.message.lower().strip().split())
+    confirmed_symptom = []
+    if (
+        request.last_asked_symptom
+        and request.last_asked_symptom in known_symptoms
+        and message_tokens & YES_WORDS
+        and not (message_tokens & NO_WORDS)
+    ):
+        confirmed_symptom = [request.last_asked_symptom]
+
     # Merge parsed symptoms with client-provided symptoms, deduplicate and validate
     seen = set()
     merged_symptoms = []
-    for s in request.selected_symptoms + parsed_symptoms:
+    for s in request.selected_symptoms + parsed_symptoms + confirmed_symptom:
         if s in known_symptoms and s not in seen:
             merged_symptoms.append(s)
             seen.add(s)

@@ -30,6 +30,7 @@ export default function DiagnosticsChat() {
     "collecting_symptoms"
   );
   const [askedSymptoms, setAskedSymptoms] = useState<string[]>([]);
+  const [lastAskedSymptom, setLastAskedSymptom] = useState<string | undefined>(undefined);
   const [userInput, setUserInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,14 +75,19 @@ export default function DiagnosticsChat() {
 
     try {
       // Call diagnosis chat endpoint
-      const response = await api.diagnosisChat(userMessage, selectedSymptoms, askedSymptoms, sessionId);
+      const response = await api.diagnosisChat(userMessage, selectedSymptoms, askedSymptoms, sessionId, lastAskedSymptom);
 
       // Update state from response
       setSelectedSymptoms(response.updated_symptoms);
       setCurrentDiagnosis(response.current_diagnosis);
       setConversationState(response.conversation_state);
       if (response.next_symptom_to_ask) {
-        setAskedSymptoms((prev) => [...prev, response.next_symptom_to_ask!]);
+        setAskedSymptoms((prev) =>
+          prev.includes(response.next_symptom_to_ask!) ? prev : [...prev, response.next_symptom_to_ask!]
+        );
+        setLastAskedSymptom(response.next_symptom_to_ask);
+      } else {
+        setLastAskedSymptom(undefined);
       }
 
       // Add assistant message
@@ -132,6 +138,7 @@ export default function DiagnosticsChat() {
   const handleNewDiagnosis = () => {
     setSelectedSymptoms([]);
     setAskedSymptoms([]);
+    setLastAskedSymptom(undefined);
     setCurrentDiagnosis({});
     setConversationState("collecting_symptoms");
     setSessionId(crypto.randomUUID());

@@ -12,14 +12,17 @@ interface AppointmentFormProps {
 }
 
 const SPECIALISTS = [
+  "General Physician",
   "Cardiology",
   "Neurology",
   "Dermatology",
   "Pediatrics",
-  "General Physician",
   "Endocrinologist",
   "Pulmonologist",
   "Orthopedist",
+  "Psychiatrist",
+  "Gastroenterologist",
+  "Infectious Disease Specialist",
 ];
 
 const TIME_SLOTS = [

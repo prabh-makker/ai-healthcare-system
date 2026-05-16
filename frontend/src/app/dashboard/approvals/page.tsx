@@ -11,6 +11,7 @@ import DashboardBg from "@/components/DashboardBg";
 interface PendingRecord {
   id: string;
   patient_id: string;
+  patient_email?: string;
   symptoms: string[];
   ai_prediction: string;
   confidence_score: number;
@@ -23,6 +24,7 @@ interface PendingRecord {
 function ApprovalsContent() {
   const router = useRouter();
   const [records, setRecords] = useState<PendingRecord[]>([]);
+  const [patientMap, setPatientMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -34,8 +36,14 @@ function ApprovalsContent() {
   const fetchPendingRecords = async () => {
     try {
       setLoading(true);
-      const data = await api.getPendingRecords(0, 100);
+      const [data, patients] = await Promise.all([
+        api.getPendingRecords(0, 100),
+        api.getMyPatients(0, 200).catch(() => [] as Array<{ id: string; email: string }>),
+      ]);
       setRecords(data);
+      const map: Record<string, string> = {};
+      (patients as Array<{ id: string; email: string }>).forEach((p) => { map[p.id] = p.email; });
+      setPatientMap(map);
       setError(null);
     } catch (err: any) {
       if (err instanceof APIError) {
@@ -285,6 +293,11 @@ function ApprovalsContent() {
                         <h3 className="text-lg font-bold text-white">
                           {record.ai_prediction}
                         </h3>
+                        {patientMap[record.patient_id] && (
+                          <p className="text-xs font-semibold text-sky-400 mt-0.5">
+                            Patient: {patientMap[record.patient_id]}
+                          </p>
+                        )}
                         <p className="text-sm text-zinc-400 mt-1">
                           {record.recommended_specialist}
                         </p>

@@ -48,10 +48,6 @@ function PrescriptionsContent() {
         // Fetch assigned patients
         const patientsData = await api.getMyPatients(0, 100);
         setPatients(patientsData);
-
-        if (patientsData.length > 0 && !selectedPatientId) {
-          setSelectedPatientId(patientsData[0].id);
-        }
       } catch (err: any) {
         if (err instanceof APIError) {
           setError(err.message);
@@ -275,9 +271,10 @@ function PrescriptionsContent() {
                 onChange={(e) => setSelectedPatientId(e.target.value)}
                 className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-sky-500 transition-all"
               >
+                <option value="">— Select a patient —</option>
                 {patients.map((patient) => (
                   <option key={patient.id} value={patient.id}>
-                    {patient.name} ({patient.email})
+                    {patient.name || patient.email}
                   </option>
                 ))}
               </select>
