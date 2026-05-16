@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=\"$CLAUDE_FILE_PATH\"; case \"$(basename -- \"$FILE\")\" in .env|.env.*|*.env) printf '{\"decision\":\"block\",\"reason\":\"Blocked: .env files must not be edited by Claude\"}'; exit 2 ;; esac"
+            "command": "FILE=\"$CLAUDE_FILE_PATH\"; case \"$(basename -- \"$FILE\")\" in .env|.env.*|*.env|secrets.json|*credentials*) printf '{\"decision\":\"block\",\"reason\":\"Blocked: Sensitive files must not be edited by Claude\"}'; exit 2 ;; esac"
           }
         ]
       }

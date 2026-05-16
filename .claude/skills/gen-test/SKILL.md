@@ -1,21 +1,50 @@
 ---
 name: gen-test
-description: Generate jest or pytest tests for a given file. Args: file path relative to project root.
+description: Generate pytest + jest test suites for new API endpoints and React components with coverage tracking
+disable-model-invocation: false
+context: fork
 ---
 
-Generate comprehensive tests for the file: $ARGUMENTS
+# Generate Test Skill
 
-Rules:
-- Detect language from file extension
-- Frontend (.tsx/.ts): use Jest + React Testing Library. Mock `@/lib/api` with `jest.mock`. Test render, user interactions, loading states, error states.
-- Backend (.py): use pytest + httpx AsyncClient (TestClient). Mock DB with pytest-mock. Test happy path, 400/401/422/500 responses, edge cases.
-- Cover at minimum: happy path, missing/invalid input, auth failure (backend), empty state (frontend)
-- Place test file adjacent to source: `Component.test.tsx` or `test_module.py`
-- Import paths must match the project's tsconfig paths (`@/`) or Python module structure (`app.`)
-- Do not mock internal business logic — only external boundaries (DB, HTTP, localStorage)
+## Purpose
 
-Project context:
-- Frontend root: `frontend/src/`
-- Backend root: `backend/app/`
-- Auth: JWT in `localStorage.token` (frontend) / `Depends(get_current_user)` (backend)
-- API client: `frontend/src/lib/api.ts` — mock this, not fetch directly
+Auto-generate comprehensive test suites for new FastAPI endpoints and React components. Includes:
+- Unit tests (isolated functions)
+- Integration tests (endpoint → database)
+- E2E tests (full user flows)
+- Coverage reports
+
+## Usage
+
+```
+/gen-test [type] [path]
+```
+
+**Types:**
+- `endpoint` — FastAPI route handler + DB interactions
+- `component` — React component + props + hooks
+- `auth` — Authentication flows (register, login, protected routes)
+- `integration` — Multi-endpoint workflows
+- `all` — All test types for a module
+
+## Running Tests
+
+```bash
+# Run all tests
+pytest -v
+
+# Run specific test file
+pytest tests/test_records.py -v
+
+# Run with coverage
+pytest --cov=app --cov-report=term-missing
+```
+
+## Notes
+
+- Tests use AsyncClient for FastAPI async endpoints
+- Database fixtures auto-rollback after each test
+- Mocks handle external APIs (Sentry, Redis, ML models)
+- Component tests use React Testing Library
+- Full role-based access control test matrix included
