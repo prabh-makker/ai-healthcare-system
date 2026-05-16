@@ -76,7 +76,7 @@ def register_user(*, db: Session = Depends(get_db), user_in: UserCreate) -> Any:
         raise HTTPException(status_code=400, detail=error_msg)
 
     role = user_in.role.upper() if user_in.role else "PATIENT"
-    if role not in ("PATIENT", "DOCTOR", "ADMIN"):
+    if role not in ("PATIENT", "DOCTOR"):
         role = "PATIENT"
 
     db_user = User(

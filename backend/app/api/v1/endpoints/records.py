@@ -161,8 +161,8 @@ def delete_record(
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
 
-    # Authorization check: only patient owner or assigned doctor can delete
-    is_allowed, error_msg = check_record_modification(record, current_user)
+    # Authorization check: enforce deletion policy (pending only for non-admin)
+    is_allowed, error_msg = check_record_deletion(record, current_user)
     if not is_allowed:
         raise HTTPException(status_code=403, detail=error_msg)
 

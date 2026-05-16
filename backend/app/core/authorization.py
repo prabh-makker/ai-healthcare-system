@@ -68,7 +68,10 @@ def check_record_deletion(record: MedicalRecord, current_user: User) -> tuple[bo
     """
     Check if user can delete a medical record.
 
-    Same rules as check_record_modification.
+    Rules:
+    - Admin: can delete any record (pending, approved, completed)
+    - Patient: can only delete their own pending records
+    - Doctor: can only delete pending records assigned to them
 
     Args:
         record: MedicalRecord instance
@@ -77,4 +80,25 @@ def check_record_deletion(record: MedicalRecord, current_user: User) -> tuple[bo
     Returns:
         Tuple of (is_allowed: bool, error_message: str)
     """
-    return check_record_modification(record, current_user)
+    # Admin can delete ANY record regardless of status
+    if current_user.role == UserRole.ADMIN:
+        return True, ""
+
+    # For non-admin: ownership check first
+    is_patient_owner = str(record.patient_id) == str(current_user.id)
+    is_assigned_doctor = record.doctor_id and str(record.doctor_id) == str(current_user.id)
+
+    if current_user.role == UserRole.PATIENT:
+        if not is_patient_owner:
+            return False, "Forbidden"
+    elif current_user.role == UserRole.DOCTOR:
+        if not is_assigned_doctor:
+            return False, "You are not assigned to this record"
+    else:
+        return False, "Forbidden"
+
+    # For non-admin users: only allow deletion if record is pending
+    if record.status != "pending":
+        return False, "Can only delete pending records"
+
+    return True, ""
