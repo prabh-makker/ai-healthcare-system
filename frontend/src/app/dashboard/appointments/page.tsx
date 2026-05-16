@@ -97,7 +97,7 @@ function AppointmentsContent() {
     }
     try {
       await api.cancelAppointment(id);
-      fetchAppointments();
+      await fetchAppointments();
     } catch (err: any) {
       setError(err.message || "Failed to cancel appointment");
     }

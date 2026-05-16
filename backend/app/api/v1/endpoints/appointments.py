@@ -92,7 +92,7 @@ def create_appointment(
     db.add(appt)
     db.commit()
     db.refresh(appt)
-    return serialize_appointment(appt)
+    return serialize_appointment(appt, db)
 
 
 @router.put("/{appt_id}")

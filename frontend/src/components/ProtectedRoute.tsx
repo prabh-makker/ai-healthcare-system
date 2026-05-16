@@ -44,5 +44,11 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
 
   if (!isAuthenticated) return null;
 
+  // Guard: if a role is required and user is loaded, block render until redirect fires
+  if (requiredRole && user) {
+    const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+    if (!allowedRoles.includes(user.role)) return null;
+  }
+
   return <>{children}</>;
 }

@@ -248,14 +248,15 @@ def diagnosis_chat(
     message_lower = request.message.lower().strip()
     ready_keywords = ["ready", "yes tell me", "show me diagnosis", "what do i have"]
 
-    if len(merged_symptoms) >= 5 or any(kw in message_lower for kw in ready_keywords):
+    trigger_ready = len(merged_symptoms) >= 5 or any(kw in message_lower for kw in ready_keywords)
+    if trigger_ready and diagnosis_dict:
         conversation_state = "diagnosis_ready"
-        if diagnosis_dict:
-            next_prompt = f"Based on your symptoms, I predict: {diagnosis_dict['disease']} (Confidence: {diagnosis_dict['confidence']}%). Consider seeing a {diagnosis_dict['specialist']}."
-        else:
-            next_prompt = "Need at least one symptom for diagnosis."
+        next_prompt = f"Based on your symptoms, I predict: {diagnosis_dict['disease']} (Confidence: {diagnosis_dict['confidence']}%). Consider seeing a {diagnosis_dict['specialist']}."
         next_symptom = None
     else:
+        if trigger_ready and not diagnosis_dict:
+            # User said "ready" but we have no symptoms yet — stay collecting
+            pass  # falls through to collecting_symptoms branch
         conversation_state = "collecting_symptoms"
         next_prompt, next_symptom = _get_next_symptom_prompt(
             merged_symptoms, known_symptoms, request.asked_symptoms

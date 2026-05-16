@@ -124,7 +124,7 @@ def login_access_token(
         )
 
     if not user.is_active:
-        auth_rate_limiter.record_attempt(email_sanitized, False)
+        # Don't penalise rate limit for inactive accounts — wrong credentials would have been caught above
         raise HTTPException(status_code=400, detail="User account is inactive")
 
     auth_rate_limiter.record_attempt(email_sanitized, True)

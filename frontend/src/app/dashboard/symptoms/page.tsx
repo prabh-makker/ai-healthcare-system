@@ -136,16 +136,17 @@ export default function DiagnosticsChat() {
   };
 
   const handleNewDiagnosis = () => {
+    const newSessionId = crypto.randomUUID();
     setSelectedSymptoms([]);
     setAskedSymptoms([]);
     setLastAskedSymptom(undefined);
     setCurrentDiagnosis({});
     setConversationState("collecting_symptoms");
-    setSessionId(crypto.randomUUID());
+    setSessionId(newSessionId);
     setError(null);
 
     const greeting: ChatMessageType = {
-      id: `${sessionId}-1`,
+      id: `${newSessionId}-1`,
       type: "assistant",
       content: "Let's start over. What symptoms are you experiencing?",
       timestamp: new Date(),
