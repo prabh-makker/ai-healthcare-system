@@ -1,0 +1,36 @@
+### Health check
+GET http://localhost:8000/api/v1/health
+
+### Register user
+POST http://localhost:8000/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "patient@example.com",
+  "password": "SecurePass123!",
+  "role": "PATIENT"
+}
+
+### Login
+POST http://localhost:8000/api/v1/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=patient@example.com&password=SecurePass123!
+
+### Get current user
+GET http://localhost:8000/api/v1/auth/me
+Authorization: Bearer <access_token>
+
+### Analyze symptoms
+POST http://localhost:8000/api/v1/diagnosis/symptoms
+Content-Type: application/json
+Authorization: Bearer <access_token>
+
+{
+  "symptoms": ["fever", "cough"],
+  "save_record": true
+}
+
+### Get medical records
+GET http://localhost:8000/api/v1/records
+Authorization: Bearer <access_token>
