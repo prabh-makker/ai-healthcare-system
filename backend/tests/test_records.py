@@ -33,6 +33,16 @@ SAMPLE_RECORD_DATA = {
 }
 
 
+def get_error_detail(resp_json: dict) -> str:
+    """Extract error message from response (handles both formats)."""
+    if isinstance(resp_json, dict):
+        if "error" in resp_json and isinstance(resp_json["error"], dict):
+            return resp_json["error"].get("message", "")
+        if "detail" in resp_json:
+            return resp_json.get("detail", "")
+    return ""
+
+
 # ============================================================================
 # UTILITY FUNCTIONS
 # ============================================================================
@@ -78,7 +88,7 @@ class TestSimpleEndpoint:
 
     def test_simple_endpoint_works(self, client: TestClient):
         """Test simple endpoint returns correct message"""
-        resp = client.get("/api/v1/records/test-simple")
+        resp = client.post("/api/v1/records/test-simple")
         assert resp.status_code == 200
         assert resp.json() == {"message": "test endpoint works"}
 
@@ -262,7 +272,7 @@ class TestListRecords:
         # Limit exceeds maximum
         resp = client.get("/api/v1/records/?limit=101")
         assert resp.status_code == 400
-        assert "cannot exceed 100" in resp.json()["detail"]
+        assert "cannot exceed 100" in get_error_detail(resp.json())
 
     def test_list_records_pagination_negative_skip(self, client: TestClient, db):
         """Test pagination rejects negative skip"""
@@ -271,7 +281,7 @@ class TestListRecords:
 
         resp = client.get("/api/v1/records/?skip=-1")
         assert resp.status_code == 400
-        assert "cannot be negative" in resp.json()["detail"]
+        assert "cannot be negative" in get_error_detail(resp.json())
 
     def test_list_records_unauthenticated(self, client: TestClient):
         """Test listing records requires authentication"""
@@ -340,7 +350,7 @@ class TestGetRecord:
 
         resp = client.get(f"/api/v1/records/{uuid.uuid4()}")
         assert resp.status_code == 404
-        assert "not found" in resp.json()["detail"].lower()
+        assert "not found" in get_error_detail(resp.json()).lower()
 
     def test_get_record_forbidden_different_patient(self, client: TestClient, db):
         """Test patient cannot get another patient's record"""
@@ -352,7 +362,7 @@ class TestGetRecord:
 
         resp = client.get(f"/api/v1/records/{record.id}")
         assert resp.status_code == 403
-        assert "forbidden" in resp.json()["detail"].lower()
+        assert "forbidden" in get_error_detail(resp.json()).lower()
 
     def test_get_record_forbidden_unassigned_doctor(self, client: TestClient, db):
         """Test doctor cannot get record not assigned to them"""
@@ -460,7 +470,7 @@ class TestPatchRecord:
         })
 
         assert resp.status_code == 422
-        assert "status must be one of" in resp.json()["detail"]
+        assert "status must be one of" in get_error_detail(resp.json())
 
     def test_patch_record_not_found(self, client: TestClient, db):
         """Test patching non-existent record"""
@@ -487,7 +497,7 @@ class TestPatchRecord:
         })
 
         assert resp.status_code == 403
-        assert "not assigned" in resp.json()["detail"]
+        assert "not assigned" in get_error_detail(resp.json())
 
     def test_patch_record_patient_forbidden(self, client: TestClient, db):
         """Test patient cannot update records"""
@@ -566,7 +576,7 @@ class TestDeleteRecord:
 
         resp = client.delete(f"/api/v1/records/{record.id}")
         assert resp.status_code == 403
-        assert "pending" in resp.json()["detail"]
+        assert "pending" in get_error_detail(resp.json())
 
     def test_delete_record_doctor_approved_forbidden(self, client: TestClient, db):
         """Test doctor cannot delete approved record"""
@@ -635,6 +645,7 @@ class TestBulkApprove:
         assert len(data["failed_records"]) == 0
 
         # Verify in database
+        db.expire_all()
         db_record1 = db.query(MedicalRecord).filter(MedicalRecord.id == record1.id).first()
         assert db_record1.status == "approved"
 
@@ -678,6 +689,7 @@ class TestBulkApprove:
         data = resp.json()
         assert data["approved_count"] == 1
 
+        db.expire_all()
         db_record = db.query(MedicalRecord).filter(MedicalRecord.id == record.id).first()
         assert db_record.doctor_notes == notes
 
@@ -752,6 +764,7 @@ class TestBulkApprove:
         data = resp.json()
         assert data["approved_count"] == 1
 
+        db.expire_all()
         db_record = db.query(MedicalRecord).filter(MedicalRecord.id == record.id).first()
         assert db_record.status == "approved"
 

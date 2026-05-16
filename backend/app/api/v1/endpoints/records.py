@@ -8,7 +8,7 @@ from app.db.session import get_db
 from app.models.models import User, MedicalRecord, UserRole
 from app.core.security import get_current_user, require_role
 from app.core.pagination import validate_pagination
-from app.core.authorization import check_record_ownership, check_record_modification
+from app.core.authorization import check_record_ownership, check_record_modification, check_record_deletion
 from app.core.constants import RECORD_STATUS_ALLOWED
 from app.core.serializers import serialize_medical_record
 
@@ -62,7 +62,7 @@ def get_stats(
     }
 
 
-@router.get("")
+@router.get("/")
 def get_records(
     skip: int = 0,
     limit: int = 50,

@@ -25,7 +25,7 @@ def check_record_ownership(record: MedicalRecord, current_user: User) -> bool:
         return True
 
     is_patient_owner = str(record.patient_id) == str(current_user.id)
-    is_assigned_doctor = record.doctor_id and str(record.doctor_id) == str(current_user.id)
+    is_assigned_doctor = bool(record.doctor_id) and str(record.doctor_id) == str(current_user.id)
 
     return is_patient_owner or is_assigned_doctor
 
