@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Clock, Plus, Stethoscope, CheckCircle, X, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -103,8 +103,9 @@ function AppointmentsContent() {
     }
   };
 
-  const filtered = appointments.filter(
-    (a) => filter === "all" || a.status === filter
+  const filtered = useMemo(
+    () => appointments.filter((a) => filter === "all" || a.status === filter),
+    [appointments, filter]
   );
 
   const containerVariants = {

@@ -254,9 +254,6 @@ def diagnosis_chat(
         next_prompt = f"Based on your symptoms, I predict: {diagnosis_dict['disease']} (Confidence: {diagnosis_dict['confidence']}%). Consider seeing a {diagnosis_dict['specialist']}."
         next_symptom = None
     else:
-        if trigger_ready and not diagnosis_dict:
-            # User said "ready" but we have no symptoms yet — stay collecting
-            pass  # falls through to collecting_symptoms branch
         conversation_state = "collecting_symptoms"
         next_prompt, next_symptom = _get_next_symptom_prompt(
             merged_symptoms, known_symptoms, request.asked_symptoms

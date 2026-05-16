@@ -1,12 +1,28 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Pill, Search, Clock, AlertCircle } from "lucide-react";
+import { Pill, Search, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardBg from "@/components/DashboardBg";
 import { api, APIError } from "@/lib/api";
+import { STATUS_COLOR_MAP } from "@/constants/colors";
+
+const PRESCRIPTION_STATUS_COLOR: Record<string, string> = {
+  active: STATUS_COLOR_MAP.emerald,
+  completed: STATUS_COLOR_MAP.zinc,
+  discontinued: STATUS_COLOR_MAP.red,
+};
+
+const rowVariants = {
+  hidden: { opacity: 0, x: -12 },
+  visible: (i: number) => ({
+    opacity: 1,
+    x: 0,
+    transition: { delay: i * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
+  }),
+};
 
 interface Prescription {
   id: string;
@@ -83,32 +99,15 @@ function MedicationsContent() {
     fetchMedications();
   }, []);
 
-  const filtered = medications.filter((med) =>
-    med.medication_name.toLowerCase().includes(search.toLowerCase())
+  const filtered = useMemo(
+    () => medications.filter((med) => med.medication_name.toLowerCase().includes(search.toLowerCase())),
+    [medications, search]
   );
 
-  const activeCount = medications.filter((m) => m.status === "active").length;
-  const rowVariants = {
-    hidden: { opacity: 0, x: -12 },
-    visible: (i: number) => ({
-      opacity: 1,
-      x: 0,
-      transition: { delay: i * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
-    }),
-  };
-
-  const statusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-emerald-500/10 text-emerald-400";
-      case "completed":
-        return "bg-zinc-500/10 text-zinc-400";
-      case "discontinued":
-        return "bg-red-500/10 text-red-400";
-      default:
-        return "bg-zinc-500/10 text-zinc-400";
-    }
-  };
+  const activeCount = useMemo(
+    () => medications.filter((m) => m.status === "active").length,
+    [medications]
+  );
 
   return (
     <div className="relative min-h-full">
@@ -209,7 +208,7 @@ function MedicationsContent() {
                           Prescribed by your doctor
                         </p>
                       </div>
-                      <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${statusColor(med.status)} capitalize`}>
+                      <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${PRESCRIPTION_STATUS_COLOR[med.status] ?? STATUS_COLOR_MAP.zinc} capitalize`}>
                         {med.status}
                       </span>
                     </div>

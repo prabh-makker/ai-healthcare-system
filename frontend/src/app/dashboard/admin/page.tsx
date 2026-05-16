@@ -11,7 +11,7 @@ import {
 import { api } from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardBg from "@/components/DashboardBg";
-import { COLOR_CLASS_MAP, STATUS_COLOR_MAP } from "@/constants/colors";
+import { STATUS_COLOR_MAP } from "@/constants/colors";
 import { StatCard } from "@/components/StatCard";
 
 const PIE_COLORS = ["#f43f5e", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ec4899", "#3b82f6", "#84cc16", "#f97316", "#a855f7"];

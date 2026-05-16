@@ -1,12 +1,10 @@
 """Serializers for consistent model-to-dict conversions."""
 
 from typing import Optional
-from sqlalchemy.orm import Session
-from app.models.models import MedicalRecord, Appointment, User
+from app.models.models import MedicalRecord, Appointment
 
 
 def serialize_medical_record(record: MedicalRecord) -> dict:
-    """Convert MedicalRecord model to serializable dict."""
     return {
         "id": str(record.id),
         "patient_id": str(record.patient_id),
@@ -22,12 +20,8 @@ def serialize_medical_record(record: MedicalRecord) -> dict:
     }
 
 
-def serialize_appointment(appointment: Appointment, db: Optional[Session] = None) -> dict:
-    """Convert Appointment model to serializable dict."""
-    patient_email = None
-    if db:
-        patient = db.query(User).filter(User.id == appointment.patient_id).first()
-        patient_email = patient.email if patient else None
+def serialize_appointment(appointment: Appointment, patient_email: Optional[str] = None) -> dict:
+    # patient_email is resolved by the caller to allow batch-loading in list endpoints
     return {
         "id": str(appointment.id),
         "patient_id": str(appointment.patient_id),

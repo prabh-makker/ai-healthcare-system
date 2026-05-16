@@ -71,7 +71,11 @@ def list_appointments(
             .limit(limit)
             .all()
         )
-    return [serialize_appointment(r, db) for r in records]
+    # Batch-load all patient emails in one query to avoid N+1
+    patient_ids = list({str(r.patient_id) for r in records})
+    patients = db.query(User).filter(User.id.in_(patient_ids)).all() if patient_ids else []
+    patient_map = {str(p.id): p.email for p in patients}
+    return [serialize_appointment(r, patient_email=patient_map.get(str(r.patient_id))) for r in records]
 
 
 @router.post("/", status_code=201)
@@ -92,7 +96,7 @@ def create_appointment(
     db.add(appt)
     db.commit()
     db.refresh(appt)
-    return serialize_appointment(appt, db)
+    return serialize_appointment(appt, patient_email=current_user.email)
 
 
 @router.put("/{appt_id}")
@@ -116,7 +120,8 @@ def update_appointment(
 
     db.commit()
     db.refresh(appt)
-    return serialize_appointment(appt)
+    patient = db.query(User).filter(User.id == appt.patient_id).first()
+    return serialize_appointment(appt, patient_email=patient.email if patient else None)
 
 
 @router.delete("/{appt_id}", status_code=204)

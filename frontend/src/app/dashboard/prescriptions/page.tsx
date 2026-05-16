@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { AlertCircle, Pill } from "lucide-react";
 import { api, APIError } from "@/lib/api";
@@ -37,16 +37,20 @@ function PrescriptionsContent() {
   const [activeTab, setActiveTab] = useState<TabType>("active");
   const [selectedPatientId, setSelectedPatientId] = useState<string>("");
 
+  const refreshPrescriptions = async () => {
+    const data = await api.getPrescriptions(0, 100);
+    setPrescriptions(data);
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Fetch prescriptions created by this doctor
-        const prescriptionsData = await api.getPrescriptions(0, 100);
+        const [prescriptionsData, patientsData] = await Promise.all([
+          api.getPrescriptions(0, 100),
+          api.getMyPatients(0, 100),
+        ]);
         setPrescriptions(prescriptionsData);
-
-        // Fetch assigned patients
-        const patientsData = await api.getMyPatients(0, 100);
         setPatients(patientsData);
       } catch (err: any) {
         if (err instanceof APIError) {
@@ -63,19 +67,21 @@ function PrescriptionsContent() {
   }, []);
 
   const handlePrescriptionCreated = async () => {
-    // Refresh prescriptions
     try {
-      const prescriptionsData = await api.getPrescriptions(0, 100);
-      setPrescriptions(prescriptionsData);
+      await refreshPrescriptions();
       setActiveTab("active");
     } catch (err) {
       console.error("Error refreshing prescriptions:", err);
     }
   };
 
-  const activePrescriptions = prescriptions.filter((p) => p.status === "active");
-  const historyPrescriptions = prescriptions.filter(
-    (p) => p.status === "completed" || p.status === "discontinued"
+  const activePrescriptions = useMemo(
+    () => prescriptions.filter((p) => p.status === "active"),
+    [prescriptions]
+  );
+  const historyPrescriptions = useMemo(
+    () => prescriptions.filter((p) => p.status === "completed" || p.status === "discontinued"),
+    [prescriptions]
   );
 
   const getPatientName = (patientId: string) => {
@@ -87,12 +93,9 @@ function PrescriptionsContent() {
     if (!window.confirm("Are you sure you want to discontinue this prescription?")) {
       return;
     }
-
     try {
       await api.updatePrescription(id, { status: "discontinued" });
-      // Refresh
-      const prescriptionsData = await api.getPrescriptions(0, 100);
-      setPrescriptions(prescriptionsData);
+      await refreshPrescriptions();
     } catch (err: any) {
       setError(err.message || "Failed to discontinue prescription");
     }

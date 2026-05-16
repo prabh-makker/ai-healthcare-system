@@ -21,6 +21,12 @@ interface CurrentDiagnosis {
   specialist?: string;
 }
 
+const STATE_CONFIG: Record<string, { cls: string; label: string }> = {
+  collecting_symptoms: { cls: "bg-sky-500/20 text-sky-400",     label: "Collecting Symptoms" },
+  diagnosis_ready:    { cls: "bg-emerald-500/20 text-emerald-400", label: "Ready to Save" },
+  saved:              { cls: "bg-purple-500/20 text-purple-400", label: "Saved" },
+};
+
 export default function DiagnosticsChat() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -328,20 +334,8 @@ export default function DiagnosticsChat() {
 
               {/* State Indicator */}
               <div className="text-center text-xs text-zinc-600 py-2">
-                <span
-                  className={`px-3 py-1 rounded-full inline-block ${
-                    conversationState === "collecting_symptoms"
-                      ? "bg-sky-500/20 text-sky-400"
-                      : conversationState === "diagnosis_ready"
-                        ? "bg-emerald-500/20 text-emerald-400"
-                        : "bg-purple-500/20 text-purple-400"
-                  }`}
-                >
-                  {conversationState === "collecting_symptoms"
-                    ? "Collecting Symptoms"
-                    : conversationState === "diagnosis_ready"
-                      ? "Ready to Save"
-                      : "Saved"}
+                <span className={`px-3 py-1 rounded-full inline-block ${STATE_CONFIG[conversationState]?.cls}`}>
+                  {STATE_CONFIG[conversationState]?.label}
                 </span>
               </div>
             </div>

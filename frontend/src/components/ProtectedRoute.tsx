@@ -13,23 +13,21 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
   const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
 
+  const allowedRoles = requiredRole
+    ? Array.isArray(requiredRole) ? requiredRole : [requiredRole]
+    : null;
+
   useEffect(() => {
     if (!loading) {
       if (!isAuthenticated) {
         router.push("/login");
         return;
       }
-
-      // Check role if specified
-      if (requiredRole && user) {
-        const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-        if (!allowedRoles.includes(user.role)) {
-          router.push("/dashboard");
-          return;
-        }
+      if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+        router.push("/dashboard");
       }
     }
-  }, [isAuthenticated, loading, user, requiredRole, router]);
+  }, [isAuthenticated, loading, user, allowedRoles, router]);
 
   if (loading) {
     return (
@@ -43,12 +41,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
   }
 
   if (!isAuthenticated) return null;
-
-  // Guard: if a role is required and user is loaded, block render until redirect fires
-  if (requiredRole && user) {
-    const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-    if (!allowedRoles.includes(user.role)) return null;
-  }
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) return null;
 
   return <>{children}</>;
 }
