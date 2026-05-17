@@ -49,3 +49,32 @@ venv.bak/
 *.sav
 *.onnx
 models/
+
+# Runtime logs and debug output
+*.log
+*.err.log
+*.out
+backend.log
+backend_*.log
+frontend.log
+frontend.err.log
+uvicorn*.log
+uvicorn.out
+
+# Test artifacts
+.coverage
+.pytest_cache/
+htmlcov/
+
+# DB backups
+*.db.old
+backend/app/db/*.db.old
+
+# Local debug / probe scripts
+backend/probe.py
+backend/cookies.txt
+backend/.rate_limit_data.json
+
+# Editor history
+*.bak
+*~

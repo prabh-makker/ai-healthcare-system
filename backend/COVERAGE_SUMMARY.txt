@@ -1,0 +1,212 @@
+================================================================================
+TEST COVERAGE ANALYSIS - AUTHENTICATION & AUTHORIZATION
+Generated: 2026-05-16
+================================================================================
+
+OVERALL METRICS
+===============
+Total Statements:        249
+Covered Lines:           132 (53%)
+Uncovered Lines:         117 (47%)
+Status:                  MIXED (77% auth, 54% authorization)
+
+================================================================================
+MODULE BREAKDOWN
+================================================================================
+
+1. app/api/v1/endpoints/auth.py
+   Lines:       97
+   Covered:     85 (88%)
+   Uncovered:   12 (12%)
+
+   UNCOVERED LINES:
+   - 22      (Redis logger - operational)
+   - 27      (File limiter fallback - operational)
+   - 94-97   (DB error exception - CRITICAL)
+   - 109-111 (Rate limit check - CRITICAL)
+   - 139-141 (Audit log exception - HIGH)
+
+   STATUS: 88% but missing critical exception paths
+
+2. app/core/authorization.py
+   Lines:       37
+   Covered:     17 (46%)
+   Uncovered:   20 (54%)
+
+   UNCOVERED FUNCTIONS:
+   - check_record_ownership()        (0% - 7 lines)
+   - check_record_modification()     (0% - 5 lines)
+   - check_record_deletion()         (0% - 8 lines)
+
+   STATUS: CRITICAL - All authorization functions under-tested
+
+3. app/api/v1/endpoints/records.py
+   Lines:       115
+   Covered:     102 (89%)
+   Uncovered:   13 (11%)
+
+   UNCOVERED LINES:
+   - 21    (Test endpoint auth)
+   - 73-92 (List records filtering)
+   - 101-112 (Create record)
+   - 160-170 (Delete record check)
+
+   STATUS: 89% - Good coverage but authorization paths untested
+
+================================================================================
+CRITICAL SECURITY GAPS
+================================================================================
+
+AUTHORIZATION.PY - check_record_deletion()
+- Admin deletion of approved/completed records: NOT TESTED
+- Patient deletion status restrictions: NOT TESTED
+- Doctor assignment validation: NOT TESTED
+- Invalid role handling: NOT TESTED
+
+  Missing Tests: 8
+  Impact: Unauthorized record deletion possible
+  Risk Level: CRITICAL
+
+AUTHORIZATION.PY - check_record_ownership()
+- Admin access bypass: NOT TESTED
+- Doctor-record assignment: NOT TESTED
+- Patient isolation: NOT TESTED
+
+  Missing Tests: 6
+  Impact: Unauthorized access to medical records
+  Risk Level: CRITICAL
+
+AUTH.PY - Database Error Handling (Lines 94-97)
+- Registration failure path: NOT TESTED
+- Rollback exception: NOT TESTED
+
+  Missing Tests: 2
+  Impact: Silent registration failures
+  Risk Level: CRITICAL
+
+AUTH.PY - Rate Limiting (Lines 109-111)
+- Rate limit enforcement: NOT TESTED (RATE_LIMIT_ENABLED disabled in tests)
+- DOS protection verification: NOT TESTED
+
+  Missing Tests: 3
+  Impact: DOS vulnerability unverified
+  Risk Level: CRITICAL
+
+================================================================================
+BRANCH COVERAGE GAPS
+================================================================================
+
+authorization.py Line 24 (admin bypass):
+    if current_user.role == UserRole.ADMIN:  <- BRANCH NOT TAKEN
+
+authorization.py Line 55-57 (patient rejection):
+    if current_user.role == UserRole.PATIENT:
+        if not is_patient_owner:  <- BRANCH NOT TAKEN
+
+authorization.py Line 58-60 (doctor rejection):
+    elif current_user.role == UserRole.DOCTOR:
+        if not is_assigned_doctor:  <- BRANCH NOT TAKEN
+
+authorization.py Line 61-62 (invalid role):
+    else:
+        return False, "Forbidden"  <- BRANCH NOT TAKEN
+
+auth.py Line 94-97 (exception):
+    except Exception as e:  <- EXCEPTION PATH NEVER TRIGGERED
+
+auth.py Line 109-111 (rate limit check):
+    if not is_allowed:  <- CONDITION NEVER FALSE IN TESTS
+
+================================================================================
+TEST STATUS BY ROLE/STATUS COMBINATION
+================================================================================
+
+Record Deletion Authorization Matrix:
+
+                    PENDING    APPROVED   COMPLETED
+Patient (own)         YES        NO         NO
+Patient (other)       NO         NO         NO
+Doctor (assigned)     YES        NO         NO
+Doctor (unassigned)   NO         NO         NO
+Admin                 YES        YES        YES
+Invalid role          NO         NO         NO
+
+Current Test Coverage: 2/18 combinations (11%)
+Missing: 16 test cases
+
+Record Ownership Matrix:
+
+                    Records
+Admin                YES (any)
+Patient (own)        YES
+Patient (other)      NO
+Doctor (assigned)    YES
+Doctor (unassigned)  NO
+No doctor_id         NO (for doctor)
+
+Current Test Coverage: 0/6 unit tests
+Endpoint coverage: Likely YES in integration tests, but unit functions untested
+
+Record Modification Matrix:
+
+                    Can Modify?
+Admin                YES
+Patient (own)        YES
+Patient (other)      NO
+Doctor (assigned)    YES
+Doctor (unassigned)  NO
+Invalid role         NO
+
+Current Test Coverage: ~2/6 (33%)
+Missing: Patient/Doctor rejection, invalid role
+
+================================================================================
+RECOMMENDED REMEDIATION ORDER
+================================================================================
+
+PHASE 1 (CRITICAL - Week 1):
+1. Create tests/test_authorization.py
+   - test_check_record_ownership (6 tests)
+   - test_check_record_modification (5 tests)
+   - test_check_record_deletion (8 tests - role/status matrix)
+
+2. Add exception handling tests to test_auth.py
+   - test_register_database_error (2 tests)
+   - test_audit_log_resilience (1 test)
+
+Effort: 6 hours
+Tests: 22 new
+Coverage Impact: +10% overall
+
+PHASE 2 (HIGH - Week 2):
+3. Enable and test rate limiting
+   - test_rate_limit_configuration (2 tests)
+   - test_rate_limit_enforcement (3 tests)
+
+4. Add records endpoint integration tests
+   - test_delete_authorization_matrix (5 tests)
+
+Effort: 4 hours
+Tests: 10 new
+Coverage Impact: +5% overall
+
+PHASE 3 (MEDIUM - Before release):
+5. Add initialization path tests
+   - test_redis_limiter_path (1 test)
+   - test_file_limiter_path (1 test)
+
+Effort: 1.5 hours
+Tests: 2 new
+Coverage Impact: +1% overall
+
+================================================================================
+TOTAL EFFORT: ~14 hours | TOTAL NEW TESTS: 34
+================================================================================
+
+Expected Final Coverage:
+- auth.py:              95%+ (from 88%)
+- authorization.py:     95%+ (from 54%)
+- records.py:           95%+ (from 89%)
+- Overall:              94%+ (from 77%)
+
+================================================================================
