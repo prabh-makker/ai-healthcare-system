@@ -19,6 +19,7 @@ interface PendingRecord {
   status: string;
   created_at: string;
   doctor_notes?: string;
+  accuracy_feedback?: string | null;
 }
 
 function ApprovalsContent() {
@@ -97,6 +98,17 @@ function ApprovalsContent() {
       fetchPendingRecords();
     } catch (err: any) {
       setError(err.message || "Failed to update");
+    }
+  };
+
+  const handleFeedback = async (id: string, feedback: "correct" | "incorrect" | "partial") => {
+    try {
+      await api.patchRecord(id, { accuracy_feedback: feedback });
+      setSuccessMsg(`Feedback recorded: ${feedback}`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+      fetchPendingRecords();
+    } catch (err: any) {
+      setError(err.message || "Failed to submit feedback");
     }
   };
 
@@ -334,13 +346,13 @@ function ApprovalsContent() {
                       <div className="flex justify-between text-xs text-zinc-500 mb-1.5">
                         <span>AI Confidence</span>
                         <span className="font-semibold">
-                          {(record.confidence_score * 100).toFixed(0)}%
+                          {(record.confidence_score ?? 0).toFixed(0)}%
                         </span>
                       </div>
                       <div className="h-2 bg-white/5 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
-                          animate={{ width: `${record.confidence_score * 100}%` }}
+                          animate={{ width: `${Math.min(100, record.confidence_score ?? 0)}%` }}
                           transition={{ duration: 0.8, ease: "easeOut" }}
                           className="h-full bg-gradient-to-r from-emerald-500 to-teal-500"
                         />
@@ -348,28 +360,65 @@ function ApprovalsContent() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => handleQuickApprove(record.id)}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg transition-all text-sm"
-                      >
-                        <Check size={16} />
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleQuickReject(record.id)}
-                        className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-semibold rounded-lg transition-all text-sm"
-                      >
-                        <X size={16} />
-                        Mark Reviewed
-                      </button>
-                      <button
-                        onClick={() => router.push(`/dashboard/records/${record.id}`)}
-                        className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-zinc-300 font-semibold rounded-lg transition-all text-sm"
-                      >
-                        <Eye size={16} />
-                        View Details
-                      </button>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleQuickApprove(record.id)}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg transition-all text-sm"
+                        >
+                          <Check size={16} />
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleQuickReject(record.id)}
+                          className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-semibold rounded-lg transition-all text-sm"
+                        >
+                          <X size={16} />
+                          Mark Reviewed
+                        </button>
+                        <button
+                          onClick={() => router.push(`/dashboard/records/${record.id}`)}
+                          className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-zinc-300 font-semibold rounded-lg transition-all text-sm"
+                        >
+                          <Eye size={16} />
+                          View Details
+                        </button>
+                      </div>
+
+                      {/* Feedback Section */}
+                      <div className="flex items-center gap-2 pt-2 border-t border-white/10">
+                        <span className="text-xs text-zinc-500 font-semibold">Accuracy:</span>
+                        <button
+                          onClick={() => handleFeedback(record.id, "correct")}
+                          className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                            record.accuracy_feedback === "correct"
+                              ? "bg-emerald-500/30 text-emerald-300 border border-emerald-500/50"
+                              : "bg-white/5 text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-300 border border-transparent hover:border-emerald-500/30"
+                          }`}
+                        >
+                          Correct
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(record.id, "partial")}
+                          className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                            record.accuracy_feedback === "partial"
+                              ? "bg-amber-500/30 text-amber-300 border border-amber-500/50"
+                              : "bg-white/5 text-zinc-400 hover:bg-amber-500/10 hover:text-amber-300 border border-transparent hover:border-amber-500/30"
+                          }`}
+                        >
+                          Partial
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(record.id, "incorrect")}
+                          className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                            record.accuracy_feedback === "incorrect"
+                              ? "bg-red-500/30 text-red-300 border border-red-500/50"
+                              : "bg-white/5 text-zinc-400 hover:bg-red-500/10 hover:text-red-300 border border-transparent hover:border-red-500/30"
+                          }`}
+                        >
+                          Incorrect
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

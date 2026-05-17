@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 import uuid
@@ -14,11 +14,19 @@ from app.core.serializers import serialize_appointment
 router = APIRouter()
 
 
+VALID_SPECIALISTS = {
+    "General Physician", "Cardiologist", "Neurologist", "Dermatologist",
+    "Pediatrician", "Endocrinologist", "Pulmonologist", "Orthopedist",
+    "Psychiatrist", "Gastroenterologist", "Infectious Disease Specialist",
+    "Cardiology", "Neurology", "Dermatology", "Pediatrics",  # legacy aliases
+}
+
+
 class AppointmentCreate(BaseModel):
     specialist: str
     date: str
     time: str
-    reason: Optional[str] = None
+    reason: Optional[str] = Field(None, max_length=500)
 
 
 class AppointmentUpdate(BaseModel):
@@ -43,6 +51,7 @@ class AppointmentOut(BaseModel):
         from_attributes = True
 
 
+@router.get("", include_in_schema=False)
 @router.get("/")
 def list_appointments(
     skip: int = 0,
@@ -61,8 +70,23 @@ def list_appointments(
             .limit(limit)
             .all()
         )
+    elif current_user.role == UserRole.DOCTOR:
+        # Doctors see appointments of their assigned patients
+        from app.models.models import DoctorPatient
+        assigned_patient_ids = [dp.patient_id for dp in db.query(DoctorPatient).filter(
+            DoctorPatient.doctor_id == current_user.id,
+            DoctorPatient.status == "active"
+        ).all()]
+        records = (
+            db.query(Appointment)
+            .filter(Appointment.patient_id.in_(assigned_patient_ids) if assigned_patient_ids else False)
+            .order_by(Appointment.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        ) if assigned_patient_ids else []
     else:
-        # Non-admin users only see their own appointments
+        # Patients see only their own appointments
         records = (
             db.query(Appointment)
             .filter(Appointment.patient_id == current_user.id)
@@ -84,6 +108,15 @@ def create_appointment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Validate specialist against known list (allows handling slash-separated names too)
+    spec = body.specialist.strip()
+    spec_parts = [s.strip() for s in spec.replace("/", ",").split(",")]
+    if not any(p in VALID_SPECIALISTS for p in spec_parts):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid specialist. Must include one of: {sorted(VALID_SPECIALISTS)}"
+        )
+
     appt = Appointment(
         id=str(uuid.uuid4()),
         patient_id=str(current_user.id),
@@ -115,7 +148,21 @@ def update_appointment(
     if str(appt.patient_id) != str(current_user.id) and current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    for field, value in body.model_dump(exclude_unset=True).items():
+    update_data = body.model_dump(exclude_unset=True)
+
+    # Patients can only set status to "cancelled" (not "completed" - that's admin/doctor)
+    if "status" in update_data and current_user.role == UserRole.PATIENT:
+        if update_data["status"] not in ("cancelled", "upcoming"):
+            raise HTTPException(
+                status_code=403,
+                detail="Patients can only cancel or reschedule appointments. Only an admin can mark as completed."
+            )
+
+    # Validate status whitelist
+    if "status" in update_data and update_data["status"] not in ("upcoming", "completed", "cancelled"):
+        raise HTTPException(status_code=422, detail="Invalid status")
+
+    for field, value in update_data.items():
         setattr(appt, field, value)
 
     db.commit()

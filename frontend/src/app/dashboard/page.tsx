@@ -342,17 +342,32 @@ export default function Dashboard() {
     }
   }, [user?.role, router]);
 
+  const [activeMedsCount, setActiveMedsCount] = useState<number | null>(null);
+  const [upcomingAppts, setUpcomingAppts] = useState<number | null>(null);
+
   useEffect(() => {
     setMounted(true);
-    // Get user's own records (not system-wide stats which requires ADMIN role)
-    api.getRecords(0, 50).then(records => {
+    let cancelled = false;
+    // Patient/doctor: fetch their records, medications, and appointments
+    Promise.allSettled([
+      api.getRecords(0, 50),
+      api.getPrescriptions(0, 50),
+      api.getAppointments(),
+    ]).then(([recordsRes, prescriptionsRes, appointmentsRes]) => {
+      if (cancelled) return;
+      const records = recordsRes.status === "fulfilled" ? recordsRes.value : [];
+      const prescriptions = prescriptionsRes.status === "fulfilled" ? prescriptionsRes.value : [];
+      const appointments = appointmentsRes.status === "fulfilled" ? appointmentsRes.value : [];
       setStats({
-        total_records: records.length,
+        total_records: Array.isArray(records) ? records.length : 0,
         total_patients: 0,
         total_doctors: 0,
-        recent_records: records,
+        recent_records: Array.isArray(records) ? records : [],
       });
-    }).catch(console.error);
+      setActiveMedsCount(Array.isArray(prescriptions) ? prescriptions.filter((p: any) => p.status === "active").length : 0);
+      setUpcomingAppts(Array.isArray(appointments) ? appointments.filter((a: any) => a.status === "upcoming").length : 0);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   if (!mounted || user?.role === "ADMIN") return null;
@@ -392,10 +407,6 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center space-x-4">
-          <motion.div whileHover={{ scale: 1.08 }} className="relative glass-card p-3 rounded-2xl text-zinc-400 hover:text-white cursor-pointer transition-all">
-            <Bell size={20} />
-            <motion.div className="absolute top-2 right-2 w-2 h-2 bg-sky-500 rounded-full ring-4 ring-[#050505]" animate={{ scale: [1, 1.5, 1] }} transition={{ duration: 1.5, repeat: Infinity }} />
-          </motion.div>
           <ShimmerButton href="/dashboard/symptoms" gradFrom="#0ea5e9" gradTo="#06b6d4" shadow="rgba(14,165,233,0.3)">
             <Plus size={20} strokeWidth={3} />
             <span>Initiate Triage</span>
@@ -498,10 +509,6 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center space-x-4">
-          <motion.div whileHover={{ scale: 1.08 }} className="relative glass-card p-3 rounded-2xl text-zinc-400 hover:text-white cursor-pointer transition-all">
-            <Bell size={20} />
-            <motion.div className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full ring-4 ring-[#050505]" animate={{ scale: [1, 1.5, 1] }} transition={{ duration: 1.5, repeat: Infinity }} />
-          </motion.div>
           <ShimmerButton href="/dashboard/symptoms" gradFrom="#f43f5e" gradTo="#ec4899" shadow="rgba(244,63,94,0.3)">
             <Activity size={20} strokeWidth={3} />
             <span>Check Symptoms</span>
@@ -510,10 +517,10 @@ export default function Dashboard() {
       </motion.header>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12 overflow-hidden">
-        <StatCard3D label="Health Score" value="Good" icon={HeartPulse} trend="+stable" gradFrom="#f43f5e" gradTo="#ec4899" glowColor="rgba(244,63,94,0.2)" delay={0} />
-        <StatCard3D label="Medical Records" value={stats ? String(stats.recent_records.filter(r => r.patient_id === user?.id).length) : "—"} icon={ClipboardList} trend="+latest" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} onClick={() => router.push("/dashboard/records")} />
-        <StatCard3D label="Appointments" value="1" icon={Clock} trend="tomorrow" gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} onClick={() => router.push("/dashboard/appointments")} />
-        <StatCard3D label="Medications" value="2 Active" icon={Pill} trend="on track" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} onClick={() => router.push("/dashboard/medications")} />
+        <StatCard3D label="Health Score" value={stats?.recent_records?.length ? "Active" : "—"} icon={HeartPulse} trend={stats?.recent_records?.length ? "tracked" : "no data"} gradFrom="#f43f5e" gradTo="#ec4899" glowColor="rgba(244,63,94,0.2)" delay={0} />
+        <StatCard3D label="Medical Records" value={stats ? String(stats?.recent_records?.filter(r => r.patient_id === user?.id).length ?? 0) : "—"} icon={ClipboardList} trend="+latest" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} onClick={() => router.push("/dashboard/records")} />
+        <StatCard3D label="Appointments" value={upcomingAppts === null ? "—" : String(upcomingAppts)} icon={Clock} trend={upcomingAppts ? "upcoming" : "none"} gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} onClick={() => router.push("/dashboard/appointments")} />
+        <StatCard3D label="Medications" value={activeMedsCount === null ? "—" : `${activeMedsCount} Active`} icon={Pill} trend="on track" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} onClick={() => router.push("/dashboard/medications")} />
       </motion.div>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 xl:grid-cols-3 gap-8">

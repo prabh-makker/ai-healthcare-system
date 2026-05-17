@@ -44,6 +44,7 @@ def get_application() -> FastAPI:
         openapi_url=f"{settings.API_V1_STR}/openapi.json",
         docs_url="/docs" if settings.ENVIRONMENT == "development" else None,
         redoc_url="/redoc" if settings.ENVIRONMENT == "development" else None,
+        redirect_slashes=False,
     )
 
     # Add metrics middleware (will be added via decorator after CORS)
@@ -67,21 +68,24 @@ def get_application() -> FastAPI:
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # HSTS only in production - in dev (localhost) it breaks HTTP cookies
+        if settings.ENVIRONMENT == "production":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
-        # Strict Content-Security-Policy - only allow from same origin by default
-        csp = (
-            "default-src 'self'; "
-            "script-src 'self'; "
-            "style-src 'self' 'nonce-{nonce}'; "
-            "img-src 'self' data: blob: https:; "
-            "font-src 'self' data:; "
-            "connect-src 'self' http://localhost:* https:; "
-            "frame-ancestors 'none'; "
-            "base-uri 'self'; "
-            "form-action 'self';"
-        )
-        response.headers["Content-Security-Policy"] = csp
+        # CSP only in production - dev allows cross-origin (frontend on different port)
+        if settings.ENVIRONMENT == "production":
+            csp = (
+                "default-src 'self'; "
+                "script-src 'self'; "
+                "style-src 'self' 'nonce-{nonce}'; "
+                "img-src 'self' data: blob: https:; "
+                "font-src 'self' data:; "
+                "connect-src 'self' https:; "
+                "frame-ancestors 'none'; "
+                "base-uri 'self'; "
+                "form-action 'self';"
+            )
+            response.headers["Content-Security-Policy"] = csp
         return response
 
     # Log all requests
@@ -230,6 +234,24 @@ def get_application() -> FastAPI:
                 logger.info("ML model pre-loaded successfully")
         except Exception as e:
             logger.warning(f"Could not pre-load ML model: {e}")
+
+        # Pre-warm Ollama (loads model into memory, avoids ~3-5s first-request cold start)
+        try:
+            import httpx
+            with httpx.Client(timeout=30.0) as client:
+                client.post(
+                    "http://localhost:11434/api/generate",
+                    json={
+                        "model": "llama2",
+                        "prompt": "hi",
+                        "stream": False,
+                        "keep_alive": "10m",
+                        "options": {"num_predict": 1},
+                    },
+                )
+                logger.info("Ollama pre-warmed (llama2 loaded into memory)")
+        except Exception as e:
+            logger.warning(f"Could not pre-warm Ollama: {e}")
 
     @_app.get("/")
     async def root():

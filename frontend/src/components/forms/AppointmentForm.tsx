@@ -9,6 +9,8 @@ interface AppointmentFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   isModal?: boolean;
+  defaultSpecialist?: string;
+  defaultReason?: string;
 }
 
 const SPECIALISTS = [
@@ -39,12 +41,14 @@ export default function AppointmentForm({
   onSuccess,
   onCancel,
   isModal = false,
+  defaultSpecialist = "",
+  defaultReason = "",
 }: AppointmentFormProps) {
   const [formData, setFormData] = useState({
-    specialist: "",
+    specialist: defaultSpecialist,
     date: new Date().toISOString().split("T")[0],
     time: "",
-    reason: "",
+    reason: defaultReason,
   });
 
   const [loading, setLoading] = useState(false);
@@ -61,6 +65,7 @@ export default function AppointmentForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;  // Prevent double-submit
     setLoading(true);
     setError(null);
 

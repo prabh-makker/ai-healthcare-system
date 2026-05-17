@@ -87,7 +87,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-80 h-screen sticky top-0 border-r p-8 flex flex-col glass-nav" style={{ color: "var(--foreground)" }}>
+    <aside className="hidden md:flex w-64 lg:w-80 h-screen sticky top-0 border-r p-4 lg:p-8 flex-col glass-nav" style={{ color: "var(--foreground)" }}>
       <div className="flex items-center space-x-3 px-2 mb-12">
         <div className="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-sky-500/20">
           <Activity size={24} className="text-white" strokeWidth={3} />

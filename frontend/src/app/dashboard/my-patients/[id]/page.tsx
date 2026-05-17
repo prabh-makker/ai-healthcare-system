@@ -72,18 +72,17 @@ function PatientDetailContent() {
         );
         setPrescriptions(patientPrescriptions);
 
-        // Build patient object from first record
-        if (patientRecords.length > 0) {
-          const firstRecord = patientRecords[0];
-          setPatient({
-            id: patientId,
-            email: firstRecord.patient_email || "",
-            name: firstRecord.patient_name || "",
-            chronic_conditions: firstRecord.symptoms || [],
-            blood_group: undefined,
-            emergency_contact: undefined,
-          });
-        }
+        // Build patient object from first record OR first prescription if no records
+        const fallbackEmail = patientRecords[0]?.patient_email || patientPrescriptions[0]?.patient_email || "";
+        const conditions = patientRecords[0]?.symptoms || [];
+        setPatient({
+          id: patientId,
+          email: fallbackEmail,
+          name: fallbackEmail ? fallbackEmail.split("@")[0].replace(/\./g, " ") : "Patient",
+          chronic_conditions: conditions,
+          blood_group: undefined,
+          emergency_contact: undefined,
+        });
       } catch (err: any) {
         console.error("Error fetching data:", err);
         setError("Failed to load patient details");

@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-const API_BACKEND = process.env.API_BACKEND_URL || 'http://localhost:8006';
+const API_BACKEND = process.env.API_BACKEND_URL || 'http://127.0.0.1:8000';
 
 const nextConfig = {
   async rewrites() {

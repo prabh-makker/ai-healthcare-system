@@ -16,6 +16,7 @@ export default function Register() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;  // Prevent double-submit
     setLoading(true);
     setError("");
 
@@ -98,34 +99,13 @@ export default function Register() {
         )}
 
         <form onSubmit={handleRegister} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-zinc-500 ml-1">
-              Role Allocation
-            </label>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, role: "PATIENT" })}
-                className={`p-4 rounded-2xl border transition-all font-bold ${
-                  formData.role === "PATIENT"
-                    ? "bg-sky-500/10 border-sky-500 text-sky-400"
-                    : "bg-white/5 border-white/5 text-zinc-500"
-                }`}
-              >
-                Patient
-              </button>
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, role: "DOCTOR" })}
-                className={`p-4 rounded-2xl border transition-all font-bold ${
-                  formData.role === "DOCTOR"
-                    ? "bg-sky-500/10 border-sky-500 text-sky-400"
-                    : "bg-white/5 border-white/5 text-zinc-500"
-                }`}
-              >
-                Doctor
-              </button>
-            </div>
+          <div className="p-4 rounded-2xl bg-sky-500/5 border border-sky-500/20">
+            <p className="text-xs text-sky-300 font-semibold">
+              Patient Registration
+            </p>
+            <p className="text-[11px] text-zinc-500 mt-1">
+              Doctor accounts can only be created by an administrator. Contact your admin for doctor access.
+            </p>
           </div>
 
           <div className="space-y-4">
@@ -155,9 +135,28 @@ export default function Register() {
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
-                minLength={6}
+                minLength={8}
               />
             </div>
+
+            {/* Live password strength feedback */}
+            {formData.password.length > 0 && (
+              <div className="space-y-1.5 px-1">
+                {[
+                  { ok: formData.password.length >= 8, label: "At least 8 characters" },
+                  { ok: /[A-Z]/.test(formData.password), label: "One uppercase letter" },
+                  { ok: /\d/.test(formData.password), label: "One number" },
+                  { ok: /[!@#$%^&*()_+\-=\[\]{};:'"",.<>?]/.test(formData.password), label: "One special character" },
+                ].map((req) => (
+                  <div key={req.label} className="flex items-center gap-2 text-xs">
+                    <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold ${req.ok ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-700 text-zinc-500"}`}>
+                      {req.ok ? "✓" : "•"}
+                    </span>
+                    <span className={req.ok ? "text-emerald-400" : "text-zinc-500"}>{req.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <motion.button

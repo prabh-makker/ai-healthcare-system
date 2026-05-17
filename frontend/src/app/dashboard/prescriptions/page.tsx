@@ -34,6 +34,7 @@ function PrescriptionsContent() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [discontinuingId, setDiscontinuingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("active");
   const [selectedPatientId, setSelectedPatientId] = useState<string>("");
 
@@ -93,11 +94,14 @@ function PrescriptionsContent() {
     if (!window.confirm("Are you sure you want to discontinue this prescription?")) {
       return;
     }
+    setDiscontinuingId(id);
     try {
       await api.updatePrescription(id, { status: "discontinued" });
       await refreshPrescriptions();
     } catch (err: any) {
       setError(err.message || "Failed to discontinue prescription");
+    } finally {
+      setDiscontinuingId(null);
     }
   };
 
@@ -236,12 +240,11 @@ function PrescriptionsContent() {
                           </td>
                           <td className="px-6 py-4">
                             <button
-                              onClick={() =>
-                                discontinuePrescription(prescription.id)
-                              }
-                              className="text-xs px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-semibold rounded transition-all"
+                              onClick={() => discontinuePrescription(prescription.id)}
+                              disabled={discontinuingId === prescription.id}
+                              className="text-xs px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-semibold rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              Discontinue
+                              {discontinuingId === prescription.id ? "Discontinuing..." : "Discontinue"}
                             </button>
                           </td>
                         </tr>

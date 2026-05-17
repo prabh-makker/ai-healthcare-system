@@ -35,7 +35,7 @@ async function request(path: string, options: RequestInit = {}) {
 
     if (res.status === 401) {
       const data = await res.json().catch(() => ({}));
-      const msg = data.error?.message || data.detail || "Your session has expired. Please login again.";
+      const msg = data.error?.message || data.detail || "Session expired";
       throw new APIError(401, msg);
     }
 
@@ -90,7 +90,15 @@ export const api = {
       body: JSON.stringify({ email, password, role: role.toUpperCase() }),
     }),
 
-  getMe: () => request("/api/v1/auth/me"),
+  getMe: async () => {
+    // Silent 401 - returns null when not logged in (expected on initial load)
+    try {
+      return await request("/api/v1/auth/me");
+    } catch (e: any) {
+      if (e?.status === 401) return null;
+      throw e;
+    }
+  },
 
   logout: () => request("/api/v1/auth/logout", { method: "POST" }),
 
@@ -137,6 +145,34 @@ export const api = {
       }),
     }),
 
+  diagnosisChatStream: async (
+    message: string,
+    selectedSymptoms: string[] = [],
+    askedSymptoms: string[] = [],
+    sessionId?: string,
+    lastAskedSymptom?: string,
+  ): Promise<ReadableStream<string>> => {
+    const response = await fetch("/api/v1/diagnosis/chat-stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        message,
+        selected_symptoms: selectedSymptoms,
+        asked_symptoms: askedSymptoms,
+        last_asked_symptom: lastAskedSymptom ?? null,
+        session_id: sessionId,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new APIError(response.status, error.detail || "Stream failed");
+    }
+
+    return response.body!;
+  },
+
   // Patients
   getMyProfile: () => request("/api/v1/patients/me"),
 
@@ -182,6 +218,23 @@ export const api = {
 
   getSystemHealth: () => request("/api/v1/admin/system-health"),
 
+  adminCreateUser: (data: { email: string; password: string; role: string; specialization?: string }) =>
+    request("/api/v1/admin/users", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  retrainModel: (feedbackType?: string) =>
+    request("/api/v1/admin/retrain-model", {
+      method: "POST",
+      body: JSON.stringify({ feedback_type: feedbackType || null }),
+    }),
+
+  getModelVersions: () => request("/api/v1/admin/model-versions"),
+
+  getAccuracyMetrics: () =>
+    request("/api/v1/admin/accuracy-metrics", { method: "POST" }),
+
   getDiagnosesDistribution: () =>
     request("/api/v1/admin/diagnoses-distribution"),
 
@@ -201,7 +254,7 @@ export const api = {
 
   getRecord: (id: string) => request(`/api/v1/records/${id}`),
 
-  patchRecord: (id: string, data: { doctor_notes?: string; status?: string }) =>
+  patchRecord: (id: string, data: { doctor_notes?: string; status?: string; accuracy_feedback?: string }) =>
     request(`/api/v1/records/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
@@ -214,7 +267,7 @@ export const api = {
 
   // Appointments
   getAppointments: (skip = 0, limit = 50) =>
-    request(`/api/v1/appointments/?skip=${skip}&limit=${limit}`),
+    request(`/api/v1/appointments?skip=${skip}&limit=${limit}`),
 
   createAppointment: (data: Record<string, unknown>) =>
     request("/api/v1/appointments/", {
@@ -245,7 +298,7 @@ export const api = {
 
   // Prescriptions
   getPrescriptions: (skip = 0, limit = 50) =>
-    request(`/api/v1/prescriptions/?skip=${skip}&limit=${limit}`),
+    request(`/api/v1/prescriptions?skip=${skip}&limit=${limit}`),
 
   createPrescription: (data: Record<string, unknown>) =>
     request("/api/v1/prescriptions/", {
@@ -285,7 +338,7 @@ export const api = {
 
   // Notifications
   getNotifications: (skip = 0, limit = 50, unreadOnly = false) =>
-    request(`/api/v1/notifications/?skip=${skip}&limit=${limit}&unread_only=${unreadOnly}`),
+    request(`/api/v1/notifications?skip=${skip}&limit=${limit}&unread_only=${unreadOnly}`),
 
   getUnreadCount: () => request("/api/v1/notifications/unread-count"),
 

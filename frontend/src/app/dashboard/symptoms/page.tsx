@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, MessageSquare, Pill, AlertCircle, Save } from "lucide-react";
+import { Send, MessageSquare, Pill, AlertCircle, Save, Calendar } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import DashboardBg from "@/components/DashboardBg";
@@ -21,6 +22,13 @@ interface CurrentDiagnosis {
   specialist?: string;
 }
 
+interface RecommendedDoctor {
+  id: string;
+  name: string;
+  email: string;
+  specialty: string;
+}
+
 const STATE_CONFIG: Record<string, { cls: string; label: string }> = {
   collecting_symptoms: { cls: "bg-sky-500/20 text-sky-400",     label: "Collecting Symptoms" },
   diagnosis_ready:    { cls: "bg-emerald-500/20 text-emerald-400", label: "Ready to Save" },
@@ -29,9 +37,11 @@ const STATE_CONFIG: Record<string, { cls: string; label: string }> = {
 
 export default function DiagnosticsChat() {
   const { user } = useAuth();
+  const router = useRouter();
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [currentDiagnosis, setCurrentDiagnosis] = useState<CurrentDiagnosis>({});
+  const [recommendedDoctor, setRecommendedDoctor] = useState<RecommendedDoctor | null>(null);
   const [conversationState, setConversationState] = useState<"collecting_symptoms" | "diagnosis_ready" | "saved">(
     "collecting_symptoms"
   );
@@ -47,13 +57,12 @@ export default function DiagnosticsChat() {
   // Initialize with greeting
   useEffect(() => {
     const greeting: ChatMessageType = {
-      id: `${sessionId}-0`,
+      id: crypto.randomUUID(),
       type: "assistant",
       content: "Hello! 👋 I'm your AI diagnostic assistant. Tell me about your symptoms, or just say 'yes' or 'no' to my questions. What brings you in today?",
       timestamp: new Date(),
     };
     setMessages([greeting]);
-    setMessageCounter(1);
   }, [sessionId]);
 
   // Auto-scroll to bottom
@@ -62,6 +71,121 @@ export default function DiagnosticsChat() {
   }, [messages]);
 
   const handleSendMessage = async () => {
+    if (!userInput.trim() || loading) return;  // Prevent double-submit
+
+    setError(null);
+    const userMessage = userInput.trim();
+    setUserInput("");
+
+    // Add user message to chat
+    const userMsgId = crypto.randomUUID();
+    const userMsg: ChatMessageType = {
+      id: userMsgId,
+      type: "user",
+      content: userMessage,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setLoading(true);
+
+    // Retry up to 2 times on network failures
+    let attempt = 0;
+    let stream;
+    while (attempt < 2) {
+      try {
+        stream = await api.diagnosisChatStream(userMessage, selectedSymptoms, askedSymptoms, sessionId, lastAskedSymptom);
+        break;
+      } catch (err) {
+        attempt++;
+        if (attempt >= 2) {
+          setLoading(false);
+          setError(err instanceof Error ? err.message : "Failed to connect. Please try again.");
+          return;
+        }
+        await new Promise(r => setTimeout(r, 500 * attempt));  // Backoff: 500ms, 1s
+      }
+    }
+
+    try {
+      if (!stream) throw new Error("No stream available");
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+
+      let assistantText = "";
+      let metadata: any = {};
+      const assistantMsgId = crypto.randomUUID();
+      let assistantAdded = false;
+
+      // Process stream
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const text = decoder.decode(value);
+        const lines = text.split("\n");
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+
+          let data;
+          try {
+            data = JSON.parse(line.slice(6));
+          } catch {
+            // Skip malformed chunks (often happens at stream boundaries)
+            continue;
+          }
+
+          if (data.type === "metadata") {
+            metadata = data;
+            setSelectedSymptoms(data.updated_symptoms);
+            setCurrentDiagnosis(data.current_diagnosis);
+            setRecommendedDoctor(data.recommended_doctor || null);
+            setConversationState(data.conversation_state || "collecting_symptoms");
+            if (data.next_symptom_to_ask && !askedSymptoms.includes(data.next_symptom_to_ask)) {
+              setAskedSymptoms((prev) => [...prev, data.next_symptom_to_ask]);
+              setLastAskedSymptom(data.next_symptom_to_ask);
+            }
+          } else if (data.type === "text") {
+            assistantText += data.chunk;
+
+            // Add assistant message on first text chunk
+            if (!assistantAdded) {
+              const assistantMsg: ChatMessageType = {
+                id: assistantMsgId,
+                type: "assistant",
+                content: assistantText,
+                timestamp: new Date(),
+              };
+              setMessages((prev) => [...prev, assistantMsg]);
+              assistantAdded = true;
+              setMessageCounter((prev) => prev + 1);
+            } else {
+              // Update existing message with streamed text
+              setMessages((prev) =>
+                prev.map((msg) => (msg.id === assistantMsgId ? { ...msg, content: assistantText } : msg))
+              );
+            }
+          } else if (data.type === "done") {
+            // Stream complete
+          }
+        }
+      }
+
+      setLoading(false);
+    } catch (err) {
+      setLoading(false);
+      // Show partial response message if stream broke mid-way
+      setError(err instanceof Error
+        ? `Connection interrupted: ${err.message}. Your message was sent — please retry if no response appeared.`
+        : "Connection interrupted. Please try again.");
+      return;
+    }
+
+    return;
+  };
+
+  // Placeholder for old code - remove when tested
+  const handleSendMessageOld = async () => {
     if (!userInput.trim()) return;
 
     setError(null);
@@ -69,14 +193,14 @@ export default function DiagnosticsChat() {
     setUserInput("");
 
     // Add user message to chat
+    const userMsgId = crypto.randomUUID();
     const userMsg: ChatMessageType = {
-      id: `${sessionId}-${messageCounter}`,
+      id: userMsgId,
       type: "user",
       content: userMessage,
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, userMsg]);
-    setMessageCounter((prev) => prev + 1);
     setLoading(true);
 
     try {
@@ -97,14 +221,14 @@ export default function DiagnosticsChat() {
       }
 
       // Add assistant message
+      const assistantMsgId = crypto.randomUUID();
       const assistantMsg: ChatMessageType = {
-        id: `${sessionId}-${messageCounter + 1}`,
+        id: assistantMsgId,
         type: "assistant",
         content: response.assistant_message,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
-      setMessageCounter((prev) => prev + 2);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
       console.error("Chat error:", err);
@@ -147,18 +271,18 @@ export default function DiagnosticsChat() {
     setAskedSymptoms([]);
     setLastAskedSymptom(undefined);
     setCurrentDiagnosis({});
+    setRecommendedDoctor(null);
     setConversationState("collecting_symptoms");
     setSessionId(newSessionId);
     setError(null);
 
     const greeting: ChatMessageType = {
-      id: `${newSessionId}-1`,
+      id: crypto.randomUUID(),
       type: "assistant",
       content: "Let's start over. What symptoms are you experiencing?",
       timestamp: new Date(),
     };
     setMessages([greeting]);
-    setMessageCounter(2);
   };
 
   return (
@@ -306,6 +430,14 @@ export default function DiagnosticsChat() {
 
                     {conversationState === "diagnosis_ready" && (
                       <div className="pt-3 space-y-2">
+                        {recommendedDoctor && (
+                          <div className="p-3 bg-sky-500/10 border border-sky-500/20 rounded-lg">
+                            <p className="text-xs text-sky-300 font-semibold mb-1">Recommended Doctor</p>
+                            <p className="text-sm font-bold text-white">Dr. {recommendedDoctor.name}</p>
+                            <p className="text-xs text-zinc-400">{recommendedDoctor.specialty}</p>
+                            <p className="text-xs text-zinc-500 mt-1">{recommendedDoctor.email}</p>
+                          </div>
+                        )}
                         <motion.button
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
@@ -314,6 +446,21 @@ export default function DiagnosticsChat() {
                         >
                           <Save size={16} />
                           Save Diagnosis
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => {
+                            const spec = currentDiagnosis.specialist || "General Physician";
+                            const reason = currentDiagnosis.disease
+                              ? `Symptoms: ${selectedSymptoms.join(", ")}. Possible: ${currentDiagnosis.disease}`
+                              : "";
+                            router.push(`/dashboard/appointments?specialist=${encodeURIComponent(spec)}&reason=${encodeURIComponent(reason)}`);
+                          }}
+                          className="w-full px-4 py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2 text-sm"
+                        >
+                          <Calendar size={16} />
+                          {recommendedDoctor ? `Book with Dr. ${recommendedDoctor.name}` : `Book with ${currentDiagnosis.specialist || "Specialist"}`}
                         </motion.button>
                         <button
                           onClick={handleNewDiagnosis}

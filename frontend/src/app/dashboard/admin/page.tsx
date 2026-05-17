@@ -93,6 +93,11 @@ const TAB_CONFIG: Array<{ id: AdminTab; label: string; icon: React.ElementType }
 function AdminContent() {
   const router = useRouter();
   const [adminTab, setAdminTab] = useState<AdminTab>("overview");
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({ email: "", password: "", role: "DOCTOR", specialization: "General Physician" });
+  const [addUserError, setAddUserError] = useState<string | null>(null);
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [accuracyMetrics, setAccuracyMetrics] = useState<any>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [doctors, setDoctors] = useState<DoctorOverview[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -110,6 +115,7 @@ function AdminContent() {
     api.getAuditLog(0, 30).then(setAudit).catch(console.error);
     api.getDiagnosesDistribution().then(setDiag).catch(console.error);
     api.getSystemHealth().then(setHealth).catch(console.error);
+    api.getAccuracyMetrics().then(setAccuracyMetrics).catch(console.error);
   };
 
   useEffect(() => { loadAll(); }, []);
@@ -398,7 +404,15 @@ function AdminContent() {
                     User Management
                   </span>
                 </h2>
-                <span className="text-xs text-zinc-500">{users.length} total</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-zinc-500">{users.length} total</span>
+                  <button
+                    onClick={() => setShowAddUser(true)}
+                    className="px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold rounded-lg transition-all"
+                  >
+                    + Add User
+                  </button>
+                </div>
               </div>
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="w-full text-sm">
@@ -552,11 +566,18 @@ function AdminContent() {
                 </span>
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[
-                  { label: "XGBoost Diagnosis", status: "Active", performance: "98.2%", pct: 98.2, color: "emerald" as const },
-                  { label: "Symptom Analyzer", status: "Active", performance: "94.1%", pct: 94.1, color: "sky" as const },
-                  { label: "Feature Extractor", status: "Active", performance: "96.5%", pct: 96.5, color: "violet" as const },
-                ].map((model) => (
+                {(() => {
+                  const acc = accuracyMetrics?.overall_accuracy;
+                  const correctCount = accuracyMetrics?.feedback_distribution?.correct ?? 0;
+                  const totalFb = accuracyMetrics?.total_feedback_records ?? 0;
+                  const accStr = (acc !== undefined && totalFb > 0) ? `${acc}%` : "No data yet";
+                  const accPct = (acc !== undefined && totalFb > 0) ? acc : 0;
+                  return [
+                    { label: "XGBoost Diagnosis", status: health?.ml_model === "healthy" ? "Active" : "Idle", performance: accStr, pct: accPct, color: "emerald" as const },
+                    { label: "Approved Diagnoses", status: `${correctCount} correct`, performance: `${totalFb} total`, pct: totalFb > 0 ? (correctCount/totalFb)*100 : 0, color: "sky" as const },
+                    { label: "Doctor Reviews", status: "Live", performance: `${stats?.total_records ?? 0} records`, pct: Math.min(100, (stats?.total_records ?? 0)), color: "violet" as const },
+                  ];
+                })().map((model) => (
                   <div key={model.label} className="p-5 rounded-2xl bg-white/3 border border-white/5 hover:border-white/10 transition-all">
                     <div className="flex items-start justify-between mb-4">
                       <p className="font-bold text-sm">{model.label}</p>
@@ -580,6 +601,39 @@ function AdminContent() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </motion.div>
+
+            {/* Model Retraining */}
+            <motion.div variants={item} className="glass-card rounded-[2rem] p-8 border border-white/[0.08]">
+              <h2 className="text-xl font-black mb-6 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20">
+                  <Brain size={20} className="text-white" />
+                </div>
+                <span className="bg-gradient-to-r from-emerald-200 to-teal-300 bg-clip-text text-transparent">
+                  Model Retraining (XGBoost)
+                </span>
+              </h2>
+              <div className="space-y-4">
+                <p className="text-sm text-zinc-400">
+                  Retrain XGBoost on doctor-approved diagnoses to improve accuracy. Requires at least 5 records with feedback.
+                </p>
+                <button
+                  onClick={async () => {
+                    try {
+                      const result: any = await api.retrainModel();
+                      alert(`Retrain complete! Used ${result.records_used} records. Version: ${result.model_version}`);
+                    } catch (err: any) {
+                      alert(`Retrain failed: ${err.message || "Unknown error"}`);
+                    }
+                  }}
+                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold rounded-lg transition-all text-sm"
+                >
+                  Retrain Now
+                </button>
+                <p className="text-xs text-zinc-600 mt-2">
+                  Daily auto-retrain scheduled. Manual retrain available anytime.
+                </p>
               </div>
             </motion.div>
 
@@ -731,6 +785,115 @@ function AdminContent() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+
+        {/* Add User Modal (admin-only) */}
+        {showAddUser && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+            onClick={() => !addUserLoading && setShowAddUser(false)}
+          >
+            <div
+              className="glass-card rounded-2xl p-8 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold mb-6">Create New User</h3>
+
+              {addUserError && (
+                <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+                  {addUserError}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs text-zinc-400 font-semibold mb-1">Role</label>
+                  <select
+                    value={newUserForm.role}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white"
+                  >
+                    <option value="DOCTOR">Doctor</option>
+                    <option value="PATIENT">Patient</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                </div>
+
+                {newUserForm.role === "DOCTOR" && (
+                  <div>
+                    <label className="block text-xs text-zinc-400 font-semibold mb-1">Specialization</label>
+                    <select
+                      value={newUserForm.specialization}
+                      onChange={(e) => setNewUserForm({ ...newUserForm, specialization: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white"
+                    >
+                      {["General Physician","Cardiologist","Neurologist","Dermatologist","Pediatrician","Endocrinologist","Pulmonologist","Orthopedist","Psychiatrist","Gastroenterologist","Infectious Disease Specialist"].map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs text-zinc-400 font-semibold mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={newUserForm.email}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white"
+                    placeholder="dr.smith@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-zinc-400 font-semibold mb-1">Password</label>
+                  <input
+                    type="password"
+                    value={newUserForm.password}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white"
+                    placeholder="Min 8 chars, mixed case + number"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      setShowAddUser(false);
+                      setNewUserForm({ email: "", password: "", role: "DOCTOR", specialization: "General Physician" });
+                      setAddUserError(null);
+                    }}
+                    disabled={addUserLoading}
+                    className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-lg text-sm font-semibold transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setAddUserError(null);
+                      setAddUserLoading(true);
+                      try {
+                        await api.adminCreateUser(newUserForm);
+                        setShowAddUser(false);
+                        setNewUserForm({ email: "", password: "", role: "DOCTOR", specialization: "General Physician" });
+                        // Refetch user list
+                        const fresh: any = await api.getAllUsers();
+                        setUsers(fresh as AllUser[]);
+                      } catch (e: any) {
+                        setAddUserError(e.message || "Failed to create user");
+                      } finally {
+                        setAddUserLoading(false);
+                      }
+                    }}
+                    disabled={addUserLoading || !newUserForm.email || !newUserForm.password}
+                    className="flex-1 px-4 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-semibold transition-all disabled:opacity-50"
+                  >
+                    {addUserLoading ? "Creating..." : "Create User"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

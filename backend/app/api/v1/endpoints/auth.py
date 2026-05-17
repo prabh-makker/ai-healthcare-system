@@ -43,9 +43,20 @@ def change_password(
     current_user: User = Depends(get_current_user),
 ):
     """Change user password"""
+    # Rate limit: prevent brute force on old_password
+    if settings.RATE_LIMIT_ENABLED:
+        is_allowed, error_msg = auth_rate_limiter.is_allowed(f"pwchange:{current_user.email}")
+        if not is_allowed:
+            raise HTTPException(status_code=429, detail=error_msg)
+
     # Verify old password
     if not security.verify_password(req.old_password, current_user.hashed_password):
+        if settings.RATE_LIMIT_ENABLED:
+            auth_rate_limiter.record_attempt(f"pwchange:{current_user.email}", False)
         raise HTTPException(status_code=400, detail="Incorrect current password")
+
+    if settings.RATE_LIMIT_ENABLED:
+        auth_rate_limiter.record_attempt(f"pwchange:{current_user.email}", True)
 
     # Validate new password strength
     is_valid, error_msg = validate_password_strength(req.new_password)
@@ -75,9 +86,8 @@ def register_user(*, db: Session = Depends(get_db), user_in: UserCreate) -> Any:
     if not is_valid:
         raise HTTPException(status_code=400, detail=error_msg)
 
-    role = user_in.role.upper() if user_in.role else "PATIENT"
-    if role not in ("PATIENT", "DOCTOR"):
-        role = "PATIENT"
+    # Public registration only allows PATIENT. Doctors/admins are created via admin panel.
+    role = "PATIENT"
 
     db_user = User(
         email=email_sanitized,

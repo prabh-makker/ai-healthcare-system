@@ -274,7 +274,10 @@ export default function ReportDetailPage() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => setEditingNotes(false)}
+                      onClick={() => {
+                        setEditingNotes(false);
+                        setNotesText(report?.doctor_notes || "");
+                      }}
                       className="px-4 py-2 rounded-lg bg-white/10 text-white font-semibold hover:bg-white/20"
                     >
                       Cancel

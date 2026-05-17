@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Pill, Calendar, CheckCircle, FileText, MessageSquare, X } from "lucide-react";
 import { api } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 interface Notification {
   id: string;
@@ -35,6 +36,7 @@ const TYPE_COLORS = {
 
 export default function NotificationBell() {
   const router = useRouter();
+  const { isAuthenticated, loading } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -46,8 +48,9 @@ export default function NotificationBell() {
     try {
       const data = await api.getUnreadCount();
       setUnreadCount(data.unread_count);
-    } catch (err) {
-      console.error("Error fetching unread count:", err);
+    } catch (err: any) {
+      // Silently ignore expected transient errors (401 session expired, 404 cached path)
+      if (err?.status !== 401 && err?.status !== 404) console.error("Error fetching unread count:", err);
     }
   };
 
@@ -55,13 +58,15 @@ export default function NotificationBell() {
     try {
       const data = await api.getNotifications(0, 10, false);
       setNotifications(data);
-    } catch (err) {
-      console.error("Error fetching notifications:", err);
+    } catch (err: any) {
+      if (err?.status !== 401 && err?.status !== 404) console.error("Error fetching notifications:", err);
     }
   };
 
-  // Initial fetch + permanent polling (read isOpen via ref to avoid interval recreation)
+  // Initial fetch + permanent polling - ONLY when authenticated
   useEffect(() => {
+    if (loading || !isAuthenticated) return;
+
     fetchUnreadCount();
     fetchNotifications();
 
@@ -73,9 +78,9 @@ export default function NotificationBell() {
     }, 30000); // Poll every 30s
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isAuthenticated, loading]);
 
-  // Close on outside click
+  // Close on outside click (must be BEFORE early return - Rules of Hooks)
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -124,6 +129,9 @@ export default function NotificationBell() {
     if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
     return date.toLocaleDateString();
   };
+
+  // After all hooks: don't render if not authenticated
+  if (!isAuthenticated) return null;
 
   return (
     <div className="relative" ref={dropdownRef}>

@@ -188,6 +188,7 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;  // Prevent double-submit on rapid clicks
     setLoading(true);
     setError("");
 

@@ -87,6 +87,7 @@ def create_prescription(
         raise HTTPException(status_code=500, detail="Error creating prescription")
 
 
+@router.get("", response_model=List[PrescriptionOut], include_in_schema=False)
 @router.get("/", response_model=List[PrescriptionOut])
 def list_prescriptions(
     db: Session = Depends(get_db),
@@ -159,8 +160,23 @@ def update_prescription(
     if current_user.id != prescription.doctor_id:
         raise HTTPException(status_code=403, detail="Only the prescribing doctor can update this prescription")
 
-    # Update fields
+    # Validate status whitelist + transitions
+    VALID_STATUSES = {"active", "completed", "discontinued"}
+    # Allowed forward transitions (no going back to active from completed/discontinued)
+    ALLOWED_TRANSITIONS = {
+        "active": {"active", "completed", "discontinued"},
+        "completed": {"completed"},
+        "discontinued": {"discontinued"},
+    }
     if update_in.status:
+        if update_in.status not in VALID_STATUSES:
+            raise HTTPException(status_code=422, detail=f"Invalid status. Must be one of: {VALID_STATUSES}")
+        current_status = prescription.status or "active"
+        if update_in.status not in ALLOWED_TRANSITIONS.get(current_status, set()):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot transition prescription from '{current_status}' to '{update_in.status}'"
+            )
         prescription.status = update_in.status
     if update_in.end_date:
         prescription.end_date = update_in.end_date

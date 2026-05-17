@@ -61,6 +61,10 @@ function NotificationsContent() {
     if (!notification.is_read) {
       try {
         await api.markNotificationRead(notification.id);
+        // Locally mark as read so list updates immediately + count syncs
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n))
+        );
       } catch (err) {
         console.error("Error:", err);
       }

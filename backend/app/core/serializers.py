@@ -4,10 +4,11 @@ from typing import Optional
 from app.models.models import MedicalRecord, Appointment
 
 
-def serialize_medical_record(record: MedicalRecord) -> dict:
+def serialize_medical_record(record: MedicalRecord, patient_email: Optional[str] = None) -> dict:
     return {
         "id": str(record.id),
         "patient_id": str(record.patient_id),
+        "patient_email": patient_email,
         "doctor_id": str(record.doctor_id) if record.doctor_id else None,
         "symptoms": record.symptoms or [],
         "ai_prediction": record.ai_prediction,
@@ -17,6 +18,7 @@ def serialize_medical_record(record: MedicalRecord) -> dict:
         "created_at": record.created_at.isoformat() if record.created_at else None,
         "status": getattr(record, "status", "pending") or "pending",
         "doctor_notes": getattr(record, "doctor_notes", None),
+        "accuracy_feedback": getattr(record, "accuracy_feedback", None),
     }
 
 

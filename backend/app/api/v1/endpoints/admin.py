@@ -61,6 +61,66 @@ class UserRoleUpdate(BaseModel):
     role: UserRole
 
 
+class CreateUser(BaseModel):
+    email: str
+    password: str
+    role: str  # "DOCTOR" | "ADMIN" | "PATIENT"
+    specialization: Optional[str] = None  # for doctors
+
+
+@router.post("/users", status_code=201)
+def admin_create_user(
+    body: CreateUser,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Admin-only: create users with any role (incl. doctors)."""
+    from app.core import security
+    from app.core.security import validate_email, validate_password_strength, sanitize_email
+    from app.models.models import DoctorProfile
+
+    is_valid, err = validate_email(body.email)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=err)
+    email = sanitize_email(body.email)
+
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=400, detail="User with this email already exists")
+
+    is_valid, err = validate_password_strength(body.password)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=err)
+
+    role = body.role.upper()
+    if role not in ("PATIENT", "DOCTOR", "ADMIN"):
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    new_user = User(
+        id=str(uuid.uuid4()),
+        email=email,
+        hashed_password=security.get_password_hash(body.password),
+        role=role,
+    )
+    db.add(new_user)
+    db.flush()
+
+    # Create doctor profile if doctor
+    if role == "DOCTOR":
+        profile = DoctorProfile(
+            id=str(uuid.uuid4()),
+            user_id=new_user.id,
+            specialization=body.specialization or "General Physician",
+            availability_status=True,
+        )
+        db.add(profile)
+
+    db.commit()
+    log_action(db, current_user, "create", "user", new_user.id,
+               f"Created {role}: {email}", request)
+    return {"id": new_user.id, "email": email, "role": role}
+
+
 @router.patch("/users/{user_id}/status")
 def update_user_status(
     user_id: str,
@@ -343,3 +403,205 @@ def export_appointments(
         a.date, a.time, a.status, a.reason or "",
     ] for a in appts]
     return _stream_csv("appointments.csv", ["id", "patient_id", "specialist", "date", "time", "status", "reason"], rows)
+
+
+# ============================================================
+# MODEL RETRAINING & FEEDBACK
+# ============================================================
+
+class RetrainRequest(BaseModel):
+    feedback_type: Optional[str] = None  # "correct", "incorrect", or None (all)
+
+
+@router.post("/retrain-model")
+def retrain_model(
+    request: RetrainRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Retrain XGBoost model on approved diagnoses with feedback."""
+    import joblib
+    import numpy as np
+    import os
+    from datetime import datetime
+    from app.core.config import settings
+    
+    # Query approved diagnoses with feedback
+    query = db.query(MedicalRecord).filter(
+        MedicalRecord.ai_prediction.isnot(None),
+        MedicalRecord.accuracy_feedback.isnot(None),
+    )
+    
+    if request.feedback_type:
+        query = query.filter(MedicalRecord.accuracy_feedback == request.feedback_type)
+    
+    records = query.all()
+    
+    if not records:
+        raise HTTPException(status_code=400, detail="No approved diagnoses available for retraining")
+    
+    # Load model & metadata
+    ML_PATH = os.path.join(settings.ML_MODEL_PATH, "symptom_analysis")
+    MODEL_FILE = os.path.join(ML_PATH, "symptom_xgb_model.joblib")
+    META_FILE = os.path.join(ML_PATH, "model_metadata.json")
+    
+    if not os.path.exists(MODEL_FILE) or not os.path.exists(META_FILE):
+        raise HTTPException(status_code=500, detail="ML model not found")
+    
+    import json
+    with open(META_FILE, "r") as f:
+        meta = json.load(f)
+    
+    known_symptoms = meta["symptoms"]
+    classes = meta.get("diseases", meta.get("classes", []))
+    
+    # Build training data from approved diagnoses
+    X = []
+    y = []
+    
+    for record in records:
+        if record.ai_prediction not in classes:
+            continue
+        
+        # Build symptom vector
+        profile = np.zeros(len(known_symptoms))
+        for symp in (record.symptoms or []):
+            if symp in known_symptoms:
+                idx = known_symptoms.index(symp)
+                profile[idx] = 1
+        
+        X.append(profile)
+        y.append(classes.index(record.ai_prediction))
+    
+    if len(X) < 5:
+        raise HTTPException(status_code=400, detail="Need at least 5 approved diagnoses to retrain")
+    
+    # Retrain model
+    X_array = np.array(X)
+    y_array = np.array(y)
+    
+    model = joblib.load(MODEL_FILE)
+    model.fit(X_array, y_array)
+    
+    # Save versioned model
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    versioned_file = os.path.join(ML_PATH, f"symptom_xgb_model_v{timestamp}.joblib")
+    joblib.dump(model, versioned_file)
+    
+    # Update active model
+    joblib.dump(model, MODEL_FILE)
+    
+    # Update metadata
+    meta["model_version"] = timestamp
+    meta["retrain_date"] = datetime.utcnow().isoformat()
+    meta["training_samples_count"] = len(X)
+    
+    with open(META_FILE, "w") as f:
+        json.dump(meta, f, indent=2)
+    
+    # Log action
+    log_action(db, current_user, "retrain_model", "model", "symptom_xgb")
+    
+    return {
+        "status": "success",
+        "records_used": len(X),
+        "model_version": timestamp,
+        "backup_created": versioned_file
+    }
+
+
+@router.get("/model-versions")
+def get_model_versions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """List all model versions."""
+    import os
+    import json
+    from app.core.config import settings
+    
+    ML_PATH = os.path.join(settings.ML_MODEL_PATH, "symptom_analysis")
+    META_FILE = os.path.join(ML_PATH, "model_metadata.json")
+    
+    if not os.path.exists(META_FILE):
+        raise HTTPException(status_code=500, detail="Model metadata not found")
+    
+    with open(META_FILE, "r") as f:
+        meta = json.load(f)
+    
+    # Find all versioned model files
+    versions = []
+    try:
+        for file in os.listdir(ML_PATH):
+            if file.startswith("symptom_xgb_model_v") and file.endswith(".joblib"):
+                version_str = file.replace("symptom_xgb_model_v", "").replace(".joblib", "")
+                versions.append(version_str)
+    except:
+        pass
+    
+    return {
+        "active_version": meta.get("model_version", "default"),
+        "active_retrain_date": meta.get("retrain_date"),
+        "training_samples": meta.get("training_samples_count", 0),
+        "backup_versions": sorted(versions, reverse=True),
+    }
+
+
+@router.post("/accuracy-metrics")
+def get_accuracy_metrics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Get accuracy metrics for model performance."""
+    from sqlalchemy import func
+    
+    # Overall accuracy
+    total_with_feedback = db.query(func.count(MedicalRecord.id)).filter(
+        MedicalRecord.accuracy_feedback.isnot(None)
+    ).scalar() or 0
+    
+    correct = db.query(func.count(MedicalRecord.id)).filter(
+        MedicalRecord.accuracy_feedback == "correct"
+    ).scalar() or 0
+    
+    incorrect = db.query(func.count(MedicalRecord.id)).filter(
+        MedicalRecord.accuracy_feedback == "incorrect"
+    ).scalar() or 0
+    
+    partial = db.query(func.count(MedicalRecord.id)).filter(
+        MedicalRecord.accuracy_feedback == "partial"
+    ).scalar() or 0
+    
+    overall_accuracy = (correct / total_with_feedback * 100) if total_with_feedback > 0 else 0
+    
+    # Per-disease accuracy
+    diseases = db.query(
+        MedicalRecord.ai_prediction,
+        func.count(MedicalRecord.id).label("total"),
+        func.sum(case((MedicalRecord.accuracy_feedback == "correct", 1), else_=0)).label("correct_count")
+    ).filter(
+        MedicalRecord.ai_prediction.isnot(None),
+        MedicalRecord.accuracy_feedback.isnot(None)
+    ).group_by(MedicalRecord.ai_prediction).all()
+    
+    per_disease = {}
+    for disease, total, correct_count in diseases:
+        if disease:
+            correct_count = correct_count or 0
+            accuracy = (correct_count / total * 100) if total > 0 else 0
+            per_disease[disease] = {
+                "accuracy": round(accuracy, 2),
+                "total": total,
+                "correct": correct_count,
+            }
+    
+    return {
+        "overall_accuracy": round(overall_accuracy, 2),
+        "total_feedback_records": total_with_feedback,
+        "feedback_distribution": {
+            "correct": correct,
+            "incorrect": incorrect,
+            "partial": partial,
+        },
+        "per_disease_accuracy": per_disease,
+    }

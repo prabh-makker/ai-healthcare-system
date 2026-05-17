@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Clock, Plus, Stethoscope, CheckCircle, X, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -50,11 +51,14 @@ const statusConfig = {
 
 function AppointmentsContent() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const prefilledSpecialist = searchParams.get("specialist") || "";
+  const prefilledReason = searchParams.get("reason") || "";
   const [filter, setFilter] = useState<"all" | "upcoming" | "completed" | "cancelled">("all");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(!!prefilledSpecialist);  // Auto-open if specialist in URL
   const headerRef = useRef<HTMLDivElement>(null);
 
   // Mouse parallax on header
@@ -265,6 +269,8 @@ function AppointmentsContent() {
         {showForm && (
           <AppointmentForm
             isModal={true}
+            defaultSpecialist={prefilledSpecialist}
+            defaultReason={prefilledReason}
             onSuccess={() => {
               setShowForm(false);
               fetchAppointments();

@@ -95,13 +95,19 @@ function TimelineContent() {
 
         // Add appointments
         appointments.forEach((a: any) => {
-          // Use scheduled date+time as event date (consistent with what user sees);
-          // fall back to created_at if date is missing.
-          const dateStr = a.date && a.time ? `${a.date}T${a.time}:00` : a.date || a.created_at;
+          // Use scheduled date+time; fall back to created_at; final fallback to now to avoid Invalid Date
+          let parsed: Date;
+          try {
+            const dateStr = a.date && a.time ? `${a.date}T${a.time.replace(/\s?(AM|PM)/i, "")}:00` : a.date || a.created_at;
+            parsed = dateStr ? new Date(dateStr) : new Date();
+            if (isNaN(parsed.getTime())) parsed = new Date(a.created_at || Date.now());
+          } catch {
+            parsed = new Date();
+          }
           allEvents.push({
             id: `appointment-${a.id}`,
             type: "appointment",
-            date: new Date(dateStr),
+            date: parsed,
             title: a.specialist,
             description: `${a.date} at ${a.time}${a.reason ? ` - ${a.reason}` : ""}`,
             status: a.status,

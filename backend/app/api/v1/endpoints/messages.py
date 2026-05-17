@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import Any, List, Dict
 import logging
 
@@ -13,10 +13,19 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+MAX_MESSAGE_LENGTH = 5000
+
 
 class MessageCreate(BaseModel):
     receiver_id: str
-    content: str
+    content: str = Field(..., min_length=1, max_length=MAX_MESSAGE_LENGTH)
+
+    @field_validator("content")
+    @classmethod
+    def content_not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Message content cannot be empty")
+        return v.strip()
 
 
 @router.post("/", status_code=201)
@@ -101,22 +110,35 @@ def list_conversations(
         .all()
     )
 
-    # Group by other user
+    # Find all unique "other user" IDs (avoids N+1)
+    other_ids = set()
+    for msg in messages:
+        other_id = msg.receiver_id if msg.sender_id == current_user.id else msg.sender_id
+        other_ids.add(other_id)
+
+    # Batch load all users in one query
+    users_map = {u.id: u for u in db.query(User).filter(User.id.in_(other_ids)).all()} if other_ids else {}
+
+    # Batch load unread counts grouped by sender in one query
+    from sqlalchemy import func
+    unread_rows = (
+        db.query(Message.sender_id, func.count(Message.id))
+        .filter(
+            Message.sender_id.in_(other_ids) if other_ids else False,
+            Message.receiver_id == current_user.id,
+            Message.is_read == False,
+        )
+        .group_by(Message.sender_id)
+        .all()
+    ) if other_ids else []
+    unread_map = {sender_id: count for sender_id, count in unread_rows}
+
+    # Group by other user (uses precomputed maps, no per-iteration DB queries)
     conversations: Dict[str, Any] = {}
     for msg in messages:
         other_id = msg.receiver_id if msg.sender_id == current_user.id else msg.sender_id
         if other_id not in conversations:
-            other_user = db.query(User).filter(User.id == other_id).first()
-            unread_count = (
-                db.query(Message)
-                .filter(
-                    Message.sender_id == other_id,
-                    Message.receiver_id == current_user.id,
-                    Message.is_read == False,
-                )
-                .count()
-            )
-
+            other_user = users_map.get(other_id)
             conversations[other_id] = {
                 "user_id": other_id,
                 "user_email": other_user.email if other_user else "Unknown",
@@ -124,7 +146,7 @@ def list_conversations(
                 "user_role": other_user.role if other_user else "Unknown",
                 "last_message": msg.content,
                 "last_message_at": msg.created_at.isoformat(),
-                "unread_count": unread_count,
+                "unread_count": unread_map.get(other_id, 0),
             }
 
     return list(conversations.values())

@@ -123,11 +123,11 @@ export default function SettingsPage() {
               <h2 className="text-lg font-bold mb-8">Profile Information</h2>
               <div className="flex items-center gap-6 mb-10">
                 <div className="w-20 h-20 bg-sky-500/10 border border-sky-500/20 rounded-3xl flex items-center justify-center text-3xl font-black text-sky-400">
-                  {user?.email?.[0]?.toUpperCase()}
+                  {user?.email?.[0]?.toUpperCase() ?? "?"}
                 </div>
                 <div>
-                  <p className="font-bold text-lg">{user?.email?.split("@")[0]}</p>
-                  <p className="text-zinc-500 text-sm">{user?.email}</p>
+                  <p className="font-bold text-lg">{user?.email?.split("@")[0] ?? "Loading..."}</p>
+                  <p className="text-zinc-500 text-sm">{user?.email ?? "—"}</p>
                   <span className={`inline-block mt-2 text-xs font-bold px-3 py-1 rounded-lg ${
                     user?.role === "DOCTOR"
                       ? "bg-sky-500/10 text-sky-400"

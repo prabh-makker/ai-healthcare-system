@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     # ML Model path
     ML_MODEL_PATH: str = "ml_models"
 
+    # Ollama configuration
+    OLLAMA_API_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "llama2"
+
     # Logging
     LOG_LEVEL: str = "INFO"
 

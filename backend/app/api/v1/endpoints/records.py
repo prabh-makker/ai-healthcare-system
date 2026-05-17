@@ -31,6 +31,7 @@ class RecordCreate(BaseModel):
 class RecordPatch(BaseModel):
     doctor_notes: Optional[str] = None
     status: Optional[str] = None
+    accuracy_feedback: Optional[str] = None  # "correct", "incorrect", "partial"
 
 
 class BulkApprove(BaseModel):
@@ -62,6 +63,7 @@ def get_stats(
     }
 
 
+@router.get("", include_in_schema=False)
 @router.get("/")
 def get_records(
     skip: int = 0,
@@ -146,6 +148,10 @@ def patch_record(
         if body.status not in RECORD_STATUS_ALLOWED:
             raise HTTPException(status_code=422, detail=f"status must be one of {RECORD_STATUS_ALLOWED}")
         record.status = body.status
+    if body.accuracy_feedback is not None:
+        if body.accuracy_feedback not in ("correct", "incorrect", "partial"):
+            raise HTTPException(status_code=422, detail="accuracy_feedback must be 'correct', 'incorrect', or 'partial'")
+        record.accuracy_feedback = body.accuracy_feedback
     db.commit()
     db.refresh(record)
     return serialize_medical_record(record)
@@ -241,4 +247,11 @@ def list_pending_records(
         .all()
     )
 
-    return [serialize_medical_record(r) for r in records]
+    # Fetch patient emails for all records
+    patient_ids = [str(r.patient_id) for r in records]
+    patient_map = {}
+    if patient_ids:
+        patients = db.query(User).filter(User.id.in_(patient_ids)).all()
+        patient_map = {str(p.id): p.email for p in patients}
+
+    return [serialize_medical_record(r, patient_email=patient_map.get(str(r.patient_id))) for r in records]
