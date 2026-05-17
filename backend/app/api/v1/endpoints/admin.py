@@ -68,6 +68,25 @@ class CreateUser(BaseModel):
     specialization: Optional[str] = None  # for doctors
 
 
+@router.get("/users")
+def list_users(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Admin-only: list all users."""
+    users = db.query(User).offset(skip).limit(limit).all()
+    return [{
+        "id": str(u.id),
+        "email": u.email,
+        "role": u.role.value if hasattr(u.role, 'value') else str(u.role),
+        "is_active": u.is_active,
+        "last_login": u.last_login.isoformat() if u.last_login else None,
+        "created_at": u.created_at.isoformat() if u.created_at else None,
+    } for u in users]
+
+
 @router.post("/users", status_code=201)
 def admin_create_user(
     body: CreateUser,
@@ -283,8 +302,25 @@ def bulk_assign(
 
 
 # ============================================================
-# SYSTEM HEALTH (real)
+# SYSTEM HEALTH & STATS
 # ============================================================
+@router.get("/system-stats")
+def system_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Get system statistics."""
+    return {
+        "total_users": db.query(User).count(),
+        "total_patients": db.query(User).filter(User.role == UserRole.PATIENT).count(),
+        "total_doctors": db.query(User).filter(User.role == UserRole.DOCTOR).count(),
+        "total_admins": db.query(User).filter(User.role == UserRole.ADMIN).count(),
+        "total_records": db.query(MedicalRecord).count(),
+        "total_appointments": db.query(Appointment).count(),
+        "total_prescriptions": db.query(Prescription).count(),
+    }
+
+
 @router.get("/system-health")
 def system_health(
     db: Session = Depends(get_db),

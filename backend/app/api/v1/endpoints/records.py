@@ -94,12 +94,13 @@ def get_records(
     return [serialize_medical_record(r) for r in records]
 
 
+@router.post("", status_code=201)
 @router.post("/", status_code=201)
 def create_record(
     body: RecordCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> Any:
     record = MedicalRecord(
         id=str(uuid.uuid4()),
         patient_id=str(current_user.id),

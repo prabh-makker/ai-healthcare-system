@@ -351,6 +351,8 @@ export const api = {
   deleteNotification: (id: string) =>
     request(`/api/v1/notifications/${id}`, { method: "DELETE" }),
 
+  getWsToken: () => request("/api/v1/notifications/ws-token"),
+
   // Messages
   sendMessage: (receiverId: string, content: string) =>
     request("/api/v1/messages/", {

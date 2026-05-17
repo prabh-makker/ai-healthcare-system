@@ -4,19 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Pill, Calendar, CheckCircle, FileText, MessageSquare, X } from "lucide-react";
-import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-
-interface Notification {
-  id: string;
-  type: string;
-  title: string;
-  message?: string;
-  is_read: boolean;
-  related_id?: string;
-  related_url?: string;
-  created_at: string;
-}
+import { useNotifications, type Notification } from "@/context/NotificationContext";
 
 const TYPE_ICONS = {
   prescription: Pill,
@@ -36,51 +25,12 @@ const TYPE_COLORS = {
 
 export default function NotificationBell() {
   const router = useRouter();
-  const { isAuthenticated, loading } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { isAuthenticated } = useAuth();
+  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const isOpenRef = useRef(isOpen);
-  isOpenRef.current = isOpen;
 
-  const fetchUnreadCount = async () => {
-    try {
-      const data = await api.getUnreadCount();
-      setUnreadCount(data.unread_count);
-    } catch (err: any) {
-      // Silently ignore expected transient errors (401 session expired, 404 cached path)
-      if (err?.status !== 401 && err?.status !== 404) console.error("Error fetching unread count:", err);
-    }
-  };
-
-  const fetchNotifications = async () => {
-    try {
-      const data = await api.getNotifications(0, 10, false);
-      setNotifications(data);
-    } catch (err: any) {
-      if (err?.status !== 401 && err?.status !== 404) console.error("Error fetching notifications:", err);
-    }
-  };
-
-  // Initial fetch + permanent polling - ONLY when authenticated
-  useEffect(() => {
-    if (loading || !isAuthenticated) return;
-
-    fetchUnreadCount();
-    fetchNotifications();
-
-    const interval = setInterval(() => {
-      fetchUnreadCount();
-      if (isOpenRef.current) {
-        fetchNotifications();
-      }
-    }, 30000); // Poll every 30s
-
-    return () => clearInterval(interval);
-  }, [isAuthenticated, loading]);
-
-  // Close on outside click (must be BEFORE early return - Rules of Hooks)
+  // Close dropdown on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -93,15 +43,8 @@ export default function NotificationBell() {
 
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.is_read) {
-      try {
-        await api.markNotificationRead(notification.id);
-        fetchUnreadCount();
-        fetchNotifications();
-      } catch (err) {
-        console.error("Error marking as read:", err);
-      }
+      try { await markRead(notification.id); } catch { /* ignore */ }
     }
-
     if (notification.related_url) {
       router.push(notification.related_url);
       setIsOpen(false);
@@ -109,20 +52,13 @@ export default function NotificationBell() {
   };
 
   const handleMarkAllRead = async () => {
-    try {
-      await api.markAllNotificationsRead();
-      fetchUnreadCount();
-      fetchNotifications();
-    } catch (err) {
-      console.error("Error marking all read:", err);
-    }
+    try { await markAllRead(); } catch { /* ignore */ }
   };
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
-    const diff = (now.getTime() - date.getTime()) / 1000; // seconds
-
+    const diff = (now.getTime() - date.getTime()) / 1000;
     if (diff < 60) return "just now";
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
@@ -130,7 +66,6 @@ export default function NotificationBell() {
     return date.toLocaleDateString();
   };
 
-  // After all hooks: don't render if not authenticated
   if (!isAuthenticated) return null;
 
   return (
@@ -182,13 +117,14 @@ export default function NotificationBell() {
               </div>
             </div>
 
-            {/* Notifications List */}
+            {/* Notifications list */}
             <div className="max-h-[400px] overflow-y-auto">
               {notifications.length > 0 ? (
                 notifications.map((notification) => {
                   const Icon = TYPE_ICONS[notification.type as keyof typeof TYPE_ICONS] || Bell;
-                  const colorClass = TYPE_COLORS[notification.type as keyof typeof TYPE_COLORS] || "text-zinc-400 bg-zinc-500/10";
-
+                  const colorClass =
+                    TYPE_COLORS[notification.type as keyof typeof TYPE_COLORS] ||
+                    "text-zinc-400 bg-zinc-500/10";
                   return (
                     <motion.button
                       key={notification.id}

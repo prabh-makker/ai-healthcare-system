@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from typing import Any, List
 import logging
@@ -21,11 +21,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+@router.post("", response_model=PrescriptionOut, status_code=201)
 @router.post("/", response_model=PrescriptionOut, status_code=201)
 def create_prescription(
+    prescription_in: PrescriptionCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    prescription_in: PrescriptionCreate = None,
 ) -> Any:
     """
     Create a new prescription.

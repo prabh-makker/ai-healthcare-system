@@ -7,6 +7,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Sidebar from "@/components/Sidebar";
 import NotificationBell from "@/components/NotificationBell";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { NotificationProvider } from "@/context/NotificationContext";
 
 const MOBILE_NAV_ITEMS = [
   { href: "/dashboard", label: "Home" },
@@ -23,6 +24,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <ProtectedRoute>
+      <NotificationProvider>
       <div className="min-h-screen flex flex-col md:flex-row relative" style={{ background: "var(--background)", color: "var(--foreground)" }}>
         {/* Mobile top bar */}
         <div className="md:hidden flex items-center justify-between p-4 border-b border-white/5 glass-nav sticky top-0 z-40">
@@ -71,6 +73,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
       </div>
+      </NotificationProvider>
     </ProtectedRoute>
   );
 }
