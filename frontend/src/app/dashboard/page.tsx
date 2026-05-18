@@ -490,7 +490,6 @@ export default function Dashboard() {
   const { user } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
-  const [recordFilter, setRecordFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [mounted, setMounted] = useState(false);
   const isDoctor = user?.role === "DOCTOR";
 
@@ -608,115 +607,6 @@ export default function Dashboard() {
         <StatCard3D label="Active Rx" value={activeRxCount === null ? "—" : String(activeRxCount)} icon={Pill} trend="active" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} onClick={() => router.push("/dashboard/prescriptions")} />
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-        <section className="xl:col-span-2">
-          <div className="flex flex-wrap justify-between items-center gap-3 mb-5">
-            <h2 className="text-xl font-bold" style={{ backgroundImage: "linear-gradient(135deg, #bae6fd, #7dd3fc)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
-              Recent Patient Records
-            </h2>
-            <Link href="/dashboard/records" className="text-sky-500 text-sm font-bold hover:text-sky-400 flex items-center gap-1 group">
-              <span>View All</span><ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-
-          {/* Filter pills */}
-          <div className="flex gap-2 mb-4 flex-wrap">
-            {(["all", "pending", "approved", "rejected"] as const).map((f) => {
-              const count = f === "all"
-                ? (stats?.recent_records?.length || 0)
-                : (stats?.recent_records?.filter((r: any) => r.status === f).length || 0);
-              const isActive = recordFilter === f;
-              const colors: Record<string, string> = {
-                all: isActive ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "bg-white/5 text-zinc-400 hover:text-white",
-                pending: isActive ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" : "bg-amber-500/5 text-amber-400/70 hover:text-amber-300",
-                approved: isActive ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "bg-emerald-500/5 text-emerald-400/70 hover:text-emerald-300",
-                rejected: isActive ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20" : "bg-rose-500/5 text-rose-400/70 hover:text-rose-300",
-              };
-              return (
-                <motion.button
-                  key={f}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => setRecordFilter(f)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold capitalize transition-all flex items-center gap-2 ${colors[f]}`}
-                >
-                  {f}
-                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${isActive ? "bg-white/20" : "bg-white/10"}`}>
-                    {count}
-                  </span>
-                </motion.button>
-              );
-            })}
-          </div>
-
-          <div className="glass-card rounded-[2rem] overflow-hidden border border-white/[0.07] relative">
-            <ScanLine />
-            <table className="w-full text-left">
-              <thead><tr className="border-b border-white/5 bg-white/[0.02]">
-                {["Diagnosis","Symptoms","Confidence","Status","Date"].map(h => <th key={h} className="px-6 py-5 text-xs font-semibold text-zinc-500 uppercase tracking-wider">{h}</th>)}
-              </tr></thead>
-              <tbody className="divide-y divide-white/[0.04]">
-                {(() => {
-                  const filtered = stats?.recent_records?.filter((r: any) => recordFilter === "all" || r.status === recordFilter) || [];
-                  return filtered.length ? filtered.map((r: any, idx) => (
-                  <motion.tr key={r.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + idx * 0.07 }} className="hover:bg-white/[0.03] transition-colors">
-                    <td className="px-6 py-6 font-bold" style={{ color: "var(--foreground)" }}>{r.ai_prediction || "Pending"}</td>
-                    <td className="px-6 py-6 text-sm" style={{ color: "var(--foreground)", opacity: 0.6 }}>{r.symptoms?.slice(0,2).join(", ") || "—"}</td>
-                    <td className="px-6 py-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                          <motion.div initial={{ width: 0 }} animate={{ width: `${r.confidence_score || 0}%` }} transition={{ duration: 1, delay: 0.6 }} className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #0ea5e9, #06b6d4)" }} />
-                        </div>
-                        <span className="text-xs font-bold" style={{ color: "var(--foreground)", opacity: 0.8 }}>{r.confidence_score ? `${r.confidence_score}%` : "—"}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-6">
-                      <span className={`text-[10px] font-bold px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 ${
-                        r.status === "approved" ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20" :
-                        r.status === "rejected" ? "bg-rose-500/15 text-rose-300 border border-rose-500/20" :
-                        "bg-amber-500/15 text-amber-300 border border-amber-500/20"
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          r.status === "approved" ? "bg-emerald-400" :
-                          r.status === "rejected" ? "bg-rose-400" :
-                          "bg-amber-400"
-                        }`} />
-                        {r.status === "approved" ? "Approved" : r.status === "rejected" ? "Rejected" : "Pending"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-6 text-zinc-500 text-sm">{r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}</td>
-                  </motion.tr>
-                )) : (
-                  <tr><td colSpan={5} className="px-6 py-16 text-center text-zinc-600 text-sm">
-                    {recordFilter === "all" ? "No records yet." : `No ${recordFilter} records.`}
-                  </td></tr>
-                );
-                })()}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section>
-          <h2 className="text-xl font-bold mb-5" style={{ color: "var(--foreground)" }}>AI Insights</h2>
-          <div className="glass-card rounded-[2rem] p-7 space-y-4 border border-white/[0.07] relative overflow-hidden">
-            <ScanLine />
-            <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="p-5 rounded-2xl border transition-all" style={{ background: "rgba(16,185,129,0.05)", borderColor: "rgba(16,185,129,0.15)" }}>
-              <div className="flex items-center gap-2 mb-2"><Zap size={13} style={{ color: "#34d399" }} /><h4 className="font-bold text-sm">System Status</h4></div>
-              <p className="text-sm text-zinc-400 leading-relaxed">All diagnostic engines online. ML model loaded and running at peak efficiency.</p>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.7 }} className="p-5 rounded-2xl border transition-all" style={{ background: "rgba(14,165,233,0.05)", borderColor: "rgba(14,165,233,0.15)" }}>
-              <div className="flex items-center gap-2 mb-2"><Brain size={13} style={{ color: "#38bdf8" }} /><h4 className="font-bold text-sm">Quick Actions</h4></div>
-              <p className="text-sm text-zinc-400 leading-relaxed">Review pending approvals, manage prescriptions, or open patient records from the sidebar.</p>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Link href="/dashboard/approvals" className="w-full py-4 rounded-2xl border font-bold transition-all flex items-center justify-center gap-2 text-sm" style={{ background: "rgba(14,165,233,0.08)", borderColor: "rgba(14,165,233,0.2)", color: "#38bdf8" }}>
-                <FileCheck size={15} />Review Pending Approvals
-              </Link>
-            </motion.div>
-          </div>
-        </section>
-      </motion.div>
 
       {/* Today's Appointments + Quick Notes — Doctor operations row */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }} className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mt-8">
