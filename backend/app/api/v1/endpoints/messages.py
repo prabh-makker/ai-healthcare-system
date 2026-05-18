@@ -28,6 +28,7 @@ class MessageCreate(BaseModel):
         return v.strip()
 
 
+@router.post("", status_code=201)
 @router.post("/", status_code=201)
 def send_message(
     body: MessageCreate,

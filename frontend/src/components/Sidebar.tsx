@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
+import NotificationBell from "./NotificationBell";
 
 const SidebarItem = ({ 
   href, 
@@ -64,7 +65,8 @@ export default function Sidebar() {
 
   const menuItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
-    { href: "/dashboard/symptoms", icon: HeartPulse, label: "Diagnostics" },
+    // "Diagnostics" (symptom checker) is patient-only. Hidden for doctor + admin.
+    ...(!isDoctor && !isAdmin ? [{ href: "/dashboard/symptoms", icon: HeartPulse, label: "Diagnostics" }] : []),
     { href: "/dashboard/notifications", icon: Bell, label: "Notifications" },
     ...(isAdmin ? [
       { href: "/dashboard/patients", icon: Users, label: "Users" },
@@ -76,6 +78,7 @@ export default function Sidebar() {
       { href: "/dashboard/approvals", icon: FileCheck, label: "Approvals" },
       { href: "/dashboard/prescriptions", icon: Pill, label: "Prescriptions" },
       { href: "/dashboard/records", icon: ClipboardList, label: "Records" },
+      { href: "/dashboard/appointments", icon: Calendar, label: "Schedule" },
       { href: "/dashboard/analytics", icon: BarChart3, label: "Analytics" },
     ] : [
       { href: "/dashboard/medications", icon: Pill, label: "Medications" },

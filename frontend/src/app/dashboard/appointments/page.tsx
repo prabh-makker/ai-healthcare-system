@@ -135,20 +135,24 @@ function AppointmentsContent() {
           style={{ willChange: "transform", transition: "transform 0.12s ease-out" }}
         >
           <div>
-            <h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-rose-200 via-rose-400 to-pink-500 bg-clip-text text-transparent">
-              Appointments
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight bg-gradient-to-br from-rose-200 via-rose-400 to-pink-500 bg-clip-text text-transparent">
+              {user?.role === "DOCTOR" ? "Schedule" : "Appointments"}
             </h1>
-            <p className="text-zinc-500 mt-2 font-medium">
-              {user?.email?.split("@")[0]}&apos;s scheduled visits
+            <p className="text-zinc-500 mt-2 text-sm sm:text-base font-medium">
+              {user?.role === "DOCTOR"
+                ? "Appointments you'll have"
+                : `${user?.email?.split("@")[0]}'s scheduled visits`}
             </p>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-rose-500 hover:bg-rose-400 text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2 transition-all shadow-xl shadow-rose-500/20 active:scale-95"
-          >
-            <Plus size={20} strokeWidth={3} />
-            <span>Book Appointment</span>
-          </button>
+          {user?.role !== "DOCTOR" && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="bg-rose-500 hover:bg-rose-400 text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2 transition-all shadow-xl shadow-rose-500/20 active:scale-95"
+            >
+              <Plus size={20} strokeWidth={3} />
+              <span>Book Appointment</span>
+            </button>
+          )}
         </motion.header>
 
         <div className="flex gap-2 mb-8">
@@ -228,7 +232,7 @@ function AppointmentsContent() {
                           <Stethoscope size={22} className={cfg.text} />
                         </div>
                         <div>
-                          <p className="font-bold" style={{ color: "var(--foreground)" }}>{appt.specialist}</p>
+                          <p className="font-bold text-white">{appt.specialist}</p>
                           {appt.patient_email && (
                             <p className="text-sky-400 text-xs font-semibold mt-0.5">{appt.patient_email}</p>
                           )}

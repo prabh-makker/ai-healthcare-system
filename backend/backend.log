@@ -1,75 +1,95 @@
-Traceback (most recent call last):
-  File "C:\Users\khalo\ai healthcare\backend\app\api\v1\endpoints\auth.py", line 19, in <module>
-    logger.info("Using Redis rate limiter")
-    ^^^^^^
-NameError: name 'logger' is not defined
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "<frozen runpy>", line 203, in _run_module_as_main
-  File "<frozen runpy>", line 88, in _run_code
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\uvicorn\__main__.py", line 4, in <module>
-    uvicorn.main()
-    ~~~~~~~~~~~~^^
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\click\core.py", line 1514, in __call__
-    return self.main(*args, **kwargs)
-           ~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\click\core.py", line 1435, in main
-    rv = self.invoke(ctx)
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\click\core.py", line 1298, in invoke
-    return ctx.invoke(self.callback, **ctx.params)
-           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\click\core.py", line 853, in invoke
-    return callback(*args, **kwargs)
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\uvicorn\main.py", line 441, in main
-    run(
-    ~~~^
-        app,
-        ^^^^
-    ...<48 lines>...
-        reset_contextvars=reset_contextvars,
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\uvicorn\main.py", line 617, in run
-    server.run()
-    ~~~~~~~~~~^^
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\uvicorn\server.py", line 75, in run
-    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py", line 204, in run
-    return runner.run(main)
-           ~~~~~~~~~~^^^^^^
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py", line 127, in run
-    return self._loop.run_until_complete(task)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 719, in run_until_complete
-    return future.result()
-           ~~~~~~~~~~~~~^^
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\uvicorn\server.py", line 79, in serve
-    await self._serve(sockets)
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\uvicorn\server.py", line 86, in _serve
-    config.load()
-    ~~~~~~~~~~~^^
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\uvicorn\config.py", line 449, in load
-    self.loaded_app = import_from_string(self.app)
-                      ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\uvicorn\importer.py", line 19, in import_from_string
-    module = importlib.import_module(module_str)
-  File "C:\Users\khalo\AppData\Local\Python\pythoncore-3.14-64\Lib\importlib\__init__.py", line 88, in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "<frozen importlib._bootstrap>", line 1406, in _gcd_import
-  File "<frozen importlib._bootstrap>", line 1371, in _find_and_load
-  File "<frozen importlib._bootstrap>", line 1342, in _find_and_load_unlocked
-  File "<frozen importlib._bootstrap>", line 938, in _load_unlocked
-  File "<frozen importlib._bootstrap_external>", line 759, in exec_module
-  File "<frozen importlib._bootstrap>", line 491, in _call_with_frames_removed
-  File "C:\Users\khalo\ai healthcare\backend\app\main.py", line 13, in <module>
-    from app.api.v1.api import api_router
-  File "C:\Users\khalo\ai healthcare\backend\app\api\v1\api.py", line 2, in <module>
-    from .endpoints import auth, diagnosis, records, patients, appointments
-  File "C:\Users\khalo\ai healthcare\backend\app\api\v1\endpoints\auth.py", line 21, in <module>
-    logger.warning(f"Redis not available, falling back to file-based: {e}")
-    ^^^^^^
-NameError: name 'logger' is not defined
+INFO:     127.0.0.1:54247 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59584 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59586 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59588 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59590 - "GET /api/v1/prescriptions?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59592 - "GET /api/v1/records?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59594 - "GET /api/v1/appointments?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59596 - "GET /api/v1/notifications?skip=0&limit=10&unread_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52765 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59069 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57090 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50179 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54103 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54105 - "GET /api/v1/notifications?skip=0&limit=10&unread_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54107 - "GET /api/v1/notifications?skip=0&limit=10&unread_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54104 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54108 - "GET /api/v1/notifications?skip=0&limit=10&unread_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59967 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54249 - "GET /api/v1/notifications?skip=0&limit=10&unread_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57763 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60390 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50809 - "GET /api/v1/prescriptions?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50810 - "GET /api/v1/appointments?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50812 - "GET /api/v1/prescriptions?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50813 - "GET /api/v1/appointments?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50808 - "GET /api/v1/records?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50814 - "GET /api/v1/records?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52696 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52697 - "GET /api/v1/appointments?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52698 - "GET /api/v1/appointments?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49808 - "GET /api/v1/records?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49809 - "GET /api/v1/prescriptions?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49810 - "GET /api/v1/appointments?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60597 - "GET /api/v1/records?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62265 - "GET /api/v1/prescriptions?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60261 - "GET /api/v1/appointments?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57107 - "GET /api/v1/prescriptions?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57108 - "GET /api/v1/prescriptions?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58237 - "POST /api/v1/prescriptions/a6869fd7-6270-4db8-80cf-3d74cae41f19/log HTTP/1.1" 201 Created
+INFO:     127.0.0.1:55781 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54067 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53098 - "POST /api/v1/prescriptions/a6869fd7-6270-4db8-80cf-3d74cae41f19/log HTTP/1.1" 201 Created
+INFO:     127.0.0.1:51739 - "POST /api/v1/prescriptions/a6869fd7-6270-4db8-80cf-3d74cae41f19/log HTTP/1.1" 201 Created
+INFO:     127.0.0.1:56120 - "GET /api/v1/records?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56121 - "GET /api/v1/prescriptions?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56122 - "GET /api/v1/appointments?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56653 - "GET /api/v1/records?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63207 - "GET /api/v1/prescriptions?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63208 - "GET /api/v1/appointments?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61696 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53748 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61422 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56629 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54507 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59507 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58626 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56294 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55473 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58814 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65140 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58199 - "GET /api/v1/records?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65141 - "GET /api/v1/notifications?skip=0&limit=10&unread_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64082 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58200 - "GET /api/v1/prescriptions?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50693 - "GET /api/v1/records?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58201 - "GET /api/v1/appointments?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50694 - "GET /api/v1/notifications?skip=0&limit=10&unread_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57585 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61609 - "GET /api/v1/prescriptions?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49971 - "GET /api/v1/appointments?skip=0&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64636 - "GET /api/v1/notifications?skip=0&limit=10&unread_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55454 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58986 - "GET /api/v1/notifications?skip=0&limit=10&unread_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64729 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55994 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49336 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51631 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50626 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64951 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55050 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64906 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65225 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51574 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60198 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54739 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64618 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63710 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52393 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64686 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55844 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56877 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57871 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62610 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57576 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58681 - "GET /api/v1/notifications/unread-count HTTP/1.1" 200 OK

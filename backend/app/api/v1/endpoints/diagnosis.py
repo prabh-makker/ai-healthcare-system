@@ -11,12 +11,15 @@ import numpy as np
 import re
 import asyncio
 import httpx
+import logging
 
 from app.core.config import settings
 from app.core.security import get_current_user, require_role
 from app.core.constants import SPECIALIST_MAP
 from app.db.session import get_db
 from app.models.models import User, MedicalRecord, UserRole
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -119,7 +122,7 @@ async def _call_ollama(prompt: str, max_tokens: int = 80) -> str:
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(
-                "http://localhost:11434/api/generate",
+                f"{settings.OLLAMA_API_URL}/api/generate",
                 json={
                     "model": "llama2",
                     "prompt": prompt,
@@ -155,7 +158,7 @@ async def _stream_ollama(prompt: str, max_tokens: int = 80):
         async with httpx.AsyncClient(timeout=15.0) as client:
             async with client.stream(
                 "POST",
-                "http://localhost:11434/api/generate",
+                f"{settings.OLLAMA_API_URL}/api/generate",
                 json={
                     "model": "llama2",
                     "prompt": prompt,
@@ -199,18 +202,46 @@ def _clean_ollama_response(text: str) -> str:
     return text
 
 
-DONE_PATTERNS = [
-    "that's all", "thats all", "no more", "nothing else", "nothing more",
-    "that is all", "no thats it", "no that's it", "no more symptoms",
-    "thats it", "that's it", "done", "just that", "only that", "nope",
-    "thats everything", "that's everything", "all i have",
-]
+async def _detect_user_intent(message: str, last_asked_symptom: Optional[str] = None) -> Dict[str, Any]:
+    """Use Ollama to intelligently detect user intent. Returns dict with intent type and reasoning."""
+    # Context for Ollama
+    context = "You are analyzing user intent in a medical chatbot conversation."
+    if last_asked_symptom:
+        context += f" The assistant just asked about '{last_asked_symptom}'."
 
+    prompt = (
+        f"{context}\n\n"
+        f"User message: \"{message}\"\n\n"
+        f"Determine the user's intent. Respond with ONLY a JSON object (no markdown, no extras):\n"
+        f'{{"intent": "<type>", "is_done": <bool>, "is_negative": <bool>}}\n\n'
+        f"Where:\n"
+        f'- "intent" is one of: "symptom_list" (describing symptoms), "yes_to_symptom" (answering yes), '
+        f'"no_to_symptom" (answering no to last asked), "done_with_symptoms" (saying done/enough), "greeting" (hello/hi), "other"\n'
+        f'- "is_done": true if user is ending the conversation or saying they have no more symptoms\n'
+        f'- "is_negative": true if user is saying "no" to something\n\n'
+        f"Examples:\n"
+        f'User: "only fever" → {{"intent": "symptom_list", "is_done": false, "is_negative": false}}\n'
+        f'User: "yes" (after being asked about cough) → {{"intent": "yes_to_symptom", "is_done": false, "is_negative": false}}\n'
+        f'User: "no" (after being asked about cough) → {{"intent": "no_to_symptom", "is_done": false, "is_negative": true}}\n'
+        f'User: "thats all" → {{"intent": "done_with_symptoms", "is_done": true, "is_negative": false}}'
+    )
 
-def _user_said_done(message: str) -> bool:
-    """Detect if user indicates no more symptoms to share."""
-    msg = message.lower().strip().rstrip(".!?")
-    return any(pattern in msg for pattern in DONE_PATTERNS) or msg in ("no", "nope", "nah")
+    try:
+        response = await _call_ollama(prompt, max_tokens=50)
+        # Parse JSON response
+        import json
+        # Extract JSON from response (may have extra text)
+        json_match = re.search(r'\{[^}]+\}', response)
+        if json_match:
+            intent_data = json.loads(json_match.group())
+            logger.info(f"Intent detection: msg='{message}', asked='{last_asked_symptom}' → {intent_data}")
+            return intent_data
+    except Exception as e:
+        logger.error(f"Intent detection error: {e}")
+
+    # Fallback: safe defaults
+    logger.warning(f"Intent detection fallback for msg='{message}'")
+    return {"intent": "other", "is_done": False, "is_negative": False}
 
 
 def _find_doctor_by_specialty(db: Session, specialty: str) -> Optional[dict]:
@@ -250,33 +281,41 @@ def _find_doctor_by_specialty(db: Session, specialty: str) -> Optional[dict]:
 
 def _build_chat_prompt(user_message: str, symptoms: List[str] = None, diagnosis: dict = None,
                        doctor_info: dict = None, ready_to_diagnose: bool = False) -> str:
-    """Build prompt with full context. Let AI react naturally."""
-    context = "You are a friendly medical assistant chatbot. Respond naturally and concisely (1-2 sentences)."
+    """Build conversational prompt - natural dialogue like ChatGPT."""
+    context = (
+        "You are a warm, empathetic medical assistant. Your style is conversational and natural, like chatting with a knowledgeable friend. "
+        "Keep responses concise (1-2 sentences). Never ask 'do you have X?' style questions. Instead, naturally ask follow-up questions based on what they share. "
+        "Focus on understanding their experience, severity, and duration when relevant."
+    )
 
     symptom_count = len(symptoms) if symptoms else 0
 
     if symptoms:
-        context += f"\nUser's symptoms so far: {', '.join(symptoms)}."
+        context += f"\nSymptoms mentioned so far: {', '.join(symptoms)}."
+        if symptom_count == 1:
+            context += " Since they just mentioned their first symptom, ask a natural follow-up (like 'how long?' or 'how severe?') rather than asking about other symptoms."
+        elif symptom_count >= 2:
+            context += " They've shared multiple symptoms. Continue conversing naturally about these or ask clarifying questions."
 
     if ready_to_diagnose and diagnosis and diagnosis.get("disease"):
-        # Final diagnosis with doctor recommendation
+        # Diagnosis is ready - present warmly
         doctor_phrase = ""
         if doctor_info and doctor_info.get("email"):
-            doctor_phrase = f"Recommend Dr. {doctor_info['name']} ({doctor_info['specialty']}) - email: {doctor_info['email']}. "
+            doctor_phrase = f"I can recommend Dr. {doctor_info['name']} ({doctor_info['specialty']})"
         else:
-            doctor_phrase = f"Recommend seeing a {diagnosis['specialist']}. "
+            doctor_phrase = f"A {diagnosis['specialist']} would be best"
 
         context += (
-            f"\nDiagnosis ready! XGBoost predicts: {diagnosis['disease']} "
-            f"({diagnosis['confidence']}% confidence). "
-            f"{doctor_phrase}"
-            f"Tell the user the diagnosis warmly and mention they can book an appointment using the button below."
+            f"\n\nBased on the symptoms shared, the analysis suggests: {diagnosis['disease']} "
+            f"(confidence: {diagnosis['confidence']}%). {doctor_phrase}. "
+            f"Respond warmly, explain what this means simply, and suggest they can book an appointment to get proper medical care."
         )
-    elif symptom_count >= 1:
-        # Got symptoms - ask if anything else
-        context += "\nAcknowledge their symptoms briefly and ask if they're feeling anything else. If they already said 'no more' or 'thats all', skip this and just confirm."
+    elif symptom_count >= 2:
+        context += "\n\nThey've shared enough to start understanding their condition. Offer to generate a brief analysis when ready, or continue asking relevant follow-ups."
+    elif symptom_count == 1:
+        context += "\n\nAsk natural follow-up questions to better understand their situation (duration, severity, what made it better/worse, etc)."
     else:
-        context += "\nIf they greet/chat, respond warmly then gently ask about symptoms."
+        context += "\n\nStart by greeting warmly and asking what brings them in today or what they're experiencing health-wise."
 
     return f"{context}\n\nUser: {user_message}\nAssistant:"
 
@@ -494,7 +533,7 @@ async def diagnosis_chat(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Chat-based diagnosis with regex extraction + XGBoost (balanced approach)."""
+    """Chat-based diagnosis. Ollama drives intent detection + response generation."""
 
     if not request.message or not request.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
@@ -503,18 +542,25 @@ async def diagnosis_chat(
     known_symptoms = meta["symptoms"]
     classes = meta.get("diseases", meta.get("classes", []))
 
-    # Check for affirmative response to last asked symptom
-    yes_pattern = r'^\s*(yes|yeah|y|yep|yup|sure|ok|okay)\s*$'
-    is_affirmative = bool(re.match(yes_pattern, request.message, re.IGNORECASE))
+    # Use Ollama to understand user intent intelligently
+    intent_result = await _detect_user_intent(request.message, request.last_asked_symptom)
+    intent_type = intent_result.get("intent", "other")
+    is_negative = intent_result.get("is_negative", False)
+    user_said_done = intent_result.get("is_done", False)
 
-    # Extract symptoms using regex (fast, no Ollama)
+    # Extract symptoms from message
     regex_symptoms = _extract_symptoms_with_regex(request.message, known_symptoms)
 
-    # If user said "yes" and we asked a specific symptom, add it
-    if is_affirmative and request.last_asked_symptom and request.last_asked_symptom in known_symptoms:
+    # Based on intent, handle differently:
+    # - "yes_to_symptom": add last_asked_symptom if exists
+    # - "no_to_symptom": skip last_asked_symptom (they don't have it)
+    # - "symptom_list": use extracted symptoms only
+    # - "done_with_symptoms": trigger diagnosis
+
+    if intent_type == "yes_to_symptom" and request.last_asked_symptom and request.last_asked_symptom in known_symptoms:
         regex_symptoms = [request.last_asked_symptom] + regex_symptoms
 
-    # Merge symptoms
+    # Merge all symptoms
     seen = set()
     merged_symptoms = []
     for s in request.selected_symptoms + regex_symptoms:
@@ -545,10 +591,10 @@ async def diagnosis_chat(
                 "specialist": specialist,
             }
 
-    # Detect if user said "no more symptoms" or "that's all"
-    user_done = _user_said_done(request.message) and len(merged_symptoms) >= 1
-    # Diagnose when user says done (any symptom count) OR 2+ symptoms with diagnosis
-    ready_to_diagnose = bool(diagnosis_dict) and (user_done or len(merged_symptoms) >= 2)
+    # User said done (OR Ollama detected it via intent)
+    user_done = user_said_done and len(merged_symptoms) >= 1
+    # Lowered: 1+ symptom triggers diagnosis_ready
+    ready_to_diagnose = bool(diagnosis_dict) and (user_done or len(merged_symptoms) >= 1)
     conversation_state = "diagnosis_ready" if ready_to_diagnose else "collecting_symptoms"
 
     # Look up real doctor when ready to diagnose
@@ -556,7 +602,7 @@ async def diagnosis_chat(
     if ready_to_diagnose and diagnosis_dict.get("specialist"):
         doctor_info = _find_doctor_by_specialty(db, diagnosis_dict["specialist"])
 
-    # Single Ollama call with full context
+    # Single Ollama call with full context - AI generates response naturally
     ollama_response = await _call_ollama(
         _build_chat_prompt(request.message, merged_symptoms, diagnosis_dict, doctor_info, ready_to_diagnose),
         max_tokens=120
@@ -580,7 +626,7 @@ async def diagnosis_chat_stream(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Streaming chat-based diagnosis with regex extraction + XGBoost (balanced approach)."""
+    """Streaming chat-based diagnosis. Ollama drives intent detection + response generation."""
 
     if not request.message or not request.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
@@ -589,15 +635,17 @@ async def diagnosis_chat_stream(
     known_symptoms = meta["symptoms"]
     classes = meta.get("diseases", meta.get("classes", []))
 
-    # Check for affirmative response to last asked symptom
-    yes_pattern = r'^\s*(yes|yeah|y|yep|yup|sure|ok|okay)\s*$'
-    is_affirmative = bool(re.match(yes_pattern, request.message, re.IGNORECASE))
+    # Use Ollama to understand user intent intelligently
+    intent_result = await _detect_user_intent(request.message, request.last_asked_symptom)
+    intent_type = intent_result.get("intent", "other")
+    is_negative = intent_result.get("is_negative", False)
+    user_said_done = intent_result.get("is_done", False)
 
-    # Extract symptoms using regex (fast, no Ollama)
+    # Extract symptoms from message
     regex_symptoms = _extract_symptoms_with_regex(request.message, known_symptoms)
 
-    # If user said "yes" and we asked a specific symptom, add it
-    if is_affirmative and request.last_asked_symptom and request.last_asked_symptom in known_symptoms:
+    # Based on intent, handle differently:
+    if intent_type == "yes_to_symptom" and request.last_asked_symptom and request.last_asked_symptom in known_symptoms:
         regex_symptoms = [request.last_asked_symptom] + regex_symptoms
 
     # Merge all symptom sources
@@ -631,9 +679,10 @@ async def diagnosis_chat_stream(
                 "specialist": specialist,
             }
 
-    # Detect "no more symptoms"
-    user_done = _user_said_done(request.message) and len(merged_symptoms) >= 1
-    ready_to_diagnose = bool(diagnosis_dict) and (user_done or len(merged_symptoms) >= 2)
+    # User said done (Ollama detected via intent) OR have any symptom with diagnosis
+    user_done = user_said_done and len(merged_symptoms) >= 1
+    # Lowered: 1+ symptom triggers diagnosis_ready (user can book appointment immediately)
+    ready_to_diagnose = bool(diagnosis_dict) and (user_done or len(merged_symptoms) >= 1)
     conversation_state = "diagnosis_ready" if ready_to_diagnose else "collecting_symptoms"
 
     # Look up real doctor when ready to diagnose

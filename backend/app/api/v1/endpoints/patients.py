@@ -95,6 +95,11 @@ def admin_doctors_overview(
         User.role == UserRole.DOCTOR, User.is_active == True
     ).all()
 
+    # Batch-load doctor profiles (avoid N+1)
+    from app.models.models import DoctorProfile
+    doctor_ids = [d.id for d in doctors]
+    profiles = {p.user_id: p for p in db.query(DoctorProfile).filter(DoctorProfile.user_id.in_(doctor_ids)).all()} if doctor_ids else {}
+
     # Single grouped query per metric instead of N per doctor
     patient_counts = dict(db.query(DoctorPatient.doctor_id, func.count(DoctorPatient.id)).filter(
         DoctorPatient.status == "active"
@@ -112,8 +117,8 @@ def admin_doctors_overview(
         "id": str(doc.id),
         "email": doc.email,
         "name": doc.email.split("@")[0].replace(".", " ").title(),
-        "specialization": doc.doctor_profile.specialization if doc.doctor_profile else "General",
-        "is_available": doc.doctor_profile.availability_status if doc.doctor_profile else True,
+        "specialization": profiles.get(doc.id, {}).specialization if profiles.get(doc.id) else "General",
+        "is_available": profiles.get(doc.id, {}).availability_status if profiles.get(doc.id) else True,
         "patient_count": patient_counts.get(doc.id, 0),
         "record_count": record_counts.get(doc.id, 0),
         "pending_approvals": pending_counts.get(doc.id, 0),
@@ -157,7 +162,12 @@ def list_patients(
         .limit(limit)
         .all()
     )
-    return [_serialize_profile(p, p.patient_profile) for p in patients]
+
+    # Batch-load patient profiles (avoid N+1)
+    patient_ids = [p.id for p in patients]
+    profiles = {p.user_id: p for p in db.query(PatientProfile).filter(PatientProfile.user_id.in_(patient_ids)).all()} if patient_ids else {}
+
+    return [_serialize_profile(p, profiles.get(p.id)) for p in patients]
 
 
 @router.get("/my-patients")
@@ -186,11 +196,16 @@ def get_my_patients(
         .all()
     )
 
+    # Batch-load patients and profiles in one query each (avoid N+1)
+    patient_ids = [a.patient_id for a in assignments]
+    patients = {p.id: p for p in db.query(User).filter(User.id.in_(patient_ids)).all()} if patient_ids else {}
+    profiles = {p.user_id: p for p in db.query(PatientProfile).filter(PatientProfile.user_id.in_(patient_ids)).all()} if patient_ids else {}
+
     # Build patient objects with profile info
     result = []
     for assignment in assignments:
-        patient = db.query(User).filter(User.id == assignment.patient_id).first()
-        profile = db.query(PatientProfile).filter(PatientProfile.user_id == assignment.patient_id).first()
+        patient = patients.get(assignment.patient_id)
+        profile = profiles.get(assignment.patient_id)
 
         if patient:
             result.append({

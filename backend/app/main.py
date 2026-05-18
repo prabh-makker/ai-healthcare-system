@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import json
 import traceback
@@ -200,6 +201,12 @@ def get_application() -> FastAPI:
         )
 
     @_app.on_event("startup")
+    async def store_event_loop():
+        """Store the running event loop so sync handlers can schedule async WS pushes."""
+        from app.core.ws_manager import set_event_loop
+        set_event_loop(asyncio.get_event_loop())
+
+    @_app.on_event("startup")
     def on_startup():
         from app.models.models import User, PatientProfile, DoctorProfile, MedicalRecord  # noqa
         from sqlalchemy import text, inspect
@@ -240,7 +247,7 @@ def get_application() -> FastAPI:
             import httpx
             with httpx.Client(timeout=30.0) as client:
                 client.post(
-                    "http://localhost:11434/api/generate",
+                    f"{settings.OLLAMA_API_URL}/api/generate",
                     json={
                         "model": "llama2",
                         "prompt": "hi",

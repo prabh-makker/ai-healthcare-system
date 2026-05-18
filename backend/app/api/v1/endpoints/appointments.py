@@ -102,6 +102,7 @@ def list_appointments(
     return [serialize_appointment(r, patient_email=patient_map.get(str(r.patient_id))) for r in records]
 
 
+@router.post("", status_code=201)
 @router.post("/", status_code=201)
 def create_appointment(
     body: AppointmentCreate,

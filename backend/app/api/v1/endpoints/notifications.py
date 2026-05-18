@@ -1,19 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Any, List, Dict
+from datetime import timedelta
 import logging
 
 from app.db.session import get_db
 from app.models.models import User, Notification
 from app.schemas.notification import NotificationOut
-from app.core.security import get_current_user
+from app.core.security import get_current_user, create_access_token
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-@router.get("", response_model=List[NotificationOut], include_in_schema=False)
+@router.get("", response_model=List[NotificationOut])
 @router.get("/", response_model=List[NotificationOut])
 def list_notifications(
     db: Session = Depends(get_db),
@@ -54,6 +55,13 @@ def get_unread_count(
         .count()
     )
     return {"unread_count": count}
+
+
+@router.get("/ws-token")
+def get_ws_token(current_user: User = Depends(get_current_user)) -> Dict[str, Any]:
+    """Issue a short-lived JWT (60 s) for WebSocket authentication."""
+    token = create_access_token(subject=current_user.id, expires_delta=timedelta(seconds=60))
+    return {"token": token, "expires_in": 60}
 
 
 @router.patch("/{notification_id}/read")
@@ -146,4 +154,22 @@ def create_notification(
     db.add(notification)
     db.commit()
     db.refresh(notification)
+
+    # Push to any open WebSocket connections for this user (thread-safe, fire-and-forget)
+    from app.core.ws_manager import schedule_push
+    schedule_push(str(user_id), {
+        "type": "notification",
+        "data": {
+            "id": notification.id,
+            "user_id": notification.user_id,
+            "type": notification.type,
+            "title": notification.title,
+            "message": notification.message,
+            "is_read": notification.is_read,
+            "related_id": notification.related_id,
+            "related_url": notification.related_url,
+            "created_at": notification.created_at.isoformat() if notification.created_at else None,
+        },
+    })
+
     return notification

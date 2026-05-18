@@ -68,6 +68,25 @@ class CreateUser(BaseModel):
     specialization: Optional[str] = None  # for doctors
 
 
+@router.get("/users")
+def list_users(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Admin-only: list all users."""
+    users = db.query(User).offset(skip).limit(limit).all()
+    return [{
+        "id": str(u.id),
+        "email": u.email,
+        "role": u.role.value if hasattr(u.role, 'value') else str(u.role),
+        "is_active": u.is_active,
+        "last_login": u.last_login.isoformat() if u.last_login else None,
+        "created_at": u.created_at.isoformat() if u.created_at else None,
+    } for u in users]
+
+
 @router.post("/users", status_code=201)
 def admin_create_user(
     body: CreateUser,
@@ -205,6 +224,78 @@ def get_audit_log(
 
 
 # ============================================================
+# ATTENDANCE — derived from AuditLog (login/logout actions)
+# Admin-only. Groups events by (user, date) for attendance reporting.
+# ============================================================
+@router.get("/attendance")
+def get_attendance(
+    days: int = 7,
+    role: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Per-user attendance summary derived from AuditLog login/logout events."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max(1, min(days, 365)))
+
+    # Fetch all login/logout events in range
+    q = (
+        db.query(AuditLog)
+        .filter(AuditLog.action.in_(["login", "logout"]))
+        .filter(AuditLog.created_at >= cutoff)
+        .order_by(AuditLog.created_at.asc())
+    )
+
+    # Optional role filter via users table
+    user_map = {}
+    user_query = db.query(User)
+    if role:
+        try:
+            user_query = user_query.filter(User.role == UserRole[role.upper()])
+        except KeyError:
+            raise HTTPException(status_code=400, detail=f"Invalid role: {role}")
+    for u in user_query.all():
+        user_map[u.email] = {"id": str(u.id), "role": u.role.value if hasattr(u.role, "value") else str(u.role)}
+
+    # Group by (user_email, date)
+    grouped: dict = {}
+    for log in q.all():
+        if not log.user_email or log.user_email not in user_map:
+            continue
+        date_key = log.created_at.date().isoformat() if log.created_at else "unknown"
+        key = (log.user_email, date_key)
+        if key not in grouped:
+            grouped[key] = {
+                "user_email": log.user_email,
+                "user_id": user_map[log.user_email]["id"],
+                "role": user_map[log.user_email]["role"],
+                "date": date_key,
+                "first_login": None,
+                "last_activity": None,
+                "session_count": 0,
+                "ip_addresses": set(),
+            }
+        entry = grouped[key]
+        ts = log.created_at.isoformat() if log.created_at else None
+        if log.action == "login":
+            entry["session_count"] += 1
+            if not entry["first_login"] or (ts and ts < entry["first_login"]):
+                entry["first_login"] = ts
+        if ts and (not entry["last_activity"] or ts > entry["last_activity"]):
+            entry["last_activity"] = ts
+        if log.ip_address:
+            entry["ip_addresses"].add(log.ip_address)
+
+    # Serialize (set → list)
+    result = []
+    for entry in grouped.values():
+        entry["ip_addresses"] = sorted(entry["ip_addresses"])
+        result.append(entry)
+    # Sort: most recent first
+    result.sort(key=lambda r: (r["date"], r["user_email"]), reverse=True)
+    return result
+
+
+# ============================================================
 # DOCTOR PERFORMANCE METRICS
 # ============================================================
 @router.get("/doctor-performance")
@@ -283,8 +374,25 @@ def bulk_assign(
 
 
 # ============================================================
-# SYSTEM HEALTH (real)
+# SYSTEM HEALTH & STATS
 # ============================================================
+@router.get("/system-stats")
+def system_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Get system statistics."""
+    return {
+        "total_users": db.query(User).count(),
+        "total_patients": db.query(User).filter(User.role == UserRole.PATIENT).count(),
+        "total_doctors": db.query(User).filter(User.role == UserRole.DOCTOR).count(),
+        "total_admins": db.query(User).filter(User.role == UserRole.ADMIN).count(),
+        "total_records": db.query(MedicalRecord).count(),
+        "total_appointments": db.query(Appointment).count(),
+        "total_prescriptions": db.query(Prescription).count(),
+    }
+
+
 @router.get("/system-health")
 def system_health(
     db: Session = Depends(get_db),
