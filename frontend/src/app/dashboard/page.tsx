@@ -26,6 +26,8 @@ interface Stats {
     recommended_specialist: string | null;
     symptoms: string[];
     created_at: string | null;
+    status?: string;
+    doctor_notes?: string;
   }>;
 }
 
@@ -418,6 +420,60 @@ function DoctorQuickNotes({ pendingRecords, onSaved }: { pendingRecords: any[]; 
   );
 }
 
+function DoctorRecentActivity({ records, onNavigate }: { records: any[]; onNavigate: () => void }) {
+  const reviewed = records
+    .filter((r: any) => ["approved", "rejected", "reviewed"].includes(r.status))
+    .sort((a: any, b: any) => (b.created_at || "").localeCompare(a.created_at || ""))
+    .slice(0, 5);
+
+  return (
+    <section>
+      <div className="flex justify-between items-center mb-5">
+        <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--foreground)" }}>
+          <ClipboardList size={20} className="text-violet-400" />
+          Recent Review Activity
+        </h2>
+        <button onClick={onNavigate} className="text-violet-400 text-sm font-bold hover:text-violet-300 flex items-center gap-1 group">
+          <span>All Records</span><ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+        </button>
+      </div>
+      <div className="glass-premium rounded-[2rem] p-5 border border-white/10">
+        {reviewed.length === 0 ? (
+          <div className="py-8 text-center">
+            <ClipboardList size={32} className="text-zinc-700 mx-auto mb-3" />
+            <p className="text-zinc-500 font-medium text-sm">No reviewed records yet</p>
+            <p className="text-zinc-600 text-xs mt-1">Approved and rejected records will appear here.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {reviewed.map((r: any, i: number) => (
+              <motion.div key={r.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
+                onClick={onNavigate} whileHover={{ x: 4 }}
+                className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 cursor-pointer transition-all">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold truncate" style={{ color: "var(--foreground)" }}>{r.ai_prediction || "Record"}</p>
+                  {r.doctor_notes && (
+                    <p className={`text-xs truncate mt-0.5 ${r.status === "rejected" ? "text-rose-400" : "text-emerald-400"}`}>
+                      {r.status === "rejected" ? "Rejected: " : "Notes: "}{r.doctor_notes}
+                    </p>
+                  )}
+                </div>
+                <span className={`ml-3 text-[10px] font-bold px-2.5 py-1 rounded-lg flex-shrink-0 capitalize ${
+                  r.status === "approved" ? "bg-emerald-500/10 text-emerald-400" :
+                  r.status === "rejected" ? "bg-rose-500/10 text-rose-400" :
+                  "bg-violet-500/10 text-violet-400"
+                }`}>
+                  {r.status}
+                </span>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 // ── Shared UI ─────────────────────────────────────────────────────────────────
 
 function PulseDots({ color = "#0ea5e9" }: { color?: string }) {
@@ -754,6 +810,11 @@ export default function Dashboard() {
           }}
         />
       </motion.div>
+
+      {/* Recent Activity row */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.55 }} className="mt-8">
+        <DoctorRecentActivity records={stats?.recent_records ?? []} onNavigate={() => router.push("/dashboard/approvals")} />
+      </motion.div>
     </motion.div>
   );
 
@@ -812,27 +873,44 @@ export default function Dashboard() {
             <ScanLine />
             <table className="w-full text-left">
               <thead><tr className="border-b border-white/5 bg-white/[0.02]">
-                {["AI Prediction","Specialist","Confidence","Date"].map(h => <th key={h} className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">{h}</th>)}
+                {["AI Prediction","Specialist","Confidence","Status","Date"].map(h => <th key={h} className="px-5 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">{h}</th>)}
               </tr></thead>
               <tbody className="divide-y divide-white/[0.04]">
                 {stats?.recent_records?.some(r => r.patient_id === user?.id) ? (
                   stats.recent_records.filter(r => r.patient_id === user?.id).map((r, idx) => (
-                    <motion.tr key={r.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + idx * 0.07 }} className="hover:bg-white/[0.03] transition-colors">
-                      <td className="px-6 py-5 font-bold" style={{ color: "var(--foreground)" }}>{r.ai_prediction || "Pending"}</td>
-                      <td className="px-6 py-5 text-sm" style={{ color: "var(--foreground)", opacity: 0.6 }}>{r.recommended_specialist || "General Physician"}</td>
-                      <td className="px-6 py-5">
+                    <motion.tr key={r.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + idx * 0.07 }} className="hover:bg-white/[0.03] transition-colors group">
+                      <td className="px-5 py-4">
+                        <p className="font-bold text-sm" style={{ color: "var(--foreground)" }}>{r.ai_prediction || "Pending"}</p>
+                        {r.doctor_notes && (
+                          <p className={`text-xs mt-1 truncate max-w-[200px] ${r.status === "rejected" ? "text-rose-400" : "text-emerald-400"}`} title={r.doctor_notes}>
+                            📋 {r.doctor_notes}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-sm" style={{ color: "var(--foreground)", opacity: 0.6 }}>{r.recommended_specialist || "General Physician"}</td>
+                      <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                          <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                             <motion.div initial={{ width: 0 }} animate={{ width: `${r.confidence_score || 0}%` }} transition={{ duration: 1, delay: 0.6 }} className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #f43f5e, #ec4899)" }} />
                           </div>
                           <span className="text-xs font-bold" style={{ color: "var(--foreground)", opacity: 0.8 }}>{r.confidence_score ? `${r.confidence_score}%` : "—"}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-zinc-500 text-sm">{r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}</td>
+                      <td className="px-5 py-4">
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg capitalize ${
+                          r.status === "approved" ? "bg-emerald-500/10 text-emerald-400" :
+                          r.status === "rejected" ? "bg-rose-500/10 text-rose-400" :
+                          r.status === "reviewed" ? "bg-violet-500/10 text-violet-400" :
+                          "bg-amber-500/10 text-amber-400"
+                        }`}>
+                          {r.status || "pending"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-zinc-500 text-sm">{r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}</td>
                     </motion.tr>
                   ))
                 ) : (
-                  <tr><td colSpan={4} className="px-6 py-12 text-center text-zinc-600 text-sm">No records yet. Run a symptom check to get started.</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-12 text-center text-zinc-600 text-sm">No records yet. Run a symptom check to get started.</td></tr>
                 )}
               </tbody>
             </table>
