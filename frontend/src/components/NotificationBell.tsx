@@ -56,12 +56,12 @@ export default function NotificationBell() {
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
             className="absolute right-0 top-full mt-2 w-80 sm:w-96 max-h-[500px] rounded-2xl shadow-2xl z-50 overflow-hidden"
-            style={{ background: "#0a0a0a", border: "1px solid rgba(255,255,255,0.1)" }}
+            style={{ background: "var(--background)", border: "1px solid var(--glass-border)" }}
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <div>
-                <h3 className="font-bold text-white">Notifications</h3>
+                <h3 className="font-bold" style={{ color: "var(--foreground)" }}>Notifications</h3>
                 <p className="text-xs text-zinc-500">{unreadCount} unread</p>
               </div>
               {unreadCount > 0 && (
@@ -97,7 +97,7 @@ export default function NotificationBell() {
                         }`}
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">{n.title}</p>
+                        <p className="text-sm font-semibold truncate" style={{ color: "var(--foreground)" }}>{n.title}</p>
                         {n.message && (
                           <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{n.message}</p>
                         )}

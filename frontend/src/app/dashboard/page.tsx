@@ -5,7 +5,7 @@ import {
   Activity, Users, TrendingUp, Bell, Plus,
   ArrowUpRight, ChevronRight, Clock, ClipboardList, HeartPulse,
   Pill, Zap, Brain, Stethoscope, Dna, Fingerprint,
-  FileCheck, Edit3, Save, Calendar as CalendarIcon, MessageSquare,
+  FileCheck, Edit3, Save, Calendar as CalendarIcon, MessageSquare, CheckCircle2,
 } from "lucide-react";
 import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -585,10 +585,113 @@ export default function Dashboard() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } },
   };
 
+  const AttendanceWidget = () => {
+    const menuRef = useRef<HTMLDivElement>(null);
+    const [markSuccess, setMarkSuccess] = useState(false);
+
+    // Close on outside click
+    useEffect(() => {
+      const handleClick = (e: MouseEvent) => {
+        if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+          setShowAttendanceMenu(false);
+        }
+      };
+      if (showAttendanceMenu) document.addEventListener("mousedown", handleClick);
+      return () => document.removeEventListener("mousedown", handleClick);
+    }, []);
+
+    const handleMark = async (status: "present" | "absent" | "leave") => {
+      setShowAttendanceMenu(false);
+      await handleMarkAttendance(status);
+      setMarkSuccess(true);
+      setTimeout(() => setMarkSuccess(false), 2000);
+    };
+
+    const statusConfig = {
+      present: { color: "emerald", dot: "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]", pill: "bg-emerald-500/15 border-emerald-500/40 text-emerald-300", label: "Present" },
+      absent:  { color: "rose",    dot: "bg-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.6)]",      pill: "bg-rose-500/15 border-rose-500/40 text-rose-300",       label: "Absent" },
+      leave:   { color: "amber",   dot: "bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.6)]",    pill: "bg-amber-500/15 border-amber-500/40 text-amber-300",     label: "On Leave" },
+    } as const;
+    const current = attendanceStatus ? statusConfig[attendanceStatus as keyof typeof statusConfig] : null;
+
+    return (
+      <div ref={menuRef} className="relative flex flex-col items-center gap-1.5">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">Today&apos;s Attendance</p>
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => setShowAttendanceMenu(!showAttendanceMenu)}
+          disabled={attendanceMarking}
+          className={`flex items-center gap-3 px-5 py-3 rounded-2xl font-bold text-sm border transition-all ${
+            current ? current.pill : "border-white/10 hover:border-white/20"
+          } ${attendanceMarking ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
+          style={current ? {} : { background: "var(--glass-bg)", color: "var(--foreground)" }}
+        >
+          <AnimatePresence mode="wait">
+            {markSuccess ? (
+              <motion.span key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="flex items-center gap-2 text-emerald-400">
+                <CheckCircle2 size={16} />
+                Marked!
+              </motion.span>
+            ) : attendanceMarking ? (
+              <motion.span key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2">
+                <motion.span className={`w-2 h-2 rounded-full ${current?.dot ?? "bg-zinc-500"}`} animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 0.6 }} />
+                Marking...
+              </motion.span>
+            ) : (
+              <motion.span key="status" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2.5">
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${current?.dot ?? "bg-zinc-500"}`} />
+                <Clock size={14} strokeWidth={2.5} />
+                {current?.label ?? "Mark Attendance"}
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.button>
+
+        <AnimatePresence>
+          {showAttendanceMenu && (
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-full mt-2 w-52 rounded-2xl shadow-2xl p-1.5 z-50 border"
+              style={{ background: "var(--background)", borderColor: "var(--glass-border)" }}
+            >
+              {([
+                { status: "present", label: "Present",  dot: "bg-emerald-400", hover: "hover:bg-emerald-500/15", text: "text-emerald-300" },
+                { status: "absent",  label: "Absent",   dot: "bg-rose-400",    hover: "hover:bg-rose-500/15",    text: "text-rose-300" },
+                { status: "leave",   label: "On Leave", dot: "bg-amber-400",   hover: "hover:bg-amber-500/15",   text: "text-amber-300" },
+              ] as const).map(({ status, label, dot, hover, text }) => (
+                <button
+                  key={status}
+                  onClick={() => handleMark(status)}
+                  disabled={attendanceMarking}
+                  className={`w-full text-left px-3.5 py-3 ${hover} text-sm font-semibold rounded-xl transition-all disabled:opacity-50 flex items-center gap-3 ${attendanceStatus === status ? text : ""}`}
+                  style={{ color: attendanceStatus === status ? undefined : "var(--foreground)" }}
+                >
+                  <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dot} ${attendanceStatus === status ? "shadow-[0_0_8px_currentColor]" : ""}`} />
+                  {label}
+                  {attendanceStatus === status && <CheckCircle2 size={14} className="ml-auto opacity-70" />}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
   const DoctorDashboard = () => (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <motion.header initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="flex flex-wrap justify-between items-start gap-6 mb-14 mt-2">
-        <div className="space-y-3">
+      <motion.header
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="flex items-start justify-between gap-4 mb-14 mt-2"
+      >
+        {/* Left: Title */}
+        <div className="space-y-3 flex-shrink-0">
           <div className="flex items-center gap-3 mb-2">
             <motion.div
               className="p-2.5 rounded-2xl"
@@ -606,88 +709,31 @@ export default function Dashboard() {
           >
             Clinical Dashboard
           </h1>
-          <p className="text-zinc-500 mt-1 text-sm sm:text-base font-bold">Welcome back, Dr. {user?.email?.split("@")[0] || "Physician"}</p>
+          <p className="text-zinc-500 mt-1 text-sm sm:text-base font-bold">
+            Welcome back, Dr. {user?.first_name || user?.email?.split("@")[0] || "Physician"}
+          </p>
           <StatusBar />
         </div>
 
-        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-          <NotificationBell />
-          {/* Attendance Status Pill (Doctor only) - Compact, cleaner UI */}
-          <motion.div className="relative" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <button
-              onClick={() => setShowAttendanceMenu(!showAttendanceMenu)}
-              disabled={attendanceMarking}
-              className={`group relative overflow-hidden flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all border ${
-                attendanceStatus === "present"
-                  ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25"
-                  : attendanceStatus === "absent"
-                  ? "bg-rose-500/15 border-rose-500/40 text-rose-300 hover:bg-rose-500/25"
-                  : attendanceStatus === "leave"
-                  ? "bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
-                  : "bg-white/5 border-white/10 hover:bg-white/10"
-              } ${attendanceMarking ? "opacity-75 cursor-wait" : ""}`}
-              style={attendanceStatus ? {} : { color: "var(--foreground)" }}
-            >
-              <span className={`w-2 h-2 rounded-full ${
-                attendanceStatus === "present" ? "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]" :
-                attendanceStatus === "absent" ? "bg-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.6)]" :
-                attendanceStatus === "leave" ? "bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.6)]" :
-                "bg-zinc-500"
-              }`} />
-              <Clock size={15} strokeWidth={2.5} />
-              <span className="whitespace-nowrap">
-                {attendanceStatus ? attendanceStatus.charAt(0).toUpperCase() + attendanceStatus.slice(1) : "Mark Attendance"}
-              </span>
-            </button>
+        {/* Center: Attendance — fills the empty header space */}
+        <div className="flex-1 flex justify-center items-start pt-6 hidden md:flex">
+          <AttendanceWidget />
+        </div>
 
-            {/* Attendance dropdown menu */}
-            {showAttendanceMenu && (
-              <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                className="absolute right-0 top-full mt-2 w-48 rounded-2xl shadow-2xl p-1.5 z-50 border"
-                style={{
-                  background: "var(--background)",
-                  borderColor: "var(--glass-border)",
-                }}
-              >
-                <button
-                  onClick={() => { handleMarkAttendance("present"); setShowAttendanceMenu(false); }}
-                  disabled={attendanceMarking}
-                  className="w-full text-left px-3 py-2.5 hover:bg-emerald-500/15 text-sm font-semibold rounded-lg transition-all disabled:opacity-50 flex items-center gap-2.5"
-                  style={{ color: "var(--foreground)" }}
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  Present
-                </button>
-                <button
-                  onClick={() => { handleMarkAttendance("absent"); setShowAttendanceMenu(false); }}
-                  disabled={attendanceMarking}
-                  className="w-full text-left px-3 py-2.5 hover:bg-rose-500/15 text-sm font-semibold rounded-lg transition-all disabled:opacity-50 flex items-center gap-2.5"
-                  style={{ color: "var(--foreground)" }}
-                >
-                  <span className="w-2 h-2 rounded-full bg-rose-400" />
-                  Absent
-                </button>
-                <button
-                  onClick={() => { handleMarkAttendance("leave"); setShowAttendanceMenu(false); }}
-                  disabled={attendanceMarking}
-                  className="w-full text-left px-3 py-2.5 hover:bg-amber-500/15 text-sm font-semibold rounded-lg transition-all disabled:opacity-50 flex items-center gap-2.5"
-                  style={{ color: "var(--foreground)" }}
-                >
-                  <span className="w-2 h-2 rounded-full bg-amber-400" />
-                  On Leave
-                </button>
-              </motion.div>
-            )}
-          </motion.div>
+        {/* Right: Actions */}
+        <div className="flex items-center gap-3 flex-shrink-0 pt-2">
+          <NotificationBell />
           <ShimmerButton href="/dashboard/approvals" gradFrom="#0ea5e9" gradTo="#06b6d4" shadow="rgba(14,165,233,0.3)">
             <FileCheck size={20} strokeWidth={3} />
             <span>Review Approvals</span>
           </ShimmerButton>
         </div>
       </motion.header>
+
+      {/* Attendance on mobile (below header) */}
+      <div className="md:hidden mb-6 flex justify-center">
+        <AttendanceWidget />
+      </div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8 sm:mb-12 overflow-hidden">
         <StatCard3D label="My Patients" value={myPatientsCount === null ? "—" : String(myPatientsCount)} icon={Users} trend="assigned" gradFrom="#0ea5e9" gradTo="#06b6d4" glowColor="rgba(14,165,233,0.2)" delay={0} onClick={() => router.push("/dashboard/my-patients")} />
