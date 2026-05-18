@@ -12,6 +12,8 @@ interface Record {
   id: string;
   patient_id: string;
   patient_email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
   ai_prediction: string | null;
   confidence_score: number | null;
   recommended_specialist: string | null;
@@ -24,11 +26,13 @@ export default function RecordsPage() {
   const router = useRouter();
   const { user } = useAuth();
   const isDoctor = user?.role === "DOCTOR";
+  const isAdmin = user?.role === "ADMIN";
   const [records, setRecords] = useState<Record[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [adminStatusFilter, setAdminStatusFilter] = useState<string>("ALL");
   const pageSize = 50;
 
   // Group records by patient for doctor's default view
@@ -43,6 +47,8 @@ export default function RecordsPage() {
     return Array.from(byPatient.entries()).map(([patient_id, recs]) => ({
       patient_id,
       patient_email: recs[0]?.patient_email || null,
+      patient_first_name: recs[0]?.first_name || null,
+      patient_last_name: recs[0]?.last_name || null,
       records: recs.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || "")),
       total: recs.length,
       pending: recs.filter((r) => r.status === "pending").length,
@@ -66,15 +72,32 @@ export default function RecordsPage() {
     if (isDoctor && selectedPatientId) {
       pool = records.filter((r) => r.patient_id === selectedPatientId);
     }
+    // Admin status filter
+    if (isAdmin && adminStatusFilter !== "ALL") {
+      pool = pool.filter((r) => r.status === adminStatusFilter.toLowerCase());
+    }
     if (!searchQuery.trim()) return pool;
     const query = searchQuery.toLowerCase();
     return pool.filter(
       (r) =>
         r.ai_prediction?.toLowerCase().includes(query) ||
         r.symptoms?.some((s) => s.toLowerCase().includes(query)) ||
-        r.recommended_specialist?.toLowerCase().includes(query)
+        r.recommended_specialist?.toLowerCase().includes(query) ||
+        (r.first_name && (`${r.first_name} ${r.last_name || ""}`.toLowerCase().includes(query))) ||
+        (r.patient_email && r.patient_email.toLowerCase().includes(query))
     );
-  }, [records, searchQuery, isDoctor, selectedPatientId]);
+  }, [records, searchQuery, isDoctor, isAdmin, selectedPatientId, adminStatusFilter]);
+
+  // Admin stats summary
+  const adminRecordStats = useMemo(() => {
+    if (!isAdmin) return null;
+    return {
+      total: records.length,
+      pending: records.filter(r => r.status === "pending").length,
+      approved: records.filter(r => r.status === "approved").length,
+      rejected: records.filter(r => r.status === "rejected").length,
+    };
+  }, [records, isAdmin]);
 
   // For doctor: showing patient list (when no patient selected)
   const showingPatientList = isDoctor && !selectedPatientId;
@@ -129,12 +152,16 @@ export default function RecordsPage() {
             )}
             <div>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight bg-gradient-to-br from-violet-200 via-violet-400 to-indigo-500 bg-clip-text text-transparent">
-                {isDoctor
+                {isAdmin
+                  ? "All Medical Records"
+                  : isDoctor
                   ? (selectedPatientInfo ? (selectedPatientInfo.patient_email || "Patient Records") : "Medical Records")
                   : "Health History"}
               </h1>
               <p className="text-zinc-500 mt-2 text-sm sm:text-base font-medium">
-                {isDoctor && !selectedPatientId
+                {isAdmin
+                  ? `${records.length} records system-wide • Audit view`
+                  : isDoctor && !selectedPatientId
                   ? `${patientGroups.length} patients • ${records.length} total records`
                   : isDoctor && selectedPatientId
                   ? `${selectedPatientInfo?.total || 0} records for this patient`
@@ -155,6 +182,34 @@ export default function RecordsPage() {
           </div>
         </motion.header>
 
+        {/* Admin Stats + Filter Row */}
+        {isAdmin && adminRecordStats && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {[
+              { label: "Total", value: adminRecordStats.total, color: "violet", bgGrad: "from-violet-500 to-purple-600" },
+              { label: "Pending", value: adminRecordStats.pending, color: "amber", bgGrad: "from-amber-500 to-orange-600" },
+              { label: "Approved", value: adminRecordStats.approved, color: "emerald", bgGrad: "from-emerald-500 to-teal-600" },
+              { label: "Rejected", value: adminRecordStats.rejected, color: "rose", bgGrad: "from-rose-500 to-pink-600" },
+            ].map((s) => (
+              <button
+                key={s.label}
+                onClick={() => setAdminStatusFilter(s.label.toUpperCase() === "TOTAL" ? "ALL" : s.label.toUpperCase())}
+                className={`glass-card rounded-2xl p-4 border text-left transition-all hover:scale-105 ${
+                  (adminStatusFilter === "ALL" && s.label === "Total") || adminStatusFilter === s.label.toUpperCase()
+                    ? `border-${s.color}-500/60 shadow-lg shadow-${s.color}-500/20`
+                    : "border-white/[0.08]"
+                }`}
+              >
+                <div className={`p-2 rounded-lg bg-gradient-to-br ${s.bgGrad} w-fit mb-2`}>
+                  <BarChart3 size={14} className="text-white" />
+                </div>
+                <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">{s.label}</p>
+                <p className="text-2xl font-black mt-1" style={{ color: "var(--foreground)" }}>{s.value}</p>
+              </button>
+            ))}
+          </motion.div>
+        )}
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -166,7 +221,9 @@ export default function RecordsPage() {
               {showingPatientList ? <Users size={20} className="text-white" /> : <BarChart3 size={20} className="text-white" />}
             </div>
             <span className="bg-gradient-to-r from-violet-200 to-purple-300 bg-clip-text text-transparent">
-              {isDoctor
+              {isAdmin
+                ? `${adminStatusFilter === "ALL" ? "All" : adminStatusFilter} Records`
+                : isDoctor
                 ? (showingPatientList ? "Patients" : "Records")
                 : "My Diagnosis Records"}
             </span>
@@ -199,11 +256,13 @@ export default function RecordsPage() {
                   >
                     <div className="flex items-start gap-3 mb-4">
                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-violet-500/30 shrink-0">
-                        {(g.patient_email || "?").charAt(0).toUpperCase()}
+                        {(g.patient_first_name || g.patient_email || "?").charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm truncate" style={{ color: "var(--foreground)" }}>
-                          {g.patient_email?.split("@")[0] || `Patient ${g.patient_id.slice(0, 6)}`}
+                          {g.patient_first_name && g.patient_last_name
+                            ? `${g.patient_first_name} ${g.patient_last_name}`
+                            : g.patient_email?.split("@")[0] || `Patient ${g.patient_id.slice(0, 6)}`}
                         </p>
                         <p className="text-xs text-zinc-500 truncate">{g.patient_email || g.patient_id.slice(0, 12) + "…"}</p>
                       </div>
@@ -244,11 +303,12 @@ export default function RecordsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-zinc-500 text-xs uppercase tracking-wider border-b border-white/5">
-                      {isDoctor && !selectedPatientId && <th className="text-left pb-4 font-semibold">Patient ID</th>}
+                      {(isDoctor && !selectedPatientId) || isAdmin ? <th className="text-left pb-4 font-semibold">Patient</th> : null}
                       <th className="text-left pb-4 font-semibold">Symptoms</th>
                       <th className="text-left pb-4 font-semibold">Diagnosis</th>
                       <th className="text-left pb-4 font-semibold">Confidence</th>
                       <th className="text-left pb-4 font-semibold">Specialist</th>
+                      {isAdmin && <th className="text-left pb-4 font-semibold">Status</th>}
                       <th className="text-left pb-4 font-semibold">Date</th>
                     </tr>
                   </thead>
@@ -264,8 +324,13 @@ export default function RecordsPage() {
                         onClick={() => router.push(`/dashboard/records/${r.id}`)}
                         className="transition-colors cursor-pointer hover:shadow-lg hover:shadow-violet-500/10"
                       >
-                        {isDoctor && !selectedPatientId && (
-                          <td className="py-4 font-mono text-xs text-zinc-400">{r.patient_id.slice(0, 12)}…</td>
+                        {((isDoctor && !selectedPatientId) || isAdmin) && (
+                          <td className="py-4 text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                            <div>
+                              <p>{r.first_name && r.last_name ? `${r.first_name} ${r.last_name}` : r.patient_email?.split("@")[0] || "Unknown Patient"}</p>
+                              {isAdmin && r.patient_email && <p className="text-xs text-zinc-500 font-normal">{r.patient_email}</p>}
+                            </div>
+                          </td>
                         )}
                         <td className="py-4">
                           <div className="flex flex-wrap gap-1">
@@ -299,6 +364,17 @@ export default function RecordsPage() {
                           </div>
                         </td>
                         <td className="py-4 text-zinc-400 text-xs">{r.recommended_specialist ?? "—"}</td>
+                        {isAdmin && (
+                          <td className="py-4">
+                            <span className={`text-xs font-bold px-2 py-1 rounded-lg ${
+                              r.status === "approved" ? "bg-emerald-500/10 text-emerald-400" :
+                              r.status === "rejected" ? "bg-rose-500/10 text-rose-400" :
+                              "bg-amber-500/10 text-amber-400"
+                            }`}>
+                              {r.status ? r.status.charAt(0).toUpperCase() + r.status.slice(1) : "Pending"}
+                            </span>
+                          </td>
+                        )}
                         <td className="py-4 text-zinc-500 text-xs">
                           {r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}
                         </td>

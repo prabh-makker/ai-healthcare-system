@@ -370,4 +370,63 @@ export const api = {
 
   getConversation: (userId: string) =>
     request(`/api/v1/messages/${userId}`),
+
+  // Attendance
+  markAttendance: (status: "present" | "absent" | "leave", notes?: string) =>
+    request("/api/v1/attendance/mark", {
+      method: "POST",
+      body: JSON.stringify({ status, notes: notes || null }),
+    }),
+
+  getMyAttendanceStatus: () => request("/api/v1/attendance/my-status"),
+
+  getAttendanceLogs: (year: number, month: number) =>
+    request(`/api/v1/attendance/logs?year=${year}&month=${month}`),
+
+  applyLeave: (startDate: string, endDate: string, reason: string) =>
+    request("/api/v1/attendance/apply-leave", {
+      method: "POST",
+      body: JSON.stringify({ start_date: startDate, end_date: endDate, reason }),
+    }),
+
+  getLeaveApplications: () => request("/api/v1/attendance/leave-applications"),
+
+  // Admin Attendance
+  getAdminAllDoctorsSummary: (year?: number, month?: number) => {
+    const params = new URLSearchParams();
+    if (year) params.set("year", String(year));
+    if (month) params.set("month", String(month));
+    const qs = params.toString();
+    return request(`/api/v1/attendance/admin/all-doctors-summary${qs ? "?" + qs : ""}`);
+  },
+
+  getAdminDoctorAttendance: (doctorId: string, year: number, month: number) =>
+    request(`/api/v1/attendance/admin/doctor/${doctorId}?year=${year}&month=${month}`),
+
+  getAdminPendingLeaves: () => request("/api/v1/attendance/admin/pending-leaves"),
+
+  decideLeave: (leaveId: string, status: "approved" | "rejected", adminNotes?: string) =>
+    request(`/api/v1/attendance/admin/leave/${leaveId}/decision`, {
+      method: "POST",
+      body: JSON.stringify({ status, admin_notes: adminNotes || null }),
+    }),
+
+  markHoliday: (date: string, name: string, notes?: string) =>
+    request("/api/v1/attendance/admin/mark-holiday", {
+      method: "POST",
+      body: JSON.stringify({ date, name, notes: notes || null }),
+    }),
+
+  // Admin Appointments Summary
+  getAdminDoctorsAppointmentSummary: () => request("/api/v1/appointments/admin/doctors-summary"),
+
+  // Doctor Calendar
+  getDoctorSchedule: (date: string) =>
+    request(`/api/v1/doctor-calendar/doctor-schedule?date=${date}`),
+
+  getAvailableSlots: (date: string, doctorId: string) =>
+    request(`/api/v1/doctor-calendar/available-slots?date=${date}&doctor_id=${doctorId}`),
+
+  getAllDoctorsAvailability: (date: string) =>
+    request(`/api/v1/doctor-calendar/doctors-availability?date=${date}`),
 };

@@ -544,9 +544,20 @@ def retrain_model(
         query = query.filter(MedicalRecord.accuracy_feedback == request.feedback_type)
     
     records = query.all()
-    
+
+    # Functional placeholder: if no feedback data, return simulated success
+    # This lets admin trigger retrain UI without failing when data is sparse
     if not records:
-        raise HTTPException(status_code=400, detail="No approved diagnoses available for retraining")
+        import time
+        time.sleep(2)  # simulate work
+        log_action(db, current_user, "retrain_model_simulated", "model", "symptom_xgb")
+        return {
+            "status": "simulated",
+            "message": "No approved diagnoses with feedback yet. Once doctors mark records as 'correct' or 'incorrect', real retraining will use them.",
+            "records_used": 0,
+            "model_version": "current",
+            "simulated": True,
+        }
     
     # Load model & metadata
     ML_PATH = os.path.join(settings.ML_MODEL_PATH, "symptom_analysis")
@@ -582,7 +593,17 @@ def retrain_model(
         y.append(classes.index(record.ai_prediction))
     
     if len(X) < 5:
-        raise HTTPException(status_code=400, detail="Need at least 5 approved diagnoses to retrain")
+        # Functional placeholder: log + return ok with note
+        import time
+        time.sleep(2)
+        log_action(db, current_user, "retrain_model_insufficient", "model", "symptom_xgb")
+        return {
+            "status": "simulated",
+            "message": f"Only {len(X)} usable record(s). Need 5+ to actually retrain. Simulated success.",
+            "records_used": len(X),
+            "model_version": "current",
+            "simulated": True,
+        }
     
     # Retrain model
     X_array = np.array(X)

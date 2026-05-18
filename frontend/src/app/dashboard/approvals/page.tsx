@@ -12,6 +12,8 @@ interface PendingRecord {
   id: string;
   patient_id: string;
   patient_email?: string;
+  first_name?: string | null;
+  last_name?: string | null;
   symptoms: string[];
   ai_prediction: string;
   confidence_score: number;
@@ -44,8 +46,8 @@ function ApprovalsContent() {
     try {
       setLoading(true);
       const [data, patients] = await Promise.all([
-        api.getRecords(0, 200),
-        api.getMyPatients(0, 200).catch(() => [] as Array<{ id: string; email: string }>),
+        api.getRecords(0, 100),
+        api.getMyPatients(0, 100).catch(() => [] as Array<{ id: string; email: string }>),
       ]);
       setAllRecords(data);
       const map: Record<string, string> = {};
@@ -354,9 +356,11 @@ function ApprovalsContent() {
                         <h3 className="text-lg font-bold text-white">
                           {record.ai_prediction}
                         </h3>
-                        {patientMap[record.patient_id] && (
+                        {(record.first_name && record.last_name) || record.patient_email && (
                           <p className="text-xs font-semibold text-sky-400 mt-0.5">
-                            Patient: {patientMap[record.patient_id]}
+                            Patient: {record.first_name && record.last_name
+                              ? `${record.first_name} ${record.last_name}`
+                              : patientMap[record.patient_id] || record.patient_email}
                           </p>
                         )}
                         <p className="text-sm text-zinc-400 mt-1">

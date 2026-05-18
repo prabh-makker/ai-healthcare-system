@@ -309,19 +309,25 @@ export default function PrescriptionForm({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="w-full max-w-md bg-zinc-900 rounded-2xl border border-white/10 p-6"
+          className="w-full max-w-md rounded-2xl border p-6 shadow-2xl"
+          style={{
+            background: "var(--background)",
+            borderColor: "var(--glass-border)",
+            color: "var(--foreground)",
+          }}
         >
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-white">Add Prescription</h2>
+            <h2 className="text-xl font-bold" style={{ color: "var(--foreground)" }}>Add Prescription</h2>
             <button
               onClick={onCancel}
-              className="text-zinc-400 hover:text-white transition-colors"
+              className="hover:opacity-70 transition-opacity"
+              style={{ color: "var(--foreground)" }}
             >
               <X size={24} />
             </button>
@@ -334,8 +340,14 @@ export default function PrescriptionForm({
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <div className="bg-zinc-900/50 rounded-2xl border border-white/10 p-8">
-        <h2 className="text-2xl font-bold text-white mb-8">Add New Prescription</h2>
+      <div className="rounded-2xl border p-8 shadow-xl"
+        style={{
+          background: "var(--background)",
+          borderColor: "var(--glass-border)",
+          color: "var(--foreground)",
+        }}
+      >
+        <h2 className="text-2xl font-bold mb-8" style={{ color: "var(--foreground)" }}>Add New Prescription</h2>
         {formContent}
       </div>
     </div>

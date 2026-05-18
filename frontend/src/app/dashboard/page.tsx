@@ -508,6 +508,10 @@ export default function Dashboard() {
   const [activeRxCount, setActiveRxCount] = useState<number | null>(null);
   const [todaysAppointments, setTodaysAppointments] = useState<any[]>([]);
   const [pendingRecords, setPendingRecords] = useState<any[]>([]);
+  // Attendance state
+  const [attendanceStatus, setAttendanceStatus] = useState<string | null>(null);
+  const [attendanceMarking, setAttendanceMarking] = useState(false);
+  const [showAttendanceMenu, setShowAttendanceMenu] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -542,13 +546,16 @@ export default function Dashboard() {
       Promise.allSettled([
         api.getMyPatients(),
         api.getPendingRecords(),
-      ]).then(([patientsRes, pendingRes]) => {
+        api.getMyAttendanceStatus(),
+      ]).then(([patientsRes, pendingRes, attendanceRes]) => {
         if (cancelled) return;
         const patients = patientsRes.status === "fulfilled" ? patientsRes.value : [];
         const pending = pendingRes.status === "fulfilled" ? pendingRes.value : [];
+        const attendance = attendanceRes.status === "fulfilled" ? attendanceRes.value : null;
         setMyPatientsCount(Array.isArray(patients) ? patients.length : 0);
         setPendingApprovalsCount(Array.isArray(pending) ? pending.length : 0);
         setPendingRecords(Array.isArray(pending) ? pending.slice(0, 3) : []);
+        setAttendanceStatus(attendance?.status || null);
       });
     }
 
@@ -556,6 +563,18 @@ export default function Dashboard() {
   }, [user?.role]);
 
   if (!mounted || user?.role === "ADMIN") return null;
+
+  const handleMarkAttendance = async (status: "present" | "absent" | "leave") => {
+    try {
+      setAttendanceMarking(true);
+      await api.markAttendance(status);
+      setAttendanceStatus(status);
+    } catch (error) {
+      console.error("Failed to mark attendance:", error);
+    } finally {
+      setAttendanceMarking(false);
+    }
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -593,6 +612,76 @@ export default function Dashboard() {
 
         <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
           <NotificationBell />
+          {/* Attendance Status Pill (Doctor only) - Compact, cleaner UI */}
+          <motion.div className="relative" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <button
+              onClick={() => setShowAttendanceMenu(!showAttendanceMenu)}
+              disabled={attendanceMarking}
+              className={`group relative overflow-hidden flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all border ${
+                attendanceStatus === "present"
+                  ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25"
+                  : attendanceStatus === "absent"
+                  ? "bg-rose-500/15 border-rose-500/40 text-rose-300 hover:bg-rose-500/25"
+                  : attendanceStatus === "leave"
+                  ? "bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
+                  : "bg-white/5 border-white/10 hover:bg-white/10"
+              } ${attendanceMarking ? "opacity-75 cursor-wait" : ""}`}
+              style={attendanceStatus ? {} : { color: "var(--foreground)" }}
+            >
+              <span className={`w-2 h-2 rounded-full ${
+                attendanceStatus === "present" ? "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]" :
+                attendanceStatus === "absent" ? "bg-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.6)]" :
+                attendanceStatus === "leave" ? "bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.6)]" :
+                "bg-zinc-500"
+              }`} />
+              <Clock size={15} strokeWidth={2.5} />
+              <span className="whitespace-nowrap">
+                {attendanceStatus ? attendanceStatus.charAt(0).toUpperCase() + attendanceStatus.slice(1) : "Mark Attendance"}
+              </span>
+            </button>
+
+            {/* Attendance dropdown menu */}
+            {showAttendanceMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                className="absolute right-0 top-full mt-2 w-48 rounded-2xl shadow-2xl p-1.5 z-50 border"
+                style={{
+                  background: "var(--background)",
+                  borderColor: "var(--glass-border)",
+                }}
+              >
+                <button
+                  onClick={() => { handleMarkAttendance("present"); setShowAttendanceMenu(false); }}
+                  disabled={attendanceMarking}
+                  className="w-full text-left px-3 py-2.5 hover:bg-emerald-500/15 text-sm font-semibold rounded-lg transition-all disabled:opacity-50 flex items-center gap-2.5"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  Present
+                </button>
+                <button
+                  onClick={() => { handleMarkAttendance("absent"); setShowAttendanceMenu(false); }}
+                  disabled={attendanceMarking}
+                  className="w-full text-left px-3 py-2.5 hover:bg-rose-500/15 text-sm font-semibold rounded-lg transition-all disabled:opacity-50 flex items-center gap-2.5"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  <span className="w-2 h-2 rounded-full bg-rose-400" />
+                  Absent
+                </button>
+                <button
+                  onClick={() => { handleMarkAttendance("leave"); setShowAttendanceMenu(false); }}
+                  disabled={attendanceMarking}
+                  className="w-full text-left px-3 py-2.5 hover:bg-amber-500/15 text-sm font-semibold rounded-lg transition-all disabled:opacity-50 flex items-center gap-2.5"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  On Leave
+                </button>
+              </motion.div>
+            )}
+          </motion.div>
           <ShimmerButton href="/dashboard/approvals" gradFrom="#0ea5e9" gradTo="#06b6d4" shadow="rgba(14,165,233,0.3)">
             <FileCheck size={20} strokeWidth={3} />
             <span>Review Approvals</span>

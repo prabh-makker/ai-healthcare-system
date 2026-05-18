@@ -4,11 +4,13 @@ from typing import Optional
 from app.models.models import MedicalRecord, Appointment
 
 
-def serialize_medical_record(record: MedicalRecord, patient_email: Optional[str] = None) -> dict:
+def serialize_medical_record(record: MedicalRecord, patient_email: Optional[str] = None, first_name: Optional[str] = None, last_name: Optional[str] = None) -> dict:
     return {
         "id": str(record.id),
         "patient_id": str(record.patient_id),
         "patient_email": patient_email,
+        "first_name": first_name,
+        "last_name": last_name,
         "doctor_id": str(record.doctor_id) if record.doctor_id else None,
         "symptoms": record.symptoms or [],
         "ai_prediction": record.ai_prediction,
@@ -22,12 +24,15 @@ def serialize_medical_record(record: MedicalRecord, patient_email: Optional[str]
     }
 
 
-def serialize_appointment(appointment: Appointment, patient_email: Optional[str] = None) -> dict:
-    # patient_email is resolved by the caller to allow batch-loading in list endpoints
+def serialize_appointment(appointment: Appointment, patient_email: Optional[str] = None, first_name: Optional[str] = None, last_name: Optional[str] = None) -> dict:
+    # patient_email, first_name, last_name are resolved by the caller to allow batch-loading in list endpoints
     return {
         "id": str(appointment.id),
         "patient_id": str(appointment.patient_id),
         "patient_email": patient_email,
+        "first_name": first_name,
+        "last_name": last_name,
+        "doctor_id": getattr(appointment, "doctor_id", None),
         "specialist": appointment.specialist,
         "date": appointment.date,
         "time": appointment.time,

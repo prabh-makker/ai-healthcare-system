@@ -136,6 +136,8 @@ def admin_all_users(
     return [{
         "id": str(u.id),
         "email": u.email,
+        "first_name": u.first_name,
+        "last_name": u.last_name,
         "role": u.role.value,
         "is_active": u.is_active,
         "created_at": u.created_at.isoformat() if u.created_at else None,

@@ -17,7 +17,8 @@ import {
   Pill,
   FileCheck,
   GitBranch,
-  Bell
+  Bell,
+  Clock
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
@@ -72,14 +73,13 @@ export default function Sidebar() {
       { href: "/dashboard/patients", icon: Users, label: "Users" },
       { href: "/dashboard/records", icon: ClipboardList, label: "Records" },
       { href: "/dashboard/appointments", icon: Calendar, label: "Schedule" },
-      { href: "/dashboard/analytics", icon: BarChart3, label: "Analytics" },
     ] : isDoctor ? [
       { href: "/dashboard/my-patients", icon: Users, label: "My Patients" },
       { href: "/dashboard/approvals", icon: FileCheck, label: "Approvals" },
       { href: "/dashboard/prescriptions", icon: Pill, label: "Prescriptions" },
       { href: "/dashboard/records", icon: ClipboardList, label: "Records" },
       { href: "/dashboard/appointments", icon: Calendar, label: "Schedule" },
-      { href: "/dashboard/analytics", icon: BarChart3, label: "Analytics" },
+      { href: "/dashboard/attendance", icon: Clock, label: "Attendance" },
     ] : [
       { href: "/dashboard/medications", icon: Pill, label: "Medications" },
       { href: "/dashboard/records", icon: ClipboardList, label: "My History" },
