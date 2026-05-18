@@ -153,11 +153,18 @@ def main():
     print("\n=== Creating 6 doctors ===")
     doctor_objs = []
     for d in DOCTORS:
+        # Parse name into first_name and last_name
+        name_parts = d["name"].split(" ", 1)
+        first_name = name_parts[0] if len(name_parts) > 0 else ""
+        last_name = name_parts[1] if len(name_parts) > 1 else ""
+
         user = User(
             id=str(uuid.uuid4()),
             email=d["email"],
             hashed_password=hash_pwd("Doctor@1234"),
             role="DOCTOR",
+            first_name=first_name,
+            last_name=last_name,
             is_active=True,
             created_at=now,
         )
@@ -178,11 +185,18 @@ def main():
     print("\n=== Creating 12 patients ===")
     patient_objs = []
     for p in PATIENTS:
+        # Parse name into first_name and last_name
+        name_parts = p["name"].split(" ", 1)
+        first_name = name_parts[0] if len(name_parts) > 0 else ""
+        last_name = name_parts[1] if len(name_parts) > 1 else ""
+
         user = User(
             id=str(uuid.uuid4()),
             email=p["email"],
             hashed_password=hash_pwd("Patient@1234"),
             role="PATIENT",
+            first_name=first_name,
+            last_name=last_name,
             is_active=True,
             created_at=now,
         )
@@ -214,11 +228,16 @@ def main():
     print("\n=== Seeding patient data ===")
     for i, patient in enumerate(patient_objs):
         data = PATIENT_DATA[i]
-        doctor = doctor_objs[i % len(doctor_objs)]
+        doctor_idx = i % len(doctor_objs)
+        doctor = doctor_objs[doctor_idx]
         pid, did = patient["user"].id, doctor["user"].id
 
         # Medical record (if has symptoms+disease)
         if data["symptoms"] and data["disease"]:
+            # Each doctor gets 1 approved + 1 pending (alternates per patient within same doctor)
+            # For doctor i: first patient is pending, second is approved
+            patient_num_for_doctor = i // len(doctor_objs)  # 0 or 1 (which patient for this doctor)
+            is_approved = patient_num_for_doctor > 0  # Second patient per doctor: approved, First: pending
             db.add(MedicalRecord(
                 id=str(uuid.uuid4()),
                 patient_id=pid,
@@ -227,8 +246,8 @@ def main():
                 ai_prediction=data["disease"],
                 confidence_score=70.0 + (i * 2 % 25),
                 recommended_specialist=data["specialist"],
-                status="approved" if i % 3 == 0 else "pending",
-                doctor_notes=f"Patient {patient['name']} - reviewed by Dr. {doctor['name']}" if i % 3 == 0 else None,
+                status="approved" if is_approved else "pending",
+                doctor_notes=f"Patient {patient['name']} - reviewed by Dr. {doctor['name']}" if is_approved else None,
                 created_at=now - timedelta(days=i + 1),
             ))
 

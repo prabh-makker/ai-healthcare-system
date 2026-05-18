@@ -7,7 +7,7 @@ import uuid
 
 from app.db.session import get_db
 from app.models.models import Appointment, User, UserRole
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_role
 from app.core.pagination import validate_pagination
 from app.core.serializers import serialize_appointment
 
@@ -49,6 +49,56 @@ class AppointmentOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+@router.get("/admin/doctors-summary")
+def admin_doctors_appointment_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Admin: per-doctor appointment summary."""
+    doctors = db.query(User).filter(User.role == UserRole.DOCTOR).all()
+    result = []
+    for doc in doctors:
+        # All appointments where this doctor is assigned OR specialist matches doctor's specialization
+        # Use doctor_id first (newer), fallback to specialist match
+        appts = db.query(Appointment).filter(Appointment.doctor_id == str(doc.id)).all()
+
+        # If no doctor_id-linked appts, try specialist match via doctor_profile
+        if not appts and doc.doctor_profile:
+            appts = db.query(Appointment).filter(
+                Appointment.specialist == doc.doctor_profile.specialization
+            ).all()
+
+        total = len(appts)
+        upcoming = sum(1 for a in appts if a.status == "upcoming")
+        completed = sum(1 for a in appts if a.status == "completed")
+        cancelled = sum(1 for a in appts if a.status == "cancelled")
+        pending = sum(1 for a in appts if a.status == "pending" or a.status == "scheduled")
+
+        # Today's appointments
+        from datetime import date
+        today_str = date.today().isoformat()
+        today_count = sum(1 for a in appts if a.date == today_str)
+
+        result.append({
+            "doctor_id": str(doc.id),
+            "first_name": doc.first_name,
+            "last_name": doc.last_name,
+            "email": doc.email,
+            "specialization": doc.doctor_profile.specialization if doc.doctor_profile else None,
+            "total": total,
+            "upcoming": upcoming,
+            "completed": completed,
+            "cancelled": cancelled,
+            "pending": pending,
+            "today": today_count,
+            "is_available": doc.doctor_profile.availability_status if doc.doctor_profile else True,
+        })
+
+    # Sort by total appointments desc
+    result.sort(key=lambda x: x["total"], reverse=True)
+    return result
 
 
 @router.get("", include_in_schema=False)
@@ -95,11 +145,16 @@ def list_appointments(
             .limit(limit)
             .all()
         )
-    # Batch-load all patient emails in one query to avoid N+1
+    # Batch-load all patient info in one query to avoid N+1
     patient_ids = list({str(r.patient_id) for r in records})
     patients = db.query(User).filter(User.id.in_(patient_ids)).all() if patient_ids else []
-    patient_map = {str(p.id): p.email for p in patients}
-    return [serialize_appointment(r, patient_email=patient_map.get(str(r.patient_id))) for r in records]
+    patient_map = {str(p.id): {"email": p.email, "first_name": p.first_name, "last_name": p.last_name} for p in patients}
+    return [serialize_appointment(
+        r,
+        patient_email=patient_map.get(str(r.patient_id), {}).get("email"),
+        first_name=patient_map.get(str(r.patient_id), {}).get("first_name"),
+        last_name=patient_map.get(str(r.patient_id), {}).get("last_name")
+    ) for r in records]
 
 
 @router.post("", status_code=201)
@@ -130,7 +185,7 @@ def create_appointment(
     db.add(appt)
     db.commit()
     db.refresh(appt)
-    return serialize_appointment(appt, patient_email=current_user.email)
+    return serialize_appointment(appt, patient_email=current_user.email, first_name=current_user.first_name, last_name=current_user.last_name)
 
 
 @router.put("/{appt_id}")
@@ -169,7 +224,12 @@ def update_appointment(
     db.commit()
     db.refresh(appt)
     patient = db.query(User).filter(User.id == appt.patient_id).first()
-    return serialize_appointment(appt, patient_email=patient.email if patient else None)
+    return serialize_appointment(
+        appt,
+        patient_email=patient.email if patient else None,
+        first_name=patient.first_name if patient else None,
+        last_name=patient.last_name if patient else None
+    )
 
 
 @router.delete("/{appt_id}", status_code=204)

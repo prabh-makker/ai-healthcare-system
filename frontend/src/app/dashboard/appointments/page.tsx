@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import DashboardBg from "@/components/DashboardBg";
 import AppointmentForm from "@/components/forms/AppointmentForm";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import DoctorCalendar from "@/components/DoctorCalendar";
 import { api, APIError } from "@/lib/api";
 
 interface Appointment {
@@ -51,15 +52,34 @@ const statusConfig = {
 
 function AppointmentsContent() {
   const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const searchParams = useSearchParams();
   const prefilledSpecialist = searchParams.get("specialist") || "";
   const prefilledReason = searchParams.get("reason") || "";
+  const [tab, setTab] = useState<"list" | "calendar">("list");
   const [filter, setFilter] = useState<"all" | "upcoming" | "completed" | "cancelled">("all");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [doctorsSummary, setDoctorsSummary] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(!!prefilledSpecialist);  // Auto-open if specialist in URL
+  const [showForm, setShowForm] = useState(!!prefilledSpecialist && !isAdmin);
   const headerRef = useRef<HTMLDivElement>(null);
+
+  // Set initial tab based on user role
+  useEffect(() => {
+    if (user?.role === "DOCTOR") {
+      setTab("calendar");
+    }
+  }, [user?.role]);
+
+  // Admin: load per-doctor summary
+  useEffect(() => {
+    if (isAdmin) {
+      api.getAdminDoctorsAppointmentSummary()
+        .then((data: any) => setDoctorsSummary(Array.isArray(data) ? data : []))
+        .catch(console.error);
+    }
+  }, [isAdmin]);
 
   // Mouse parallax on header
   useEffect(() => {
@@ -135,24 +155,127 @@ function AppointmentsContent() {
           style={{ willChange: "transform", transition: "transform 0.12s ease-out" }}
         >
           <div>
-            <h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-rose-200 via-rose-400 to-pink-500 bg-clip-text text-transparent">
-              Appointments
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight bg-gradient-to-br from-rose-200 via-rose-400 to-pink-500 bg-clip-text text-transparent">
+              {isAdmin ? "Doctor Schedule Overview" : user?.role === "DOCTOR" ? "Schedule" : "Appointments"}
             </h1>
-            <p className="text-zinc-500 mt-2 font-medium">
-              {user?.email?.split("@")[0]}&apos;s scheduled visits
+            <p className="text-zinc-500 mt-2 text-sm sm:text-base font-medium">
+              {isAdmin
+                ? `${doctorsSummary.length} doctors • Real-time appointment stats`
+                : user?.role === "DOCTOR"
+                ? "Appointments you'll have"
+                : `${user?.email?.split("@")[0]}'s scheduled visits`}
             </p>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-rose-500 hover:bg-rose-400 text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2 transition-all shadow-xl shadow-rose-500/20 active:scale-95"
-          >
-            <Plus size={20} strokeWidth={3} />
-            <span>Book Appointment</span>
-          </button>
+          {user?.role === "PATIENT" && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="bg-rose-500 hover:bg-rose-400 text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2 transition-all shadow-xl shadow-rose-500/20 active:scale-95"
+            >
+              <Plus size={20} strokeWidth={3} />
+              <span>Book Appointment</span>
+            </button>
+          )}
         </motion.header>
 
-        <div className="flex gap-2 mb-8">
-          {(["all", "upcoming", "completed", "cancelled"] as const).map((f) => (
+        {/* Admin: Per-Doctor Schedule Cards */}
+        {isAdmin && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            {doctorsSummary.map((doc: any, i: number) => (
+              <motion.div
+                key={doc.doctor_id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+                whileHover={{ y: -4, scale: 1.02 }}
+                className="glass-card rounded-2xl p-5 border border-white/[0.08] hover:border-rose-500/40 transition-all"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-lg">
+                      <Stethoscope size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <p className="font-black text-base" style={{ color: "var(--foreground)" }}>
+                        Dr. {(doc.first_name || "") + " " + (doc.last_name || "")}
+                      </p>
+                      <p className="text-xs text-zinc-500">{doc.specialization || "—"}</p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${doc.is_available ? "bg-emerald-500/15 text-emerald-400" : "bg-zinc-500/15 text-zinc-500"}`}>
+                    {doc.is_available ? "On Duty" : "Off"}
+                  </span>
+                </div>
+
+                {/* Big total */}
+                <div className="mb-4">
+                  <p className="text-xs text-zinc-500 uppercase tracking-wider font-bold">Total Appointments</p>
+                  <p className="text-4xl font-black mt-1" style={{ color: "var(--foreground)" }}>{doc.total}</p>
+                </div>
+
+                {/* Status breakdown */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 rounded-lg bg-sky-500/10 border border-sky-500/20">
+                    <p className="text-sky-400 font-black text-lg">{doc.upcoming}</p>
+                    <p className="text-sky-500/70 text-[10px] mt-0.5">Upcoming</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                    <p className="text-emerald-400 font-black text-lg">{doc.completed}</p>
+                    <p className="text-emerald-500/70 text-[10px] mt-0.5">Completed</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <p className="text-amber-400 font-black text-lg">{doc.pending}</p>
+                    <p className="text-amber-500/70 text-[10px] mt-0.5">Pending</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
+                    <p className="text-rose-400 font-black text-lg">{doc.cancelled}</p>
+                    <p className="text-rose-500/70 text-[10px] mt-0.5">Cancelled</p>
+                  </div>
+                </div>
+
+                {doc.today > 0 && (
+                  <div className="mt-3 px-3 py-2 rounded-lg bg-violet-500/15 border border-violet-500/30 text-center">
+                    <p className="text-xs text-violet-400 font-bold">📅 {doc.today} appointment{doc.today > 1 ? "s" : ""} today</p>
+                  </div>
+                )}
+              </motion.div>
+            ))}
+            {doctorsSummary.length === 0 && (
+              <div className="col-span-full text-center py-12 text-zinc-500">No doctors with appointments yet</div>
+            )}
+          </motion.div>
+        )}
+
+        {user?.role === "DOCTOR" && (
+          <div className="flex gap-2 mb-8">
+            <button
+              onClick={() => setTab("calendar")}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                tab === "calendar"
+                  ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20"
+                  : "text-zinc-500 hover:text-[var(--foreground)] bg-white/5"
+              }`}
+            >
+              My Calendar
+            </button>
+            <button
+              onClick={() => setTab("list")}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                tab === "list"
+                  ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20"
+                  : "text-zinc-500 hover:text-[var(--foreground)] bg-white/5"
+              }`}
+            >
+              All Appointments
+            </button>
+          </div>
+        )}
+
+        {tab === "calendar" && user?.role === "DOCTOR" && <DoctorCalendar />}
+
+        {(user?.role !== "DOCTOR" || tab === "list") && (
+          <>
+            <div className="flex gap-2 mb-8">
+              {(["all", "upcoming", "completed", "cancelled"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -228,7 +351,7 @@ function AppointmentsContent() {
                           <Stethoscope size={22} className={cfg.text} />
                         </div>
                         <div>
-                          <p className="font-bold" style={{ color: "var(--foreground)" }}>{appt.specialist}</p>
+                          <p className="font-bold text-white">{appt.specialist}</p>
                           {appt.patient_email && (
                             <p className="text-sky-400 text-xs font-semibold mt-0.5">{appt.patient_email}</p>
                           )}
@@ -266,17 +389,19 @@ function AppointmentsContent() {
           </AnimatePresence>
         )}
 
-        {showForm && (
-          <AppointmentForm
-            isModal={true}
-            defaultSpecialist={prefilledSpecialist}
-            defaultReason={prefilledReason}
-            onSuccess={() => {
-              setShowForm(false);
-              fetchAppointments();
-            }}
-            onCancel={() => setShowForm(false)}
-          />
+            {showForm && (
+              <AppointmentForm
+                isModal={true}
+                defaultSpecialist={prefilledSpecialist}
+                defaultReason={prefilledReason}
+                onSuccess={() => {
+                  setShowForm(false);
+                  fetchAppointments();
+                }}
+                onCancel={() => setShowForm(false)}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

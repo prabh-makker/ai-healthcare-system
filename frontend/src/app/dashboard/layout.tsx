@@ -66,10 +66,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <Sidebar />
         <main className="flex-1 p-4 sm:p-6 md:p-8 lg:p-12 overflow-y-auto relative min-w-0">
-          {/* Floating Notification Bell - desktop only (mobile has it in top bar) */}
-          <div className="hidden md:block absolute top-4 right-4 sm:right-8 z-30">
-            <NotificationBell />
-          </div>
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
       </div>

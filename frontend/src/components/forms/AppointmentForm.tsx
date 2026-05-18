@@ -126,10 +126,11 @@ export default function AppointmentForm({
           value={formData.specialist}
           onChange={handleChange}
           className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-rose-500 transition-all"
+          style={{ colorScheme: "dark" }}
         >
-          <option value="">Select a specialist</option>
+          <option value="" style={{ background: "#1a1a1a", color: "#fff" }}>Select a specialist</option>
           {SPECIALISTS.map((spec) => (
-            <option key={spec} value={spec}>
+            <option key={spec} value={spec} style={{ background: "#1a1a1a", color: "#fff" }}>
               {spec}
             </option>
           ))}
@@ -148,6 +149,7 @@ export default function AppointmentForm({
           onChange={handleChange}
           min={new Date().toISOString().split("T")[0]}
           className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-rose-500 transition-all"
+          style={{ colorScheme: "dark" }}
         />
       </div>
 
@@ -161,10 +163,11 @@ export default function AppointmentForm({
           value={formData.time}
           onChange={handleChange}
           className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-rose-500 transition-all"
+          style={{ colorScheme: "dark" }}
         >
-          <option value="">Select a time</option>
+          <option value="" style={{ background: "#1a1a1a", color: "#fff" }}>Select a time</option>
           {TIME_SLOTS.map((time) => (
-            <option key={time} value={time}>
+            <option key={time} value={time} style={{ background: "#1a1a1a", color: "#fff" }}>
               {time}
             </option>
           ))}

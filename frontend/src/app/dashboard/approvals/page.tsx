@@ -12,6 +12,8 @@ interface PendingRecord {
   id: string;
   patient_id: string;
   patient_email?: string;
+  first_name?: string | null;
+  last_name?: string | null;
   symptoms: string[];
   ai_prediction: string;
   confidence_score: number;
@@ -24,7 +26,7 @@ interface PendingRecord {
 
 function ApprovalsContent() {
   const router = useRouter();
-  const [records, setRecords] = useState<PendingRecord[]>([]);
+  const [allRecords, setAllRecords] = useState<PendingRecord[]>([]);
   const [patientMap, setPatientMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,15 +35,21 @@ function ApprovalsContent() {
   const [showBulkNotes, setShowBulkNotes] = useState(false);
   const [bulkNotes, setBulkNotes] = useState("");
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "reviewed" | "rejected">("pending");
+
+  // Filter records by selected status
+  const records = statusFilter === "all"
+    ? allRecords
+    : allRecords.filter((r) => r.status === statusFilter);
 
   const fetchPendingRecords = async () => {
     try {
       setLoading(true);
       const [data, patients] = await Promise.all([
-        api.getPendingRecords(0, 100),
-        api.getMyPatients(0, 200).catch(() => [] as Array<{ id: string; email: string }>),
+        api.getRecords(0, 100),
+        api.getMyPatients(0, 100).catch(() => [] as Array<{ id: string; email: string }>),
       ]);
-      setRecords(data);
+      setAllRecords(data);
       const map: Record<string, string> = {};
       (patients as Array<{ id: string; email: string }>).forEach((p) => { map[p.id] = p.email; });
       setPatientMap(map);
@@ -50,11 +58,20 @@ function ApprovalsContent() {
       if (err instanceof APIError) {
         setError(err.message);
       } else {
-        setError("Failed to load pending records");
+        setError("Failed to load records");
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  // Counts per status for the pills
+  const counts = {
+    all: allRecords.length,
+    pending: allRecords.filter((r) => r.status === "pending").length,
+    approved: allRecords.filter((r) => r.status === "approved").length,
+    reviewed: allRecords.filter((r) => r.status === "reviewed").length,
+    rejected: allRecords.filter((r) => r.status === "rejected").length,
   };
 
   useEffect(() => {
@@ -144,14 +161,48 @@ function ApprovalsContent() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-12"
+          className="mb-8"
         >
-          <h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-emerald-200 via-green-400 to-teal-500 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight bg-gradient-to-br from-emerald-200 via-green-400 to-teal-500 bg-clip-text text-transparent">
             Approval Queue
           </h1>
-          <p className="text-zinc-500 mt-2 font-medium">
-            {records.length} pending record{records.length !== 1 ? "s" : ""} require your review
+          <p className="text-zinc-500 mt-2 text-sm sm:text-base font-medium">
+            {records.length} {statusFilter === "all" ? "total" : statusFilter} record{records.length !== 1 ? "s" : ""}
+            {statusFilter === "pending" && records.length > 0 && " require your review"}
           </p>
+        </motion.div>
+
+        {/* Status Filter Pills */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="flex gap-2 mb-8 flex-wrap"
+        >
+          {(["all", "pending", "approved", "reviewed", "rejected"] as const).map((f) => {
+            const isActive = statusFilter === f;
+            const colorMap: Record<string, { active: string; idle: string }> = {
+              all: { active: "bg-sky-500 text-white shadow-lg shadow-sky-500/30", idle: "bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10" },
+              pending: { active: "bg-amber-500 text-white shadow-lg shadow-amber-500/30", idle: "bg-amber-500/5 text-amber-400 hover:bg-amber-500/15" },
+              approved: { active: "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30", idle: "bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/15" },
+              reviewed: { active: "bg-violet-500 text-white shadow-lg shadow-violet-500/30", idle: "bg-violet-500/5 text-violet-400 hover:bg-violet-500/15" },
+              rejected: { active: "bg-rose-500 text-white shadow-lg shadow-rose-500/30", idle: "bg-rose-500/5 text-rose-400 hover:bg-rose-500/15" },
+            };
+            return (
+              <motion.button
+                key={f}
+                whileHover={{ scale: 1.04, y: -2 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => { setStatusFilter(f); setSelectedIds(new Set()); }}
+                className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold capitalize transition-all flex items-center gap-2 ${isActive ? colorMap[f].active : colorMap[f].idle}`}
+              >
+                <span>{f}</span>
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${isActive ? "bg-white/25" : "bg-white/10"}`}>
+                  {counts[f]}
+                </span>
+              </motion.button>
+            );
+          })}
         </motion.div>
 
         {/* Success Message */}
@@ -305,9 +356,11 @@ function ApprovalsContent() {
                         <h3 className="text-lg font-bold text-white">
                           {record.ai_prediction}
                         </h3>
-                        {patientMap[record.patient_id] && (
+                        {(record.first_name && record.last_name) || record.patient_email && (
                           <p className="text-xs font-semibold text-sky-400 mt-0.5">
-                            Patient: {patientMap[record.patient_id]}
+                            Patient: {record.first_name && record.last_name
+                              ? `${record.first_name} ${record.last_name}`
+                              : patientMap[record.patient_id] || record.patient_email}
                           </p>
                         )}
                         <p className="text-sm text-zinc-400 mt-1">
@@ -437,7 +490,7 @@ function ApprovalsContent() {
             <FileCheck size={56} className="mx-auto text-emerald-500/40 mb-4" />
             <p className="text-zinc-300 text-lg font-bold">All caught up!</p>
             <p className="text-zinc-500 text-sm mt-2">
-              No pending records require your review at this time
+              {statusFilter === "all" ? "No records found" : `No ${statusFilter} records`}
             </p>
           </motion.div>
         )}

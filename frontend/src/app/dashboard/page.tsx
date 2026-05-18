@@ -5,12 +5,14 @@ import {
   Activity, Users, TrendingUp, Bell, Plus,
   ArrowUpRight, ChevronRight, Clock, ClipboardList, HeartPulse,
   Pill, Zap, Brain, Stethoscope, Dna, Fingerprint,
+  FileCheck, Edit3, Save, Calendar as CalendarIcon, MessageSquare,
 } from "lucide-react";
 import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
+import NotificationBell from "@/components/NotificationBell";
 
 interface Stats {
   total_records: number;
@@ -162,25 +164,15 @@ function StatCard3D({
   label: string; value: string; icon: React.ElementType;
   trend: string; gradFrom: string; gradTo: string; glowColor: string; delay?: number; href?: string; onClick?: () => void;
 }) {
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  const rotateX = useSpring(useTransform(mouseY, [-60, 60], [10, -10]), { stiffness: 200, damping: 20 });
-  const rotateY = useSpring(useTransform(mouseX, [-60, 60], [-10, 10]), { stiffness: 200, damping: 20 });
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    mouseX.set(e.clientX - rect.left - rect.width / 2);
-    mouseY.set(e.clientY - rect.top - rect.height / 2);
-  }, [mouseX, mouseY]);
-
-  const handleMouseLeave = useCallback(() => { mouseX.set(0); mouseY.set(0); }, [mouseX, mouseY]);
+  // Disable 3D rotation to fix hang
+  const handleMouseMove = useCallback(() => {}, []);
+  const handleMouseLeave = useCallback(() => {}, []);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 40, scale: 0.88 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: "spring", stiffness: 70, damping: 14, delay: delay || 0 }}
-      style={{ rotateX, rotateY, perspective: 700, transformStyle: "preserve-3d" }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
@@ -192,8 +184,10 @@ function StatCard3D({
         style={{ background: glowColor }}
       />
 
-      <div className="relative overflow-hidden rounded-[2rem] p-4 md:p-6 glass-card border border-white/[0.08] group-hover:border-white/[0.2] transition-all duration-300">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-[2rem] p-4 md:p-6 glass-premium card-3d border border-white/[0.08] group-hover:border-white/[0.2] transition-all duration-300">
         <ScanLine />
+        {/* Hospital scan line */}
+        <div className="scan-line opacity-30 group-hover:opacity-60 transition-opacity" />
 
         {/* BG gradient sweep on hover */}
         <div
@@ -257,6 +251,170 @@ function StatCard3D({
         />
       </div>
     </motion.div>
+  );
+}
+
+// ── Doctor widgets ────────────────────────────────────────────────────────────
+
+function DoctorTodaysAppointments({ appointments, onNavigate }: { appointments: any[]; onNavigate: () => void }) {
+  return (
+    <section>
+      <div className="flex justify-between items-center mb-5">
+        <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--foreground)" }}>
+          <CalendarIcon size={20} className="text-sky-400" />
+          Today&apos;s Appointments
+        </h2>
+        <button onClick={onNavigate} className="text-sky-400 text-sm font-bold hover:text-sky-300 flex items-center gap-1 group">
+          <span>View All</span><ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+        </button>
+      </div>
+      <div className="glass-premium rounded-[2rem] p-5 border border-white/10 min-h-[200px]">
+        {appointments.length === 0 ? (
+          <div className="py-12 text-center">
+            <CalendarIcon size={36} className="text-zinc-700 mx-auto mb-3" />
+            <p className="text-zinc-500 font-medium text-sm">No appointments today</p>
+            <p className="text-zinc-600 text-xs mt-1">All clear — enjoy a calm day!</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {appointments.map((appt: any, i: number) => (
+              <motion.div
+                key={appt.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.05 }}
+                whileHover={{ x: 4 }}
+                onClick={onNavigate}
+                className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 cursor-pointer transition-all"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center shrink-0">
+                    <Clock size={16} className="text-sky-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold truncate" style={{ color: "var(--foreground)" }}>{appt.time}</p>
+                    <p className="text-xs text-zinc-500 truncate">{appt.patient_email || "Patient"}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-xs text-zinc-400 hidden sm:inline">{appt.reason || "Consultation"}</span>
+                  <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
+                    appt.status === "upcoming" ? "bg-sky-500/10 text-sky-400" :
+                    appt.status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
+                    "bg-zinc-500/10 text-zinc-400"
+                  }`}>{appt.status}</span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function DoctorQuickNotes({ pendingRecords, onSaved }: { pendingRecords: any[]; onSaved: (id: string) => void }) {
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [noteText, setNoteText] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+
+  const handleSave = async (id: string) => {
+    if (!noteText.trim()) return;
+    setSaving(true);
+    try {
+      await api.patchRecord(id, { doctor_notes: noteText, status: "approved" });
+      onSaved(id);
+      setEditingId(null);
+      setNoteText("");
+    } catch (e) {
+      console.error("Failed to save note", e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section>
+      <div className="flex justify-between items-center mb-5">
+        <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--foreground)" }}>
+          <Edit3 size={20} className="text-emerald-400" />
+          Pending — Add Notes
+        </h2>
+        <Link href="/dashboard/approvals" className="text-emerald-400 text-sm font-bold hover:text-emerald-300 flex items-center gap-1 group">
+          <span>View All</span><ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+        </Link>
+      </div>
+      <div className="glass-premium rounded-[2rem] p-5 border border-white/10 min-h-[200px]">
+        {pendingRecords.length === 0 ? (
+          <div className="py-12 text-center">
+            <FileCheck size={36} className="text-zinc-700 mx-auto mb-3" />
+            <p className="text-zinc-500 font-medium text-sm">No pending records</p>
+            <p className="text-zinc-600 text-xs mt-1">All caught up.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pendingRecords.map((rec: any, i: number) => (
+              <motion.div
+                key={rec.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="p-3 rounded-xl bg-white/[0.03] border border-white/5"
+              >
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold truncate" style={{ color: "var(--foreground)" }}>
+                      {rec.ai_prediction || "Pending diagnosis"}
+                    </p>
+                    <p className="text-xs text-zinc-500 truncate mt-0.5">
+                      Symptoms: {Array.isArray(rec.symptoms) ? rec.symptoms.join(", ") : "—"}
+                    </p>
+                  </div>
+                  {editingId !== rec.id && (
+                    <button
+                      onClick={() => { setEditingId(rec.id); setNoteText(rec.doctor_notes || ""); }}
+                      className="shrink-0 px-3 py-1.5 text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-all flex items-center gap-1"
+                    >
+                      <Edit3 size={12} />
+                      Add Note
+                    </button>
+                  )}
+                </div>
+                {editingId === rec.id && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-2 mt-2">
+                    <textarea
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      placeholder="Write your medical note here..."
+                      rows={3}
+                      autoFocus
+                      className="w-full px-3 py-2 text-sm bg-zinc-900 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-all resize-none"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleSave(rec.id)}
+                        disabled={saving || !noteText.trim()}
+                        className="flex-1 px-3 py-1.5 text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg disabled:opacity-50 flex items-center justify-center gap-1"
+                      >
+                        <Save size={12} />
+                        {saving ? "Saving..." : "Save & Approve"}
+                      </button>
+                      <button
+                        onClick={() => { setEditingId(null); setNoteText(""); }}
+                        disabled={saving}
+                        className="px-3 py-1.5 text-xs font-bold bg-white/5 hover:bg-white/10 text-zinc-300 rounded-lg disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -344,6 +502,16 @@ export default function Dashboard() {
 
   const [activeMedsCount, setActiveMedsCount] = useState<number | null>(null);
   const [upcomingAppts, setUpcomingAppts] = useState<number | null>(null);
+  // Doctor-only state
+  const [myPatientsCount, setMyPatientsCount] = useState<number | null>(null);
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number | null>(null);
+  const [activeRxCount, setActiveRxCount] = useState<number | null>(null);
+  const [todaysAppointments, setTodaysAppointments] = useState<any[]>([]);
+  const [pendingRecords, setPendingRecords] = useState<any[]>([]);
+  // Attendance state
+  const [attendanceStatus, setAttendanceStatus] = useState<string | null>(null);
+  const [attendanceMarking, setAttendanceMarking] = useState(false);
+  const [showAttendanceMenu, setShowAttendanceMenu] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -366,11 +534,47 @@ export default function Dashboard() {
       });
       setActiveMedsCount(Array.isArray(prescriptions) ? prescriptions.filter((p: any) => p.status === "active").length : 0);
       setUpcomingAppts(Array.isArray(appointments) ? appointments.filter((a: any) => a.status === "upcoming").length : 0);
+      // Active Rx count for doctor
+      setActiveRxCount(Array.isArray(prescriptions) ? prescriptions.filter((p: any) => p.status === "active").length : 0);
+      // Today's appointments (doctor view)
+      const today = new Date().toISOString().split("T")[0];
+      setTodaysAppointments(Array.isArray(appointments) ? appointments.filter((a: any) => a.date === today) : []);
     });
+
+    // Doctor-only fetches
+    if (user?.role === "DOCTOR") {
+      Promise.allSettled([
+        api.getMyPatients(),
+        api.getPendingRecords(),
+        api.getMyAttendanceStatus(),
+      ]).then(([patientsRes, pendingRes, attendanceRes]) => {
+        if (cancelled) return;
+        const patients = patientsRes.status === "fulfilled" ? patientsRes.value : [];
+        const pending = pendingRes.status === "fulfilled" ? pendingRes.value : [];
+        const attendance = attendanceRes.status === "fulfilled" ? attendanceRes.value : null;
+        setMyPatientsCount(Array.isArray(patients) ? patients.length : 0);
+        setPendingApprovalsCount(Array.isArray(pending) ? pending.length : 0);
+        setPendingRecords(Array.isArray(pending) ? pending.slice(0, 3) : []);
+        setAttendanceStatus(attendance?.status || null);
+      });
+    }
+
     return () => { cancelled = true; };
-  }, []);
+  }, [user?.role]);
 
   if (!mounted || user?.role === "ADMIN") return null;
+
+  const handleMarkAttendance = async (status: "present" | "absent" | "leave") => {
+    try {
+      setAttendanceMarking(true);
+      await api.markAttendance(status);
+      setAttendanceStatus(status);
+    } catch (error) {
+      console.error("Failed to mark attendance:", error);
+    } finally {
+      setAttendanceMarking(false);
+    }
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -382,10 +586,10 @@ export default function Dashboard() {
   };
 
   const DoctorDashboard = () => (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible">
-      <motion.header variants={itemVariants} className="flex flex-wrap justify-between items-start gap-6 mb-12">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+      <motion.header initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="flex flex-wrap justify-between items-start gap-6 mb-14 mt-2">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 mb-2">
             <motion.div
               className="p-2.5 rounded-2xl"
               style={{ background: "linear-gradient(135deg, #0ea5e9, #06b6d4)", boxShadow: "0 12px 32px rgba(14,165,233,0.35)" }}
@@ -397,95 +601,119 @@ export default function Dashboard() {
             <PulseDots color="#0ea5e9" />
           </div>
           <h1
-            className="text-5xl font-black tracking-tight"
+            className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight"
             style={{ backgroundImage: "linear-gradient(135deg, #bae6fd, #7dd3fc, #0ea5e9, #06b6d4)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
           >
             Clinical Dashboard
           </h1>
-          <p className="text-zinc-500 mt-1 font-bold">Welcome back, Dr. {user?.email?.split("@")[0] || "Physician"}</p>
+          <p className="text-zinc-500 mt-1 text-sm sm:text-base font-bold">Welcome back, Dr. {user?.email?.split("@")[0] || "Physician"}</p>
           <StatusBar />
         </div>
 
-        <div className="flex items-center space-x-4">
-          <ShimmerButton href="/dashboard/symptoms" gradFrom="#0ea5e9" gradTo="#06b6d4" shadow="rgba(14,165,233,0.3)">
-            <Plus size={20} strokeWidth={3} />
-            <span>Initiate Triage</span>
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+          <NotificationBell />
+          {/* Attendance Status Pill (Doctor only) - Compact, cleaner UI */}
+          <motion.div className="relative" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <button
+              onClick={() => setShowAttendanceMenu(!showAttendanceMenu)}
+              disabled={attendanceMarking}
+              className={`group relative overflow-hidden flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all border ${
+                attendanceStatus === "present"
+                  ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25"
+                  : attendanceStatus === "absent"
+                  ? "bg-rose-500/15 border-rose-500/40 text-rose-300 hover:bg-rose-500/25"
+                  : attendanceStatus === "leave"
+                  ? "bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
+                  : "bg-white/5 border-white/10 hover:bg-white/10"
+              } ${attendanceMarking ? "opacity-75 cursor-wait" : ""}`}
+              style={attendanceStatus ? {} : { color: "var(--foreground)" }}
+            >
+              <span className={`w-2 h-2 rounded-full ${
+                attendanceStatus === "present" ? "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]" :
+                attendanceStatus === "absent" ? "bg-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.6)]" :
+                attendanceStatus === "leave" ? "bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.6)]" :
+                "bg-zinc-500"
+              }`} />
+              <Clock size={15} strokeWidth={2.5} />
+              <span className="whitespace-nowrap">
+                {attendanceStatus ? attendanceStatus.charAt(0).toUpperCase() + attendanceStatus.slice(1) : "Mark Attendance"}
+              </span>
+            </button>
+
+            {/* Attendance dropdown menu */}
+            {showAttendanceMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                className="absolute right-0 top-full mt-2 w-48 rounded-2xl shadow-2xl p-1.5 z-50 border"
+                style={{
+                  background: "var(--background)",
+                  borderColor: "var(--glass-border)",
+                }}
+              >
+                <button
+                  onClick={() => { handleMarkAttendance("present"); setShowAttendanceMenu(false); }}
+                  disabled={attendanceMarking}
+                  className="w-full text-left px-3 py-2.5 hover:bg-emerald-500/15 text-sm font-semibold rounded-lg transition-all disabled:opacity-50 flex items-center gap-2.5"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  Present
+                </button>
+                <button
+                  onClick={() => { handleMarkAttendance("absent"); setShowAttendanceMenu(false); }}
+                  disabled={attendanceMarking}
+                  className="w-full text-left px-3 py-2.5 hover:bg-rose-500/15 text-sm font-semibold rounded-lg transition-all disabled:opacity-50 flex items-center gap-2.5"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  <span className="w-2 h-2 rounded-full bg-rose-400" />
+                  Absent
+                </button>
+                <button
+                  onClick={() => { handleMarkAttendance("leave"); setShowAttendanceMenu(false); }}
+                  disabled={attendanceMarking}
+                  className="w-full text-left px-3 py-2.5 hover:bg-amber-500/15 text-sm font-semibold rounded-lg transition-all disabled:opacity-50 flex items-center gap-2.5"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  On Leave
+                </button>
+              </motion.div>
+            )}
+          </motion.div>
+          <ShimmerButton href="/dashboard/approvals" gradFrom="#0ea5e9" gradTo="#06b6d4" shadow="rgba(14,165,233,0.3)">
+            <FileCheck size={20} strokeWidth={3} />
+            <span>Review Approvals</span>
           </ShimmerButton>
         </div>
       </motion.header>
 
-      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12 overflow-hidden">
-        <StatCard3D label="My Patients" value={stats ? String(stats.total_patients) : "—"} icon={Users} trend="+active" gradFrom="#0ea5e9" gradTo="#06b6d4" glowColor="rgba(14,165,233,0.2)" delay={0} onClick={() => router.push("/dashboard/my-patients")} />
-        <StatCard3D label="Medical Records" value={stats ? String(stats.total_records) : "—"} icon={Activity} trend="+records" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} onClick={() => router.push("/dashboard/records")} />
-        <StatCard3D label="Approvals Queue" value="Open" icon={Brain} trend="pending" gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} onClick={() => router.push("/dashboard/approvals")} />
-        <StatCard3D label="Prescriptions" value="Manage" icon={TrendingUp} trend="active Rx" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} onClick={() => router.push("/dashboard/prescriptions")} />
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8 sm:mb-12 overflow-hidden">
+        <StatCard3D label="My Patients" value={myPatientsCount === null ? "—" : String(myPatientsCount)} icon={Users} trend="assigned" gradFrom="#0ea5e9" gradTo="#06b6d4" glowColor="rgba(14,165,233,0.2)" delay={0} onClick={() => router.push("/dashboard/my-patients")} />
+        <StatCard3D label="Today's Appointments" value={String(todaysAppointments.length)} icon={CalendarIcon} trend="scheduled" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} onClick={() => router.push("/dashboard/appointments")} />
+        <StatCard3D label="Pending Approvals" value={pendingApprovalsCount === null ? "—" : String(pendingApprovalsCount)} icon={Brain} trend="pending" gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} onClick={() => router.push("/dashboard/approvals")} />
+        <StatCard3D label="Active Rx" value={activeRxCount === null ? "—" : String(activeRxCount)} icon={Pill} trend="active" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} onClick={() => router.push("/dashboard/prescriptions")} />
       </motion.div>
 
-      <motion.div variants={itemVariants} className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        <section className="xl:col-span-2">
-          <div className="flex justify-between items-center mb-5">
-            <h2 className="text-xl font-bold" style={{ backgroundImage: "linear-gradient(135deg, #bae6fd, #7dd3fc)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
-              Recent Diagnostic Records
-            </h2>
-            <Link href="/dashboard/records" className="text-sky-500 text-sm font-bold hover:text-sky-400 flex items-center gap-1 group">
-              <span>View All</span><ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-          <div className="glass-card rounded-[2rem] overflow-hidden border border-white/[0.07] relative">
-            <ScanLine />
-            <table className="w-full text-left">
-              <thead><tr className="border-b border-white/5 bg-white/[0.02]">
-                {["Diagnosis","Symptoms","Confidence","Date"].map(h => <th key={h} className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">{h}</th>)}
-              </tr></thead>
-              <tbody className="divide-y divide-white/[0.04]">
-                {stats?.recent_records?.length ? stats.recent_records.map((r, idx) => (
-                  <motion.tr key={r.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + idx * 0.07 }} className="hover:bg-white/[0.03] transition-colors">
-                    <td className="px-6 py-5 font-bold" style={{ color: "var(--foreground)" }}>{r.ai_prediction || "Pending"}</td>
-                    <td className="px-6 py-5 text-sm" style={{ color: "var(--foreground)", opacity: 0.6 }}>{r.symptoms?.slice(0,2).join(", ") || "—"}</td>
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                          <motion.div initial={{ width: 0 }} animate={{ width: `${r.confidence_score || 0}%` }} transition={{ duration: 1, delay: 0.6 }} className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #0ea5e9, #06b6d4)" }} />
-                        </div>
-                        <span className="text-xs font-bold" style={{ color: "var(--foreground)", opacity: 0.8 }}>{r.confidence_score ? `${r.confidence_score}%` : "—"}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 text-zinc-500 text-sm">{r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}</td>
-                  </motion.tr>
-                )) : (
-                  <tr><td colSpan={4} className="px-6 py-12 text-center text-zinc-600 text-sm">No records yet. Run a symptom analysis to begin.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
 
-        <section>
-          <h2 className="text-xl font-bold mb-5" style={{ color: "var(--foreground)" }}>AI Insights</h2>
-          <div className="glass-card rounded-[2rem] p-7 space-y-4 border border-white/[0.07] relative overflow-hidden">
-            <ScanLine />
-            <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="p-5 rounded-2xl border transition-all" style={{ background: "rgba(16,185,129,0.05)", borderColor: "rgba(16,185,129,0.15)" }}>
-              <div className="flex items-center gap-2 mb-2"><Zap size={13} style={{ color: "#34d399" }} /><h4 className="font-bold text-sm">System Status</h4></div>
-              <p className="text-sm text-zinc-400 leading-relaxed">All diagnostic engines online. ML model loaded and running at peak efficiency.</p>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.7 }} className="p-5 rounded-2xl border transition-all" style={{ background: "rgba(14,165,233,0.05)", borderColor: "rgba(14,165,233,0.15)" }}>
-              <div className="flex items-center gap-2 mb-2"><Brain size={13} style={{ color: "#38bdf8" }} /><h4 className="font-bold text-sm">Quick Actions</h4></div>
-              <p className="text-sm text-zinc-400 leading-relaxed">Navigate to Diagnostics, Patient Registry, or Records from the sidebar.</p>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Link href="/dashboard/symptoms" className="w-full py-4 rounded-2xl border font-bold transition-all flex items-center justify-center gap-2 text-sm" style={{ background: "rgba(14,165,233,0.08)", borderColor: "rgba(14,165,233,0.2)", color: "#38bdf8" }}>
-                <Activity size={15} />New Diagnostic Analysis
-              </Link>
-            </motion.div>
-          </div>
-        </section>
+      {/* Today's Appointments + Quick Notes — Doctor operations row */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }} className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mt-8">
+        <DoctorTodaysAppointments appointments={todaysAppointments} onNavigate={() => router.push("/dashboard/appointments")} />
+        <DoctorQuickNotes
+          pendingRecords={pendingRecords}
+          onSaved={(id) => {
+            setPendingRecords((prev) => prev.filter((r) => r.id !== id));
+            setPendingApprovalsCount((c) => (c !== null ? Math.max(0, c - 1) : c));
+          }}
+        />
       </motion.div>
     </motion.div>
   );
 
   const PatientDashboard = () => (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible">
-      <motion.header variants={itemVariants} className="flex flex-wrap justify-between items-start gap-6 mb-12">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+      <motion.header initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="flex flex-wrap justify-between items-start gap-6 mb-12">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <motion.div
@@ -499,16 +727,17 @@ export default function Dashboard() {
             <PulseDots color="#f43f5e" />
           </div>
           <h1
-            className="text-5xl font-black tracking-tight"
+            className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight"
             style={{ backgroundImage: "linear-gradient(135deg, #fecdd3, #fda4af, #f43f5e, #ec4899)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
           >
             My Health Portal
           </h1>
-          <p className="text-zinc-500 mt-1 font-bold">Welcome back, {user?.email?.split("@")[0] || "Patient"}</p>
+          <p className="text-zinc-500 mt-1 text-sm sm:text-base font-bold">Welcome back, {user?.email?.split("@")[0] || "Patient"}</p>
           <StatusBar />
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+          <NotificationBell />
           <ShimmerButton href="/dashboard/symptoms" gradFrom="#f43f5e" gradTo="#ec4899" shadow="rgba(244,63,94,0.3)">
             <Activity size={20} strokeWidth={3} />
             <span>Check Symptoms</span>
@@ -516,14 +745,14 @@ export default function Dashboard() {
         </div>
       </motion.header>
 
-      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12 overflow-hidden">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8 sm:mb-12 overflow-hidden">
         <StatCard3D label="Health Score" value={stats?.recent_records?.length ? "Active" : "—"} icon={HeartPulse} trend={stats?.recent_records?.length ? "tracked" : "no data"} gradFrom="#f43f5e" gradTo="#ec4899" glowColor="rgba(244,63,94,0.2)" delay={0} />
         <StatCard3D label="Medical Records" value={stats ? String(stats?.recent_records?.filter(r => r.patient_id === user?.id).length ?? 0) : "—"} icon={ClipboardList} trend="+latest" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} onClick={() => router.push("/dashboard/records")} />
         <StatCard3D label="Appointments" value={upcomingAppts === null ? "—" : String(upcomingAppts)} icon={Clock} trend={upcomingAppts ? "upcoming" : "none"} gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} onClick={() => router.push("/dashboard/appointments")} />
         <StatCard3D label="Medications" value={activeMedsCount === null ? "—" : `${activeMedsCount} Active`} icon={Pill} trend="on track" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} onClick={() => router.push("/dashboard/medications")} />
       </motion.div>
 
-      <motion.div variants={itemVariants} className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
         <section className="xl:col-span-2">
           <div className="flex justify-between items-center mb-5">
             <h2 className="text-xl font-bold" style={{ backgroundImage: "linear-gradient(135deg, #fecdd3, #fda4af)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
@@ -588,7 +817,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="relative min-h-full">
+    <div className="relative min-h-full dash-page bg-medical-grid">
       {/* Background effects — absolute so they fill the main content area */}
       <Particles />
       <GridBackground />

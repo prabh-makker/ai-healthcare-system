@@ -2,7 +2,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any
 
 from app.db.session import get_db
 from app.models.models import User, MedicalRecord, UserRole
@@ -91,7 +91,20 @@ def get_records(
         .limit(limit)
         .all()
     )
-    return [serialize_medical_record(r) for r in records]
+
+    # Fetch patient info for all records
+    patient_ids = [str(r.patient_id) for r in records]
+    patient_map = {}
+    if patient_ids:
+        patients = db.query(User).filter(User.id.in_(patient_ids)).all()
+        patient_map = {str(p.id): {"email": p.email, "first_name": p.first_name, "last_name": p.last_name} for p in patients}
+
+    return [serialize_medical_record(
+        r,
+        patient_email=patient_map.get(str(r.patient_id), {}).get("email"),
+        first_name=patient_map.get(str(r.patient_id), {}).get("first_name"),
+        last_name=patient_map.get(str(r.patient_id), {}).get("last_name")
+    ) for r in records]
 
 
 @router.post("", status_code=201)
@@ -112,7 +125,7 @@ def create_record(
     db.add(record)
     db.commit()
     db.refresh(record)
-    return serialize_medical_record(record)
+    return serialize_medical_record(record, patient_email=current_user.email, first_name=current_user.first_name, last_name=current_user.last_name)
 
 
 @router.get("/{record_id}")
@@ -248,11 +261,16 @@ def list_pending_records(
         .all()
     )
 
-    # Fetch patient emails for all records
+    # Fetch patient info for all records
     patient_ids = [str(r.patient_id) for r in records]
     patient_map = {}
     if patient_ids:
         patients = db.query(User).filter(User.id.in_(patient_ids)).all()
-        patient_map = {str(p.id): p.email for p in patients}
+        patient_map = {str(p.id): {"email": p.email, "first_name": p.first_name, "last_name": p.last_name} for p in patients}
 
-    return [serialize_medical_record(r, patient_email=patient_map.get(str(r.patient_id))) for r in records]
+    return [serialize_medical_record(
+        r,
+        patient_email=patient_map.get(str(r.patient_id), {}).get("email"),
+        first_name=patient_map.get(str(r.patient_id), {}).get("first_name"),
+        last_name=patient_map.get(str(r.patient_id), {}).get("last_name")
+    ) for r in records]

@@ -12,13 +12,13 @@
 }
 
 .light {
-  --background: #f8f9fa;
+  --background: #e2e6ec;
   --foreground: #1a1a1a;
-  --primary: #0ea5e9;
-  --accent: #0ea5e9;
-  --glass-bg: rgba(0, 0, 0, 0.03);
-  --glass-border: rgba(0, 0, 0, 0.08);
-  --glass-shine: rgba(0, 0, 0, 0.1);
+  --primary: #0284c7;
+  --accent: #0284c7;
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(0, 0, 0, 0.12);
+  --glass-shine: rgba(0, 0, 0, 0.18);
 }
 
 body {
@@ -68,13 +68,56 @@ body {
   }
 
   /* Light mode text color overrides */
-  .light .text-zinc-500 { @apply text-zinc-600; }
-  .light .text-zinc-600 { @apply text-zinc-700; }
-  .light .text-zinc-700 { @apply text-zinc-800; }
-  .light .text-zinc-300 { @apply text-zinc-600; }
+  .light .text-zinc-500 { @apply text-zinc-700; }
+  .light .text-zinc-600 { @apply text-zinc-800; }
+  .light .text-zinc-700 { @apply text-zinc-900; }
+  .light .text-zinc-300 { @apply text-zinc-700; }
   .light .text-zinc-400 { @apply text-zinc-700; }
-  .light .text-sky-500 { @apply text-sky-600; }
-  .light .text-sky-400 { @apply text-sky-600; }
+  .light .text-zinc-200 { @apply text-zinc-800; }
+  .light .text-zinc-100 { @apply text-zinc-900; }
+  .light .text-white { color: #1a1a1a !important; }
+  .light .text-sky-500 { @apply text-sky-700; }
+  .light .text-sky-400 { @apply text-sky-700; }
+  .light .text-sky-300 { @apply text-sky-700; }
+  .light .text-emerald-400 { @apply text-emerald-700; }
+  .light .text-amber-400 { @apply text-amber-700; }
+  .light .text-violet-400 { @apply text-violet-700; }
+  .light .text-rose-400 { @apply text-rose-700; }
+  .light .text-red-400 { @apply text-red-700; }
+
+  /* Light mode form input fixes */
+  .light input,
+  .light textarea,
+  .light select {
+    color: #1a1a1a !important;
+    background: rgba(255, 255, 255, 0.85) !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
+  }
+  .light input::placeholder,
+  .light textarea::placeholder {
+    color: rgba(0, 0, 0, 0.4) !important;
+  }
+  .light input[type="date"],
+  .light input[type="time"],
+  .light input[type="datetime-local"] {
+    color: #1a1a1a !important;
+  }
+  .light select option {
+    background: #fff !important;
+    color: #1a1a1a !important;
+  }
+
+  /* Light mode background overrides */
+  .light .bg-white\/5 { background-color: rgba(0, 0, 0, 0.04) !important; }
+  .light .bg-white\/10 { background-color: rgba(0, 0, 0, 0.06) !important; }
+  .light .bg-white\/20 { background-color: rgba(0, 0, 0, 0.1) !important; }
+  .light .bg-zinc-900 { background-color: #ffffff !important; }
+  .light .bg-zinc-900\/50 { background-color: rgba(255, 255, 255, 0.85) !important; }
+  .light .bg-zinc-800 { background-color: rgba(0, 0, 0, 0.08) !important; }
+  .light .border-white\/5 { border-color: rgba(0, 0, 0, 0.08) !important; }
+  .light .border-white\/10 { border-color: rgba(0, 0, 0, 0.12) !important; }
+  .light .border-white\/20 { border-color: rgba(0, 0, 0, 0.15) !important; }
+  .light .divide-white\/5 > * + * { border-color: rgba(0, 0, 0, 0.08) !important; }
 
   /* Accent color system - remap sky colors to selected accent */
 
@@ -112,4 +155,145 @@ body {
   .font-mono { font-family: 'Courier New', monospace; }
   .font-serif { font-family: 'Georgia', serif; }
   /* .font-geist uses default from root */
+}
+
+/* Form element visibility — dark theme defaults */
+.dark input, .dark select, .dark textarea {
+  color-scheme: dark;
+}
+.light input, .light select, .light textarea {
+  color-scheme: light;
+}
+.dark input[type="date"], .dark input[type="time"], .dark input[type="datetime-local"] {
+  color: #fff !important;
+}
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.7;
+  cursor: pointer;
+}
+.light input[type="date"]::-webkit-calendar-picker-indicator,
+.light input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0);
+  opacity: 0.6;
+  cursor: pointer;
+}
+.dark select option {
+  background: #1a1a1a !important;
+  color: #fff !important;
+}
+.dark select:not([multiple]) {
+  color: #fff !important;
+}
+
+/* ─────────── Hospital Vibe + 3D Glass Enhancements ─────────── */
+
+/* Premium glass — deeper, more medical */
+.glass-premium {
+  background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.1);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-premium:hover {
+  border-color: rgba(14,165,233,0.3);
+  box-shadow:
+    0 12px 48px rgba(14,165,233,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+  transform: translateY(-2px);
+}
+.light .glass-premium {
+  background: linear-gradient(135deg, rgba(255,255,255,0.85), rgba(255,255,255,0.65));
+  border-color: rgba(0,0,0,0.1);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.5);
+}
+.light .glass-premium:hover {
+  border-color: rgba(2,132,199,0.3);
+  box-shadow: 0 12px 48px rgba(2,132,199,0.1), inset 0 1px 0 rgba(255,255,255,0.6);
+}
+.light .glass-card {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Medical pulse line — ECG style */
+@keyframes ecg-pulse {
+  0%, 100% { stroke-dashoffset: 0; opacity: 0.3; }
+  50% { stroke-dashoffset: -100; opacity: 1; }
+}
+.ecg-line {
+  animation: ecg-pulse 2s ease-in-out infinite;
+  stroke-dasharray: 200;
+}
+
+/* Heartbeat pulse */
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  10%, 30% { transform: scale(1.15); }
+  20%, 40% { transform: scale(0.95); }
+}
+.heartbeat {
+  animation: heartbeat 1.4s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Medical scan effect */
+@keyframes scan {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 0.6; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+.scan-line {
+  position: absolute;
+  left: 0; right: 0; height: 100px;
+  background: linear-gradient(180deg, transparent, rgba(14,165,233,0.15), transparent);
+  animation: scan 4s linear infinite;
+  pointer-events: none;
+}
+
+/* 3D hover lift card */
+.card-3d {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+.card-3d:hover {
+  transform: translateY(-6px) rotateX(2deg) rotateY(-2deg);
+  box-shadow: 0 20px 60px rgba(14,165,233,0.2), 0 8px 24px rgba(0,0,0,0.3);
+}
+
+/* Medical gradient text */
+.text-medical {
+  background: linear-gradient(135deg, #38bdf8, #06b6d4, #10b981);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Vital sign blink */
+@keyframes vital-blink {
+  0%, 100% { opacity: 1; box-shadow: 0 0 12px currentColor; }
+  50% { opacity: 0.5; box-shadow: 0 0 4px currentColor; }
+}
+.vital-dot {
+  animation: vital-blink 1.2s ease-in-out infinite;
+}
+
+/* Responsive container helper */
+.dash-page {
+  min-height: 100%;
+  position: relative;
+}
+/* removed: overrode Tailwind absolute on bg layers */
+
+/* Hospital cross pattern bg */
+.bg-medical-grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(14,165,233,0.08) 1px, transparent 0);
+  background-size: 32px 32px;
 }

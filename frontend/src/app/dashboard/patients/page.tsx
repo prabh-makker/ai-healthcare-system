@@ -13,6 +13,9 @@ import { COLOR_CLASS_MAP, type ColorKey } from "@/constants/colors";
 interface Record {
   id: string;
   patient_id: string;
+  patient_email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
   ai_prediction: string | null;
   confidence_score: number | null;
   recommended_specialist: string | null;
@@ -178,7 +181,11 @@ function PatientsContent() {
                       whileHover={{ backgroundColor: "rgba(14,165,233,0.05)" }}
                       className="transition-all duration-200 cursor-default"
                     >
-                      <td className="py-4 font-mono text-xs text-zinc-400">{r.patient_id.slice(0, 12)}…</td>
+                      <td className="py-4 text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                        {r.first_name && r.last_name
+                          ? `${r.first_name} ${r.last_name}`
+                          : r.patient_email?.split("@")[0] || "Unknown"}
+                      </td>
                       <td className="py-4 font-semibold" style={{ color: "var(--foreground)" }}>{r.ai_prediction ?? "—"}</td>
                       <td className="py-4">
                         <span className={`text-xs font-bold px-2 py-1 rounded-lg ${

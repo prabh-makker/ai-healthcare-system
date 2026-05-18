@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   Users, TrendingUp, Database, Shield, AlertCircle, Activity,
   Settings, Brain, Lock, Zap, Stethoscope, Calendar, CheckCircle,
-  Circle, ArrowUpRight, LayoutDashboard, Server, ClipboardList,
+  Circle, ArrowUpRight, LayoutDashboard, Server, ClipboardList, X,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -17,7 +17,18 @@ import { StatCard } from "@/components/StatCard";
 const PIE_COLORS = ["#f43f5e", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ec4899", "#3b82f6", "#84cc16", "#f97316", "#a855f7"];
 const ROLE_OPTIONS = ["PATIENT", "DOCTOR", "ADMIN"] as const;
 
-type AdminTab = "overview" | "users" | "system" | "audit";
+type AdminTab = "overview" | "users" | "system" | "audit" | "attendance";
+
+interface AttendanceEntry {
+  user_email: string;
+  user_id: string;
+  role: string;
+  date: string;
+  first_login: string | null;
+  last_activity: string | null;
+  session_count: number;
+  ip_addresses: string[];
+}
 
 interface DoctorOverview {
   id: string;
@@ -69,6 +80,8 @@ interface AllUser {
   role: string;
   is_active: boolean;
   created_at: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
 }
 
 interface DiagDist {
@@ -84,15 +97,18 @@ interface SysHealth {
 }
 
 const TAB_CONFIG: Array<{ id: AdminTab; label: string; icon: React.ElementType }> = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "users",    label: "Users",    icon: Users },
-  { id: "system",   label: "System",   icon: Server },
-  { id: "audit",    label: "Audit",    icon: ClipboardList },
+  { id: "overview",   label: "Overview",   icon: LayoutDashboard },
+  { id: "users",      label: "Users",      icon: Users },
+  { id: "attendance", label: "Attendance", icon: Calendar },
+  { id: "system",     label: "System",     icon: Server },
+  { id: "audit",      label: "Audit",      icon: ClipboardList },
 ];
 
 function AdminContent() {
   const router = useRouter();
   const [adminTab, setAdminTab] = useState<AdminTab>("overview");
+  const [userRoleFilter, setUserRoleFilter] = useState<string>("ALL");
+  const [userSearchQuery, setUserSearchQuery] = useState<string>("");
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUserForm, setNewUserForm] = useState({ email: "", password: "", role: "DOCTOR", specialization: "General Physician" });
   const [addUserError, setAddUserError] = useState<string | null>(null);
@@ -106,6 +122,107 @@ function AdminContent() {
   const [diag, setDiag] = useState<DiagDist[]>([]);
   const [health, setHealth] = useState<SysHealth | null>(null);
   const [actionMsg, setActionMsg] = useState<string>("");
+  const [attendance, setAttendance] = useState<AttendanceEntry[]>([]);
+  const [attendanceDays, setAttendanceDays] = useState<number>(7);
+  const [attendanceRole, setAttendanceRole] = useState<string>("");
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+
+  // Doctor attendance summary (admin new view)
+  const [doctorAttSummary, setDoctorAttSummary] = useState<any[]>([]);
+  const [doctorAttLoading, setDoctorAttLoading] = useState(false);
+  const [attMonth, setAttMonth] = useState(new Date());
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
+  const [doctorDetail, setDoctorDetail] = useState<any>(null);
+  const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [holidayForm, setHolidayForm] = useState({ date: "", name: "", notes: "" });
+
+  // ML Retraining state
+  const [retraining, setRetraining] = useState(false);
+  const [retrainProgress, setRetrainProgress] = useState(0);
+  const [retrainStep, setRetrainStep] = useState("");
+  const [retrainResult, setRetrainResult] = useState<any>(null);
+
+  const handleRetrain = async () => {
+    setRetraining(true);
+    setRetrainResult(null);
+    setRetrainProgress(0);
+    const steps = [
+      { p: 15, label: "Collecting feedback data..." },
+      { p: 35, label: "Loading current model..." },
+      { p: 55, label: "Building training matrix..." },
+      { p: 75, label: "Retraining XGBoost..." },
+      { p: 90, label: "Saving model version..." },
+    ];
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < steps.length) {
+        setRetrainProgress(steps[i].p);
+        setRetrainStep(steps[i].label);
+        i++;
+      }
+    }, 400);
+
+    try {
+      const result: any = await api.retrainModel();
+      clearInterval(interval);
+      setRetrainProgress(100);
+      setRetrainStep("Complete");
+      setRetrainResult(result);
+    } catch (err: any) {
+      clearInterval(interval);
+      setRetrainResult({ error: err.message || "Unknown error" });
+    } finally {
+      setTimeout(() => setRetraining(false), 1500);
+    }
+  };
+
+  const loadAttendance = (days: number, role: string) => {
+    setAttendanceLoading(true);
+    api.getAttendance(days, role || undefined)
+      .then((data) => setAttendance(Array.isArray(data) ? data : []))
+      .catch((e) => { console.error(e); setAttendance([]); })
+      .finally(() => setAttendanceLoading(false));
+  };
+
+  const loadDoctorAttSummary = (date: Date) => {
+    setDoctorAttLoading(true);
+    api.getAdminAllDoctorsSummary(date.getFullYear(), date.getMonth() + 1)
+      .then((data: any) => setDoctorAttSummary(Array.isArray(data) ? data : []))
+      .catch((e) => { console.error(e); setDoctorAttSummary([]); })
+      .finally(() => setDoctorAttLoading(false));
+  };
+
+  const loadDoctorDetail = (doctorId: string) => {
+    api.getAdminDoctorAttendance(doctorId, attMonth.getFullYear(), attMonth.getMonth() + 1)
+      .then(setDoctorDetail)
+      .catch(console.error);
+  };
+
+  const loadPendingLeaves = () => {
+    api.getAdminPendingLeaves()
+      .then((data: any) => setPendingLeaves(Array.isArray(data) ? data : []))
+      .catch(console.error);
+  };
+
+  const handleLeaveDecision = async (leaveId: string, status: "approved" | "rejected") => {
+    try {
+      await api.decideLeave(leaveId, status);
+      loadPendingLeaves();
+      loadDoctorAttSummary(attMonth);
+      if (selectedDoctorId) loadDoctorDetail(selectedDoctorId);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleMarkHoliday = async () => {
+    if (!holidayForm.date || !holidayForm.name) return;
+    try {
+      await api.markHoliday(holidayForm.date, holidayForm.name, holidayForm.notes);
+      setShowHolidayModal(false);
+      setHolidayForm({ date: "", name: "", notes: "" });
+      loadDoctorAttSummary(attMonth);
+    } catch (e) { console.error(e); }
+  };
 
   const loadAll = () => {
     api.getStats().then(setStats).catch(console.error);
@@ -119,6 +236,28 @@ function AdminContent() {
   };
 
   useEffect(() => { loadAll(); }, []);
+
+  // Lazy-load attendance when its tab opens
+  useEffect(() => {
+    if (adminTab === "attendance") {
+      if (attendance.length === 0 && !attendanceLoading) {
+        loadAttendance(attendanceDays, attendanceRole);
+      }
+      loadDoctorAttSummary(attMonth);
+      loadPendingLeaves();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminTab]);
+
+  useEffect(() => {
+    if (adminTab === "attendance") loadDoctorAttSummary(attMonth);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attMonth]);
+
+  useEffect(() => {
+    if (selectedDoctorId) loadDoctorDetail(selectedDoctorId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDoctorId, attMonth]);
 
   const refreshUsers = () => api.getAllUsers().then(setUsers).catch(console.error);
 
@@ -227,10 +366,10 @@ function AdminContent() {
             {/* Stat Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { label: "Total Users", value: String((stats?.total_patients ?? 0) + (stats?.total_doctors ?? 0)), icon: Users, color: "sky" as const, gradient: "from-sky-500 to-blue-600" },
-                { label: "Patients", value: String(stats?.total_patients ?? "…"), icon: Activity, color: "rose" as const, gradient: "from-rose-500 to-pink-600" },
-                { label: "Doctors", value: String(stats?.total_doctors ?? "…"), icon: Stethoscope, color: "violet" as const, gradient: "from-violet-500 to-purple-600" },
-                { label: "Total Records", value: String(stats?.total_records ?? "…"), icon: Database, color: "emerald" as const, gradient: "from-emerald-500 to-teal-600" },
+                { label: "Total Users", value: String((stats?.total_patients ?? 0) + (stats?.total_doctors ?? 0)), icon: Users, color: "sky" as const, gradient: "from-sky-500 to-blue-600", onClick: () => setAdminTab("users") },
+                { label: "Patients", value: String(stats?.total_patients ?? "…"), icon: Activity, color: "rose" as const, gradient: "from-rose-500 to-pink-600", onClick: () => { setAdminTab("users"); setUserRoleFilter("PATIENT"); } },
+                { label: "Doctors", value: String(stats?.total_doctors ?? "…"), icon: Stethoscope, color: "violet" as const, gradient: "from-violet-500 to-purple-600", onClick: () => { setAdminTab("users"); setUserRoleFilter("DOCTOR"); } },
+                { label: "Total Records", value: String(stats?.total_records ?? "…"), icon: Database, color: "emerald" as const, gradient: "from-emerald-500 to-teal-600", onClick: () => router.push("/dashboard/records") },
               ].map((card, idx) => (
                 <motion.div key={card.label} variants={item}>
                   <StatCard
@@ -240,6 +379,7 @@ function AdminContent() {
                     color={card.color}
                     gradient={card.gradient}
                     delay={idx * 0.05}
+                    onClick={card.onClick}
                   />
                 </motion.div>
               ))}
@@ -395,30 +535,59 @@ function AdminContent() {
 
             {/* User Table */}
             <motion.div variants={item} className="glass-card rounded-[2rem] p-8 border border-white/[0.08]">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-black flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/20">
-                    <Users size={20} className="text-white" />
+              <div className="flex flex-col gap-4 mb-6">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <h2 className="text-xl font-black flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/20">
+                      <Users size={20} className="text-white" />
+                    </div>
+                    <span className="bg-gradient-to-r from-sky-200 to-blue-300 bg-clip-text text-transparent">
+                      User Management
+                    </span>
+                  </h2>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-zinc-500">{users.filter(u => (userRoleFilter === "ALL" || u.role === userRoleFilter) && (userSearchQuery === "" || u.email.toLowerCase().includes(userSearchQuery.toLowerCase()))).length} of {users.length}</span>
+                    <button
+                      onClick={() => setShowAddUser(true)}
+                      className="px-4 py-2 bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold rounded-lg transition-all shadow-lg shadow-sky-500/30 flex items-center gap-1.5"
+                    >
+                      <span>+</span> Add User
+                    </button>
                   </div>
-                  <span className="bg-gradient-to-r from-sky-200 to-blue-300 bg-clip-text text-transparent">
-                    User Management
-                  </span>
-                </h2>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-zinc-500">{users.length} total</span>
-                  <button
-                    onClick={() => setShowAddUser(true)}
-                    className="px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold rounded-lg transition-all"
-                  >
-                    + Add User
-                  </button>
+                </div>
+                {/* Search + Filter Row */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <input
+                    type="text"
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    placeholder="Search by email..."
+                    className="flex-1 min-w-[200px] px-4 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus:border-sky-500"
+                    style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)", color: "var(--foreground)" }}
+                  />
+                  <div className="flex items-center gap-1.5 p-1 rounded-lg border" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)" }}>
+                    {["ALL", "ADMIN", "DOCTOR", "PATIENT"].map((role) => (
+                      <button
+                        key={role}
+                        onClick={() => setUserRoleFilter(role)}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                          userRoleFilter === role
+                            ? "bg-sky-500 text-white shadow-md shadow-sky-500/30"
+                            : "hover:bg-white/5"
+                        }`}
+                        style={userRoleFilter === role ? {} : { color: "var(--foreground)", opacity: 0.7 }}
+                      >
+                        {role}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-[#0a0a0a]/95 backdrop-blur z-10">
+                  <thead className="sticky top-0 backdrop-blur z-10" style={{ background: "var(--background)" }}>
                     <tr className="text-zinc-500 text-xs uppercase tracking-wider border-b border-white/5">
-                      <th className="text-left pb-3 font-semibold">Email</th>
+                      <th className="text-left pb-3 font-semibold">Name / Email</th>
                       <th className="text-left pb-3 font-semibold">Role</th>
                       <th className="text-left pb-3 font-semibold">Status</th>
                       <th className="text-left pb-3 font-semibold">Joined</th>
@@ -426,14 +595,22 @@ function AdminContent() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {users.map((u) => (
+                    {users
+                      .filter(u => (userRoleFilter === "ALL" || u.role === userRoleFilter) && (userSearchQuery === "" || u.email.toLowerCase().includes(userSearchQuery.toLowerCase())))
+                      .map((u) => (
                       <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
-                        <td className="py-3 text-zinc-300 font-medium">{u.email}</td>
+                        <td className="py-3">
+                          <p className="font-semibold" style={{ color: "var(--foreground)" }}>
+                            {(u.first_name || u.last_name) ? `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() : u.email.split("@")[0]}
+                          </p>
+                          <p className="text-xs text-zinc-500">{u.email}</p>
+                        </td>
                         <td className="py-3">
                           <select
                             value={u.role}
                             onChange={(e) => changeUserRole(u, e.target.value)}
-                            className="bg-white/5 text-xs font-bold rounded-lg px-2 py-1 outline-none border border-white/10 hover:border-white/20 transition-colors"
+                            className="text-xs font-bold rounded-lg px-2 py-1 outline-none border transition-colors"
+                            style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)", color: "var(--foreground)" }}
                           >
                             {ROLE_OPTIONS.map((r) => (
                               <option key={r} value={r}>{r}</option>
@@ -465,6 +642,287 @@ function AdminContent() {
                   </tbody>
                 </table>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* ── ATTENDANCE (Admin: Doctor-focused) ── */}
+        {adminTab === "attendance" && (
+          <motion.div
+            key="attendance"
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className="space-y-6"
+          >
+            {/* Header */}
+            <motion.div variants={item} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: "var(--foreground)" }}>
+                  <Calendar size={22} className="text-sky-400" />
+                  Doctor Attendance
+                </h2>
+                <p className="text-zinc-500 text-sm mt-1">
+                  {attMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })} • Track, approve leaves, mark holidays
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap items-center">
+                <button onClick={() => setAttMonth(new Date(attMonth.getFullYear(), attMonth.getMonth() - 1))} className="px-3 py-2 rounded-lg border" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)", color: "var(--foreground)" }}>←</button>
+                <span className="text-sm font-bold" style={{ color: "var(--foreground)" }}>
+                  {attMonth.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                </span>
+                <button onClick={() => setAttMonth(new Date(attMonth.getFullYear(), attMonth.getMonth() + 1))} className="px-3 py-2 rounded-lg border" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)", color: "var(--foreground)" }}>→</button>
+                <button onClick={() => setShowHolidayModal(true)} className="px-4 py-2 text-sm font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-lg shadow-amber-500/20">+ Holiday</button>
+                <button onClick={() => loadDoctorAttSummary(attMonth)} className="px-4 py-2 text-sm font-bold bg-sky-500 hover:bg-sky-600 text-white rounded-lg">Refresh</button>
+              </div>
+            </motion.div>
+
+            {/* Pending Leaves Alert */}
+            {pendingLeaves.length > 0 && (
+              <motion.div variants={item} className="glass-card rounded-2xl p-6 border border-amber-500/30">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-black text-amber-400 flex items-center gap-2">
+                    <AlertCircle size={18} /> Pending Leave Requests ({pendingLeaves.length})
+                  </h3>
+                </div>
+                <div className="space-y-3">
+                  {pendingLeaves.map((leave: any) => (
+                    <div key={leave.id} className="flex items-center justify-between p-4 rounded-xl border" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)" }}>
+                      <div>
+                        <p className="font-bold" style={{ color: "var(--foreground)" }}>{leave.doctor_name || leave.doctor_email}</p>
+                        <p className="text-xs text-zinc-500 mt-0.5">{leave.start_date} to {leave.end_date}</p>
+                        <p className="text-sm text-zinc-400 mt-1">{leave.reason}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleLeaveDecision(leave.id, "approved")} className="px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/30">Approve</button>
+                        <button onClick={() => handleLeaveDecision(leave.id, "rejected")} className="px-3 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 text-xs font-bold rounded-lg border border-rose-500/30">Reject</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Per-doctor summary cards */}
+            <motion.div variants={item}>
+              <h3 className="text-lg font-black mb-4" style={{ color: "var(--foreground)" }}>Doctor Attendance Summary</h3>
+              {doctorAttLoading ? (
+                <div className="py-16 text-center"><div className="w-8 h-8 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin mx-auto" /></div>
+              ) : doctorAttSummary.length === 0 ? (
+                <div className="py-16 text-center text-zinc-500">No doctors found</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {doctorAttSummary.map((doc: any) => (
+                    <motion.div
+                      key={doc.doctor_id}
+                      whileHover={{ scale: 1.02, y: -4 }}
+                      onClick={() => setSelectedDoctorId(doc.doctor_id)}
+                      className="glass-card rounded-2xl p-5 border border-white/[0.08] cursor-pointer transition-all hover:border-sky-500/40"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <p className="font-black text-base" style={{ color: "var(--foreground)" }}>
+                            Dr. {(doc.first_name || "") + " " + (doc.last_name || "")}
+                          </p>
+                          <p className="text-xs text-zinc-500">{doc.email}</p>
+                        </div>
+                        <div className={`text-2xl font-black ${doc.attendance_pct >= 80 ? "text-emerald-400" : doc.attendance_pct >= 50 ? "text-amber-400" : "text-rose-400"}`}>
+                          {doc.attendance_pct}%
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                        <div className="text-center p-2 rounded-lg bg-emerald-500/10">
+                          <p className="font-black text-emerald-400 text-base">{doc.stats.present}</p>
+                          <p className="text-emerald-500/70 text-[10px] mt-0.5">Present</p>
+                        </div>
+                        <div className="text-center p-2 rounded-lg bg-rose-500/10">
+                          <p className="font-black text-rose-400 text-base">{doc.stats.absent}</p>
+                          <p className="text-rose-500/70 text-[10px] mt-0.5">Absent</p>
+                        </div>
+                        <div className="text-center p-2 rounded-lg bg-amber-500/10">
+                          <p className="font-black text-amber-400 text-base">{doc.stats.leave + doc.stats.half_day + doc.stats.emergency}</p>
+                          <p className="text-amber-500/70 text-[10px] mt-0.5">Leave</p>
+                        </div>
+                      </div>
+                      {doc.pending_leaves > 0 && (
+                        <div className="mt-3 px-2 py-1 bg-amber-500/15 text-amber-400 text-[11px] font-bold rounded-md text-center">
+                          {doc.pending_leaves} pending leave{doc.pending_leaves > 1 ? "s" : ""}
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+
+            {/* Doctor Detail Modal */}
+            {selectedDoctorId && doctorDetail && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+                onClick={() => { setSelectedDoctorId(null); setDoctorDetail(null); }}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto border shadow-2xl"
+                  style={{ background: "var(--background)", borderColor: "var(--glass-border)", color: "var(--foreground)" }}
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-xl font-black">Dr. {doctorDetail.doctor.first_name} {doctorDetail.doctor.last_name}</h3>
+                      <p className="text-xs text-zinc-500">{doctorDetail.doctor.email}</p>
+                    </div>
+                    <button onClick={() => { setSelectedDoctorId(null); setDoctorDetail(null); }} className="text-zinc-400 hover:text-rose-400"><X size={20} /></button>
+                  </div>
+
+                  {/* Attendance Calendar */}
+                  <h4 className="font-bold mb-3 text-sm" style={{ color: "var(--foreground)" }}>{attMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })} — Attendance</h4>
+                  <div className="grid grid-cols-7 gap-1 mb-6">
+                    {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <div key={i} className="text-center text-xs text-zinc-500 font-bold py-1">{d}</div>)}
+                    {Array.from({ length: new Date(attMonth.getFullYear(), attMonth.getMonth(), 1).getDay() }).map((_, i) => <div key={`empty-${i}`} />)}
+                    {Array.from({ length: new Date(attMonth.getFullYear(), attMonth.getMonth() + 1, 0).getDate() }).map((_, i) => {
+                      const day = i + 1;
+                      const dateStr = `${attMonth.getFullYear()}-${String(attMonth.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                      const att = doctorDetail.attendance[dateStr];
+                      const colorMap: Record<string, string> = {
+                        present: "bg-emerald-500/30 text-emerald-300 border-emerald-500/40",
+                        absent: "bg-rose-500/30 text-rose-300 border-rose-500/40",
+                        leave: "bg-amber-500/30 text-amber-300 border-amber-500/40",
+                        half_day: "bg-sky-500/30 text-sky-300 border-sky-500/40",
+                        emergency: "bg-orange-500/30 text-orange-300 border-orange-500/40",
+                        holiday: "bg-violet-500/30 text-violet-300 border-violet-500/40",
+                      };
+                      return (
+                        <div key={day} className={`aspect-square rounded-md border text-xs flex items-center justify-center font-bold ${att ? colorMap[att.status] || "" : "border-white/5 text-zinc-600"}`} title={att ? `${att.status}${att.notes ? " — " + att.notes : ""}` : ""}>
+                          {day}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Legend */}
+                  <div className="flex flex-wrap gap-3 mb-6 text-[11px]">
+                    {[["present", "emerald"], ["absent", "rose"], ["leave", "amber"], ["half_day", "sky"], ["emergency", "orange"], ["holiday", "violet"]].map(([k, c]) => (
+                      <div key={k} className="flex items-center gap-1.5"><span className={`w-2.5 h-2.5 rounded-full bg-${c}-400`} /><span className="capitalize text-zinc-400">{k.replace("_", " ")}</span></div>
+                    ))}
+                  </div>
+
+                  {/* Leave History */}
+                  <h4 className="font-bold mb-3 text-sm" style={{ color: "var(--foreground)" }}>Leave History</h4>
+                  {doctorDetail.leaves.length === 0 ? (
+                    <p className="text-xs text-zinc-500 py-4 text-center">No leave applications</p>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {doctorDetail.leaves.map((l: any) => (
+                        <div key={l.id} className="flex items-center justify-between p-3 rounded-lg border text-xs" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)" }}>
+                          <div>
+                            <p className="font-bold" style={{ color: "var(--foreground)" }}>{l.start_date} → {l.end_date}</p>
+                            <p className="text-zinc-500 mt-0.5">{l.reason}</p>
+                          </div>
+                          {l.status === "pending" ? (
+                            <div className="flex gap-1.5">
+                              <button onClick={() => handleLeaveDecision(l.id, "approved")} className="px-2 py-1 bg-emerald-500/15 text-emerald-400 rounded font-bold">Approve</button>
+                              <button onClick={() => handleLeaveDecision(l.id, "rejected")} className="px-2 py-1 bg-rose-500/15 text-rose-400 rounded font-bold">Reject</button>
+                            </div>
+                          ) : (
+                            <span className={`px-2 py-1 rounded font-bold ${l.status === "approved" ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"}`}>{l.status}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              </motion.div>
+            )}
+
+            {/* Holiday Modal */}
+            {showHolidayModal && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={() => setShowHolidayModal(false)}>
+                <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} onClick={(e) => e.stopPropagation()} className="rounded-2xl p-8 max-w-md w-full border shadow-2xl" style={{ background: "var(--background)", borderColor: "var(--glass-border)", color: "var(--foreground)" }}>
+                  <h3 className="text-xl font-black mb-6">Mark Holiday</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold mb-1.5" style={{ color: "var(--foreground)", opacity: 0.7 }}>Date</label>
+                      <input type="date" value={holidayForm.date} onChange={(e) => setHolidayForm({ ...holidayForm, date: e.target.value })} className="w-full px-4 py-2.5 rounded-lg border focus:outline-none focus:border-sky-500" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)", color: "var(--foreground)" }} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold mb-1.5" style={{ color: "var(--foreground)", opacity: 0.7 }}>Holiday Name</label>
+                      <input type="text" value={holidayForm.name} onChange={(e) => setHolidayForm({ ...holidayForm, name: e.target.value })} placeholder="e.g., Diwali, Christmas" className="w-full px-4 py-2.5 rounded-lg border focus:outline-none focus:border-sky-500" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)", color: "var(--foreground)" }} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold mb-1.5" style={{ color: "var(--foreground)", opacity: 0.7 }}>Notes (optional)</label>
+                      <textarea value={holidayForm.notes} onChange={(e) => setHolidayForm({ ...holidayForm, notes: e.target.value })} rows={2} className="w-full px-4 py-2.5 rounded-lg border focus:outline-none focus:border-sky-500" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)", color: "var(--foreground)" }} />
+                    </div>
+                    <div className="flex gap-2 pt-3">
+                      <button onClick={() => setShowHolidayModal(false)} className="flex-1 px-4 py-2.5 rounded-lg border" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)", color: "var(--foreground)" }}>Cancel</button>
+                      <button onClick={handleMarkHoliday} disabled={!holidayForm.date || !holidayForm.name} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold rounded-lg disabled:opacity-50">Mark Holiday</button>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+
+            <motion.div variants={item} className="glass-premium rounded-[2rem] p-4 sm:p-6 border border-white/10 overflow-hidden">
+              {attendanceLoading ? (
+                <div className="py-16 text-center">
+                  <div className="w-8 h-8 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin mx-auto" />
+                </div>
+              ) : attendance.length === 0 ? (
+                <div className="py-16 text-center">
+                  <Calendar size={36} className="text-zinc-700 mx-auto mb-3" />
+                  <p className="text-zinc-500 font-medium">No attendance records in this range</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-xs uppercase text-zinc-500 tracking-wider">
+                      <tr className="border-b border-white/5">
+                        <th className="text-left p-3 font-bold">User</th>
+                        <th className="text-left p-3 font-bold">Role</th>
+                        <th className="text-left p-3 font-bold">Date</th>
+                        <th className="text-left p-3 font-bold">First Login</th>
+                        <th className="text-left p-3 font-bold">Last Activity</th>
+                        <th className="text-center p-3 font-bold">Sessions</th>
+                        <th className="text-left p-3 font-bold hidden lg:table-cell">IPs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attendance.map((a, i) => (
+                        <motion.tr
+                          key={`${a.user_email}-${a.date}`}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: Math.min(i * 0.02, 0.4) }}
+                          className="border-b border-white/5 hover:bg-white/[0.02] transition-colors"
+                        >
+                          <td className="p-3 font-semibold text-white">{a.user_email}</td>
+                          <td className="p-3">
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
+                              a.role === "DOCTOR" ? "bg-sky-500/10 text-sky-400" :
+                              a.role === "ADMIN" ? "bg-violet-500/10 text-violet-400" :
+                              "bg-rose-500/10 text-rose-400"
+                            }`}>{a.role}</span>
+                          </td>
+                          <td className="p-3 text-zinc-300">{a.date}</td>
+                          <td className="p-3 text-zinc-400 text-xs">{a.first_login ? new Date(a.first_login).toLocaleTimeString() : "—"}</td>
+                          <td className="p-3 text-zinc-400 text-xs">{a.last_activity ? new Date(a.last_activity).toLocaleTimeString() : "—"}</td>
+                          <td className="p-3 text-center">
+                            <span className="inline-block min-w-[28px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-xs font-bold">
+                              {a.session_count}
+                            </span>
+                          </td>
+                          <td className="p-3 text-xs text-zinc-500 hidden lg:table-cell truncate max-w-[200px]">
+                            {a.ip_addresses.join(", ") || "—"}
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}
@@ -616,23 +1074,62 @@ function AdminContent() {
               </h2>
               <div className="space-y-4">
                 <p className="text-sm text-zinc-400">
-                  Retrain XGBoost on doctor-approved diagnoses to improve accuracy. Requires at least 5 records with feedback.
+                  Retrain XGBoost on doctor-approved diagnoses with feedback. Auto-falls-back to simulated mode if insufficient data.
                 </p>
-                <button
-                  onClick={async () => {
-                    try {
-                      const result: any = await api.retrainModel();
-                      alert(`Retrain complete! Used ${result.records_used} records. Version: ${result.model_version}`);
-                    } catch (err: any) {
-                      alert(`Retrain failed: ${err.message || "Unknown error"}`);
-                    }
-                  }}
-                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold rounded-lg transition-all text-sm"
-                >
-                  Retrain Now
-                </button>
-                <p className="text-xs text-zinc-600 mt-2">
-                  Daily auto-retrain scheduled. Manual retrain available anytime.
+
+                {!retraining && !retrainResult && (
+                  <button
+                    onClick={handleRetrain}
+                    className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-lg transition-all text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+                  >
+                    <Brain size={16} /> Retrain Now
+                  </button>
+                )}
+
+                {/* Progress bar */}
+                {retraining && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 p-4 rounded-xl border border-emerald-500/30" style={{ background: "var(--glass-bg)" }}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-bold text-emerald-400">{retrainStep || "Initializing..."}</span>
+                      <span className="font-mono font-black text-emerald-400">{retrainProgress}%</span>
+                    </div>
+                    <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.2)" }}>
+                      <motion.div
+                        animate={{ width: `${retrainProgress}%` }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
+                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full shadow-lg shadow-emerald-500/30"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Result */}
+                {retrainResult && !retraining && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-xl border ${retrainResult.error ? "bg-rose-500/10 border-rose-500/30" : retrainResult.simulated ? "bg-amber-500/10 border-amber-500/30" : "bg-emerald-500/10 border-emerald-500/30"}`}>
+                    {retrainResult.error ? (
+                      <>
+                        <p className="font-bold text-rose-400">✗ Failed</p>
+                        <p className="text-xs text-rose-400/70 mt-1">{retrainResult.error}</p>
+                      </>
+                    ) : retrainResult.simulated ? (
+                      <>
+                        <p className="font-bold text-amber-400">⚠ Simulated</p>
+                        <p className="text-xs text-amber-400/70 mt-1">{retrainResult.message}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-bold text-emerald-400">✓ Retrain Complete</p>
+                        <p className="text-xs text-emerald-400/70 mt-1">
+                          Used {retrainResult.records_used} records • Version: {retrainResult.model_version}
+                        </p>
+                      </>
+                    )}
+                    <button onClick={() => setRetrainResult(null)} className="text-xs underline mt-3 opacity-70 hover:opacity-100">Run again</button>
+                  </motion.div>
+                )}
+
+                <p className="text-xs text-zinc-600">
+                  Manual retrain available anytime. Feedback collected from doctor approval workflow.
                 </p>
               </div>
             </motion.div>
@@ -725,7 +1222,11 @@ function AdminContent() {
                     >
                       <div>
                         <p className="font-bold text-sm">{r.ai_prediction ?? "New Record"}</p>
-                        <p className="text-zinc-500 text-xs mt-0.5">Patient: {r.patient_id.slice(0, 8)}…</p>
+                        <p className="text-zinc-500 text-xs mt-0.5">
+                          Patient: {r.first_name && r.last_name
+                            ? `${r.first_name} ${r.last_name}`
+                            : r.patient_email?.split("@")[0] || "Unknown"}
+                        </p>
                       </div>
                       <div className="text-right">
                         <span className="inline-block text-xs font-bold px-2.5 py-1.5 rounded-lg bg-violet-500/10 text-violet-400">
@@ -787,17 +1288,42 @@ function AdminContent() {
           </motion.div>
         )}
 
-        {/* Add User Modal (admin-only) */}
+        {/* Add User Modal (admin-only) - Solid background, theme-aware */}
         {showAddUser && (
-          <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
             onClick={() => !addUserLoading && setShowAddUser(false)}
           >
-            <div
-              className="glass-card rounded-2xl p-8 max-w-md w-full"
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="rounded-2xl p-8 max-w-md w-full border shadow-2xl"
               onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "var(--background)",
+                borderColor: "var(--glass-border)",
+                color: "var(--foreground)",
+              }}
             >
-              <h3 className="text-xl font-bold mb-6">Create New User</h3>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold flex items-center gap-3" style={{ color: "var(--foreground)" }}>
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg">
+                    <Users size={18} className="text-white" />
+                  </div>
+                  Create New User
+                </h3>
+                <button
+                  onClick={() => { setShowAddUser(false); setAddUserError(null); }}
+                  disabled={addUserLoading}
+                  className="text-zinc-400 hover:text-rose-400 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
 
               {addUserError && (
                 <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
@@ -807,11 +1333,16 @@ function AdminContent() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs text-zinc-400 font-semibold mb-1">Role</label>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--foreground)", opacity: 0.7 }}>Role</label>
                   <select
                     value={newUserForm.role}
                     onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white"
+                    className="w-full px-4 py-2.5 rounded-lg border transition-colors focus:outline-none focus:border-sky-500"
+                    style={{
+                      background: "var(--glass-bg)",
+                      borderColor: "var(--glass-border)",
+                      color: "var(--foreground)",
+                    }}
                   >
                     <option value="DOCTOR">Doctor</option>
                     <option value="PATIENT">Patient</option>
@@ -821,11 +1352,16 @@ function AdminContent() {
 
                 {newUserForm.role === "DOCTOR" && (
                   <div>
-                    <label className="block text-xs text-zinc-400 font-semibold mb-1">Specialization</label>
+                    <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--foreground)", opacity: 0.7 }}>Specialization</label>
                     <select
                       value={newUserForm.specialization}
                       onChange={(e) => setNewUserForm({ ...newUserForm, specialization: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white"
+                      className="w-full px-4 py-2.5 rounded-lg border transition-colors focus:outline-none focus:border-sky-500"
+                      style={{
+                        background: "var(--glass-bg)",
+                        borderColor: "var(--glass-border)",
+                        color: "var(--foreground)",
+                      }}
                     >
                       {["General Physician","Cardiologist","Neurologist","Dermatologist","Pediatrician","Endocrinologist","Pulmonologist","Orthopedist","Psychiatrist","Gastroenterologist","Infectious Disease Specialist"].map(s => (
                         <option key={s} value={s}>{s}</option>
@@ -835,28 +1371,38 @@ function AdminContent() {
                 )}
 
                 <div>
-                  <label className="block text-xs text-zinc-400 font-semibold mb-1">Email</label>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--foreground)", opacity: 0.7 }}>Email</label>
                   <input
                     type="email"
                     value={newUserForm.email}
                     onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white"
+                    className="w-full px-4 py-2.5 rounded-lg border transition-colors focus:outline-none focus:border-sky-500"
                     placeholder="dr.smith@example.com"
+                    style={{
+                      background: "var(--glass-bg)",
+                      borderColor: "var(--glass-border)",
+                      color: "var(--foreground)",
+                    }}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs text-zinc-400 font-semibold mb-1">Password</label>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--foreground)", opacity: 0.7 }}>Password</label>
                   <input
                     type="password"
                     value={newUserForm.password}
                     onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white"
+                    className="w-full px-4 py-2.5 rounded-lg border transition-colors focus:outline-none focus:border-sky-500"
                     placeholder="Min 8 chars, mixed case + number"
+                    style={{
+                      background: "var(--glass-bg)",
+                      borderColor: "var(--glass-border)",
+                      color: "var(--foreground)",
+                    }}
                   />
                 </div>
 
-                <div className="flex gap-3 pt-2">
+                <div className="flex gap-3 pt-3">
                   <button
                     onClick={() => {
                       setShowAddUser(false);
@@ -864,7 +1410,12 @@ function AdminContent() {
                       setAddUserError(null);
                     }}
                     disabled={addUserLoading}
-                    className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-lg text-sm font-semibold transition-all"
+                    className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all border hover:opacity-80"
+                    style={{
+                      background: "var(--glass-bg)",
+                      borderColor: "var(--glass-border)",
+                      color: "var(--foreground)",
+                    }}
                   >
                     Cancel
                   </button>
@@ -876,7 +1427,6 @@ function AdminContent() {
                         await api.adminCreateUser(newUserForm);
                         setShowAddUser(false);
                         setNewUserForm({ email: "", password: "", role: "DOCTOR", specialization: "General Physician" });
-                        // Refetch user list
                         const fresh: any = await api.getAllUsers();
                         setUsers(fresh as AllUser[]);
                       } catch (e: any) {
@@ -886,14 +1436,14 @@ function AdminContent() {
                       }
                     }}
                     disabled={addUserLoading || !newUserForm.email || !newUserForm.password}
-                    className="flex-1 px-4 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-semibold transition-all disabled:opacity-50"
+                    className="flex-1 px-4 py-2.5 bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white rounded-lg text-sm font-semibold transition-all disabled:opacity-50 shadow-lg shadow-sky-500/30"
                   >
                     {addUserLoading ? "Creating..." : "Create User"}
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
       </div>
     </div>
