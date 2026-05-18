@@ -238,40 +238,6 @@ function MedicationsContent() {
                       </div>
                     </div>
 
-                    {/* Mark as Taken Button (only for active medications) */}
-                    {med.status === "active" && (
-                      <div className="pt-4 border-t border-white/5 flex items-center justify-between">
-                        <p className="text-xs text-zinc-500">
-                          Tap to log when you take this medication
-                        </p>
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleMarkAsTaken(med.id)}
-                          disabled={takingMed === med.id}
-                          className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${
-                            recentlyTaken.has(med.id)
-                              ? "bg-emerald-500 text-white"
-                              : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400"
-                          }`}
-                        >
-                          {takingMed === med.id ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
-                              Logging...
-                            </>
-                          ) : recentlyTaken.has(med.id) ? (
-                            <>
-                              ✓ Logged!
-                            </>
-                          ) : (
-                            <>
-                              💊 Mark as Taken
-                            </>
-                          )}
-                        </motion.button>
-                      </div>
-                    )}
                   </motion.div>
                 ))}
               </div>

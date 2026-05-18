@@ -88,7 +88,7 @@ def create_prescription(
         raise HTTPException(status_code=500, detail="Error creating prescription")
 
 
-@router.get("", response_model=List[PrescriptionOut], include_in_schema=False)
+@router.get("", response_model=List[PrescriptionOut])
 @router.get("/", response_model=List[PrescriptionOut])
 def list_prescriptions(
     db: Session = Depends(get_db),
@@ -117,9 +117,9 @@ def list_prescriptions(
 
 @router.get("/{prescription_id}", response_model=PrescriptionOut)
 def get_prescription(
+    prescription_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    prescription_id: str = None,
 ) -> Any:
     """
     Get a specific prescription by ID.
@@ -143,10 +143,10 @@ def get_prescription(
 
 @router.patch("/{prescription_id}", response_model=PrescriptionOut)
 def update_prescription(
+    prescription_id: str,
+    update_in: PrescriptionUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    prescription_id: str = None,
-    update_in: PrescriptionUpdate = None,
 ) -> Any:
     """
     Update a prescription. Only the prescribing doctor can update.
@@ -197,9 +197,9 @@ def update_prescription(
 
 @router.delete("/{prescription_id}", status_code=204)
 def delete_prescription(
+    prescription_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    prescription_id: str = None,
 ) -> None:
     """
     Delete a prescription. Only the prescribing doctor can delete.

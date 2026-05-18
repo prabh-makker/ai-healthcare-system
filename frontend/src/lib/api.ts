@@ -151,7 +151,7 @@ export const api = {
     askedSymptoms: string[] = [],
     sessionId?: string,
     lastAskedSymptom?: string,
-  ): Promise<ReadableStream<string>> => {
+  ): Promise<ReadableStream<Uint8Array>> => {
     const response = await fetch("/api/v1/diagnosis/chat-stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -207,6 +207,12 @@ export const api = {
 
   getAuditLog: (skip = 0, limit = 100) =>
     request(`/api/v1/admin/audit-log?skip=${skip}&limit=${limit}`),
+
+  getAttendance: (days: number = 7, role?: string) => {
+    const params = new URLSearchParams({ days: String(days) });
+    if (role) params.set("role", role);
+    return request(`/api/v1/admin/attendance?${params.toString()}`);
+  },
 
   getDoctorPerformance: () => request("/api/v1/admin/doctor-performance"),
 

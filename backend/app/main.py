@@ -247,7 +247,7 @@ def get_application() -> FastAPI:
             import httpx
             with httpx.Client(timeout=30.0) as client:
                 client.post(
-                    "http://localhost:11434/api/generate",
+                    f"{settings.OLLAMA_API_URL}/api/generate",
                     json={
                         "model": "llama2",
                         "prompt": "hi",

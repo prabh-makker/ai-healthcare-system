@@ -17,7 +17,18 @@ import { StatCard } from "@/components/StatCard";
 const PIE_COLORS = ["#f43f5e", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ec4899", "#3b82f6", "#84cc16", "#f97316", "#a855f7"];
 const ROLE_OPTIONS = ["PATIENT", "DOCTOR", "ADMIN"] as const;
 
-type AdminTab = "overview" | "users" | "system" | "audit";
+type AdminTab = "overview" | "users" | "system" | "audit" | "attendance";
+
+interface AttendanceEntry {
+  user_email: string;
+  user_id: string;
+  role: string;
+  date: string;
+  first_login: string | null;
+  last_activity: string | null;
+  session_count: number;
+  ip_addresses: string[];
+}
 
 interface DoctorOverview {
   id: string;
@@ -84,10 +95,11 @@ interface SysHealth {
 }
 
 const TAB_CONFIG: Array<{ id: AdminTab; label: string; icon: React.ElementType }> = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "users",    label: "Users",    icon: Users },
-  { id: "system",   label: "System",   icon: Server },
-  { id: "audit",    label: "Audit",    icon: ClipboardList },
+  { id: "overview",   label: "Overview",   icon: LayoutDashboard },
+  { id: "users",      label: "Users",      icon: Users },
+  { id: "attendance", label: "Attendance", icon: Calendar },
+  { id: "system",     label: "System",     icon: Server },
+  { id: "audit",      label: "Audit",      icon: ClipboardList },
 ];
 
 function AdminContent() {
@@ -106,6 +118,18 @@ function AdminContent() {
   const [diag, setDiag] = useState<DiagDist[]>([]);
   const [health, setHealth] = useState<SysHealth | null>(null);
   const [actionMsg, setActionMsg] = useState<string>("");
+  const [attendance, setAttendance] = useState<AttendanceEntry[]>([]);
+  const [attendanceDays, setAttendanceDays] = useState<number>(7);
+  const [attendanceRole, setAttendanceRole] = useState<string>("");
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+
+  const loadAttendance = (days: number, role: string) => {
+    setAttendanceLoading(true);
+    api.getAttendance(days, role || undefined)
+      .then((data) => setAttendance(Array.isArray(data) ? data : []))
+      .catch((e) => { console.error(e); setAttendance([]); })
+      .finally(() => setAttendanceLoading(false));
+  };
 
   const loadAll = () => {
     api.getStats().then(setStats).catch(console.error);
@@ -119,6 +143,14 @@ function AdminContent() {
   };
 
   useEffect(() => { loadAll(); }, []);
+
+  // Lazy-load attendance when its tab opens
+  useEffect(() => {
+    if (adminTab === "attendance" && attendance.length === 0 && !attendanceLoading) {
+      loadAttendance(attendanceDays, attendanceRole);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminTab]);
 
   const refreshUsers = () => api.getAllUsers().then(setUsers).catch(console.error);
 
@@ -465,6 +497,116 @@ function AdminContent() {
                   </tbody>
                 </table>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* ── ATTENDANCE ── */}
+        {adminTab === "attendance" && (
+          <motion.div
+            key="attendance"
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className="space-y-6"
+          >
+            <motion.div variants={item} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: "var(--foreground)" }}>
+                  <Calendar size={22} className="text-sky-400" />
+                  Attendance Log
+                </h2>
+                <p className="text-zinc-500 text-sm mt-1">Login activity from audit trail</p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <select
+                  value={attendanceDays}
+                  onChange={(e) => { const d = Number(e.target.value); setAttendanceDays(d); loadAttendance(d, attendanceRole); }}
+                  className="px-3 py-2 text-sm bg-zinc-900 border border-white/10 rounded-lg text-white focus:outline-none focus:border-sky-500"
+                  style={{ colorScheme: "dark" }}
+                >
+                  <option value="7" style={{ background: "#1a1a1a", color: "#fff" }}>Last 7 days</option>
+                  <option value="30" style={{ background: "#1a1a1a", color: "#fff" }}>Last 30 days</option>
+                  <option value="90" style={{ background: "#1a1a1a", color: "#fff" }}>Last 90 days</option>
+                </select>
+                <select
+                  value={attendanceRole}
+                  onChange={(e) => { const r = e.target.value; setAttendanceRole(r); loadAttendance(attendanceDays, r); }}
+                  className="px-3 py-2 text-sm bg-zinc-900 border border-white/10 rounded-lg text-white focus:outline-none focus:border-sky-500"
+                  style={{ colorScheme: "dark" }}
+                >
+                  <option value="" style={{ background: "#1a1a1a", color: "#fff" }}>All roles</option>
+                  <option value="DOCTOR" style={{ background: "#1a1a1a", color: "#fff" }}>Doctors</option>
+                  <option value="PATIENT" style={{ background: "#1a1a1a", color: "#fff" }}>Patients</option>
+                  <option value="ADMIN" style={{ background: "#1a1a1a", color: "#fff" }}>Admins</option>
+                </select>
+                <button
+                  onClick={() => loadAttendance(attendanceDays, attendanceRole)}
+                  className="px-4 py-2 text-sm font-bold bg-sky-500 hover:bg-sky-600 text-white rounded-lg transition-all"
+                >
+                  Refresh
+                </button>
+              </div>
+            </motion.div>
+
+            <motion.div variants={item} className="glass-premium rounded-[2rem] p-4 sm:p-6 border border-white/10 overflow-hidden">
+              {attendanceLoading ? (
+                <div className="py-16 text-center">
+                  <div className="w-8 h-8 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin mx-auto" />
+                </div>
+              ) : attendance.length === 0 ? (
+                <div className="py-16 text-center">
+                  <Calendar size={36} className="text-zinc-700 mx-auto mb-3" />
+                  <p className="text-zinc-500 font-medium">No attendance records in this range</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-xs uppercase text-zinc-500 tracking-wider">
+                      <tr className="border-b border-white/5">
+                        <th className="text-left p-3 font-bold">User</th>
+                        <th className="text-left p-3 font-bold">Role</th>
+                        <th className="text-left p-3 font-bold">Date</th>
+                        <th className="text-left p-3 font-bold">First Login</th>
+                        <th className="text-left p-3 font-bold">Last Activity</th>
+                        <th className="text-center p-3 font-bold">Sessions</th>
+                        <th className="text-left p-3 font-bold hidden lg:table-cell">IPs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attendance.map((a, i) => (
+                        <motion.tr
+                          key={`${a.user_email}-${a.date}`}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: Math.min(i * 0.02, 0.4) }}
+                          className="border-b border-white/5 hover:bg-white/[0.02] transition-colors"
+                        >
+                          <td className="p-3 font-semibold text-white">{a.user_email}</td>
+                          <td className="p-3">
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
+                              a.role === "DOCTOR" ? "bg-sky-500/10 text-sky-400" :
+                              a.role === "ADMIN" ? "bg-violet-500/10 text-violet-400" :
+                              "bg-rose-500/10 text-rose-400"
+                            }`}>{a.role}</span>
+                          </td>
+                          <td className="p-3 text-zinc-300">{a.date}</td>
+                          <td className="p-3 text-zinc-400 text-xs">{a.first_login ? new Date(a.first_login).toLocaleTimeString() : "—"}</td>
+                          <td className="p-3 text-zinc-400 text-xs">{a.last_activity ? new Date(a.last_activity).toLocaleTimeString() : "—"}</td>
+                          <td className="p-3 text-center">
+                            <span className="inline-block min-w-[28px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-xs font-bold">
+                              {a.session_count}
+                            </span>
+                          </td>
+                          <td className="p-3 text-xs text-zinc-500 hidden lg:table-cell truncate max-w-[200px]">
+                            {a.ip_addresses.join(", ") || "—"}
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

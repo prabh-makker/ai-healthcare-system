@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("", response_model=List[NotificationOut], include_in_schema=False)
+@router.get("", response_model=List[NotificationOut])
 @router.get("/", response_model=List[NotificationOut])
 def list_notifications(
     db: Session = Depends(get_db),

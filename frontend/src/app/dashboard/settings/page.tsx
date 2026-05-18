@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { User, Shield, Bell, Palette, LogOut, ChevronRight, Sun, Moon, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { User, Shield, Bell, Palette, LogOut, ChevronRight, Sun, Moon, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "next/navigation";
@@ -18,6 +18,9 @@ export default function SettingsPage() {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [showOld, setShowOld] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const sections = [
     { id: "profile", label: "Profile", icon: User },
@@ -69,56 +72,114 @@ export default function SettingsPage() {
   };
 
   return (
-    <div>
+    <div className="relative">
+      {/* Animated bg orbs */}
+      <motion.div
+        className="absolute pointer-events-none -z-10"
+        style={{
+          width: 600, height: 600, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(139,92,246,0.15), transparent 70%)",
+          left: "-15%", top: "-10%",
+        }}
+        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute pointer-events-none -z-10"
+        style={{
+          width: 500, height: 500, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(236,72,153,0.12), transparent 70%)",
+          right: "-10%", top: "30%",
+        }}
+        animate={{ scale: [1.1, 1, 1.1], opacity: [0.4, 0.7, 0.4] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+      />
+
       <motion.header
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-12"
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="mb-8 sm:mb-12"
       >
-        <h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-indigo-200 via-purple-400 to-pink-500 bg-clip-text text-transparent">
+        <motion.h1
+          className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight bg-gradient-to-br from-indigo-200 via-purple-400 to-pink-500 bg-clip-text text-transparent"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+        >
           Settings
-        </h1>
-        <p className="text-zinc-500 mt-2 font-medium">Manage account preferences</p>
+        </motion.h1>
+        <motion.p
+          className="text-zinc-500 mt-2 text-sm sm:text-base font-medium"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          Manage account preferences
+        </motion.p>
       </motion.header>
 
-      <div className="flex gap-8">
-        <aside className="w-64 shrink-0">
-          <div className="glass-card rounded-[2rem] p-4 space-y-1">
-            {sections.map((s) => (
-              <button
+      <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8">
+        <motion.aside
+          className="w-full lg:w-64 shrink-0"
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl sm:rounded-[2rem] p-3 sm:p-4 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible border border-white/20 shadow-2xl">
+            {sections.map((s, i) => (
+              <motion.button
                 key={s.id}
                 onClick={() => setActiveSection(s.id)}
-                className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl text-sm font-bold transition-all ${
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.05 }}
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.97 }}
+                className={`shrink-0 lg:w-full flex items-center justify-between px-4 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl text-sm font-bold transition-all relative ${
                   activeSection === s.id
-                    ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20"
+                    ? "bg-sky-500 text-white shadow-lg shadow-sky-500/30"
                     : "text-zinc-500 hover:text-white hover:bg-white/5"
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <s.icon size={18} />
-                  {s.label}
+                  <span className="whitespace-nowrap">{s.label}</span>
                 </div>
-                <ChevronRight size={14} className="opacity-50" />
-              </button>
+                <ChevronRight size={14} className="opacity-50 hidden lg:block" />
+                {activeSection === s.id && (
+                  <motion.div
+                    layoutId="settings-active-pill"
+                    className="absolute inset-0 rounded-xl sm:rounded-2xl ring-2 ring-sky-400/50 pointer-events-none"
+                  />
+                )}
+              </motion.button>
             ))}
-            <div className="pt-2 border-t border-white/5 mt-2">
-              <button
+            <div className="hidden lg:block pt-2 border-t border-white/5 mt-2">
+              <motion.button
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold text-zinc-500 hover:text-rose-400 hover:bg-rose-400/5 transition-all"
               >
                 <LogOut size={18} />
                 Logout
-              </button>
+              </motion.button>
             </div>
           </div>
-        </aside>
+        </motion.aside>
 
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
+          <AnimatePresence mode="wait">
           {activeSection === "profile" && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass-card rounded-[2rem] p-8"
+              key="profile"
+              initial={{ opacity: 0, y: 20, rotateX: -10 }}
+              animate={{ opacity: 1, y: 0, rotateX: 0 }}
+              exit={{ opacity: 0, y: -20, rotateX: 10 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              style={{ perspective: 1000, transformStyle: "preserve-3d" }}
+              className="bg-white/10 backdrop-blur-md rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 md:p-8 border border-white/20 shadow-2xl"
             >
               <h2 className="text-lg font-bold mb-8">Profile Information</h2>
               <div className="flex items-center gap-6 mb-10">
@@ -156,9 +217,13 @@ export default function SettingsPage() {
 
           {activeSection === "security" && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass-card rounded-[2rem] p-8"
+              key="security"
+              initial={{ opacity: 0, y: 20, rotateX: -10 }}
+              animate={{ opacity: 1, y: 0, rotateX: 0 }}
+              exit={{ opacity: 0, y: -20, rotateX: 10 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              style={{ perspective: 1000, transformStyle: "preserve-3d" }}
+              className="bg-white/10 backdrop-blur-md rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 md:p-8 border border-white/20 shadow-2xl"
             >
               <h2 className="text-lg font-bold mb-8">Security</h2>
               <div className="space-y-4">
@@ -186,7 +251,7 @@ export default function SettingsPage() {
                   <motion.div
                     initial={{ scale: 0.95 }}
                     animate={{ scale: 1 }}
-                    className="glass-card rounded-2xl p-8 max-w-md w-full"
+                    className="bg-white/15 backdrop-blur-xl rounded-2xl p-8 max-w-md w-full border border-white/30"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <h3 className="text-xl font-bold mb-6">Change Password</h3>
@@ -217,42 +282,75 @@ export default function SettingsPage() {
                         <label className="block text-xs font-semibold text-zinc-400 mb-2">
                           Current Password
                         </label>
-                        <input
-                          type="password"
-                          value={passwordForm.old}
-                          onChange={(e) => setPasswordForm({ ...passwordForm, old: e.target.value })}
-                          placeholder="Enter current password"
-                          disabled={passwordLoading || passwordSuccess}
-                          className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500 transition-all disabled:opacity-50"
-                        />
+                        <div className="relative">
+                          <input
+                            type={showOld ? "text" : "password"}
+                            value={passwordForm.old}
+                            onChange={(e) => setPasswordForm({ ...passwordForm, old: e.target.value })}
+                            placeholder="Enter current password"
+                            disabled={passwordLoading || passwordSuccess}
+                            className="w-full px-4 py-2.5 pr-11 bg-zinc-900 border border-white/20 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500 transition-all disabled:opacity-50"
+                            style={{ color: "#fff", fontSize: "15px", fontWeight: 500, letterSpacing: "0.05em" }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowOld(!showOld)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors p-1"
+                            tabIndex={-1}
+                          >
+                            {showOld ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
                       </div>
 
                       <div>
                         <label className="block text-xs font-semibold text-zinc-400 mb-2">
                           New Password
                         </label>
-                        <input
-                          type="password"
-                          value={passwordForm.new}
-                          onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
-                          placeholder="Enter new password (min 8 chars)"
-                          disabled={passwordLoading || passwordSuccess}
-                          className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500 transition-all disabled:opacity-50"
-                        />
+                        <div className="relative">
+                          <input
+                            type={showNew ? "text" : "password"}
+                            value={passwordForm.new}
+                            onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
+                            placeholder="Enter new password (min 8 chars)"
+                            disabled={passwordLoading || passwordSuccess}
+                            className="w-full px-4 py-2.5 pr-11 bg-zinc-900 border border-white/20 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500 transition-all disabled:opacity-50"
+                            style={{ color: "#fff", fontSize: "15px", fontWeight: 500, letterSpacing: "0.05em" }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNew(!showNew)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors p-1"
+                            tabIndex={-1}
+                          >
+                            {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
                       </div>
 
                       <div>
                         <label className="block text-xs font-semibold text-zinc-400 mb-2">
                           Confirm Password
                         </label>
-                        <input
-                          type="password"
-                          value={passwordForm.confirm}
-                          onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
-                          placeholder="Confirm new password"
-                          disabled={passwordLoading || passwordSuccess}
-                          className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500 transition-all disabled:opacity-50"
-                        />
+                        <div className="relative">
+                          <input
+                            type={showConfirm ? "text" : "password"}
+                            value={passwordForm.confirm}
+                            onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
+                            placeholder="Confirm new password"
+                            disabled={passwordLoading || passwordSuccess}
+                            className="w-full px-4 py-2.5 pr-11 bg-zinc-900 border border-white/20 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500 transition-all disabled:opacity-50"
+                            style={{ color: "#fff", fontSize: "15px", fontWeight: 500, letterSpacing: "0.05em" }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirm(!showConfirm)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors p-1"
+                            tabIndex={-1}
+                          >
+                            {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -287,9 +385,13 @@ export default function SettingsPage() {
 
           {activeSection === "notifications" && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass-card rounded-[2rem] p-8"
+              key="notifications"
+              initial={{ opacity: 0, y: 20, rotateX: -10 }}
+              animate={{ opacity: 1, y: 0, rotateX: 0 }}
+              exit={{ opacity: 0, y: -20, rotateX: 10 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              style={{ perspective: 1000, transformStyle: "preserve-3d" }}
+              className="bg-white/10 backdrop-blur-md rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 md:p-8 border border-white/20 shadow-2xl"
             >
               <h2 className="text-lg font-bold mb-8">Notification Preferences</h2>
               <div className="space-y-4">
@@ -314,9 +416,13 @@ export default function SettingsPage() {
 
           {activeSection === "appearance" && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass-card rounded-[2rem] p-8"
+              key="appearance"
+              initial={{ opacity: 0, y: 20, rotateX: -10 }}
+              animate={{ opacity: 1, y: 0, rotateX: 0 }}
+              exit={{ opacity: 0, y: -20, rotateX: 10 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              style={{ perspective: 1000, transformStyle: "preserve-3d" }}
+              className="bg-white/10 backdrop-blur-md rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 md:p-8 border border-white/20 shadow-2xl"
             >
               <h2 className="text-lg font-bold mb-8">Appearance</h2>
 
@@ -412,6 +518,7 @@ export default function SettingsPage() {
               </div>
             </motion.div>
           )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

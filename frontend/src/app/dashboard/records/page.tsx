@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { ClipboardList, ArrowUpRight, FileSearch, BarChart3 } from "lucide-react";
+import React, { useEffect, useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ClipboardList, ArrowUpRight, FileSearch, BarChart3, Search, Users, ChevronRight, ArrowLeft, User as UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -11,11 +11,13 @@ import DashboardBg from "@/components/DashboardBg";
 interface Record {
   id: string;
   patient_id: string;
+  patient_email?: string | null;
   ai_prediction: string | null;
   confidence_score: number | null;
   recommended_specialist: string | null;
   symptoms: string[];
   created_at: string | null;
+  status?: string;
 }
 
 export default function RecordsPage() {
@@ -25,7 +27,60 @@ export default function RecordsPage() {
   const [records, setRecords] = useState<Record[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const pageSize = 50;
+
+  // Group records by patient for doctor's default view
+  const patientGroups = useMemo(() => {
+    if (!isDoctor) return [];
+    const groups: Record[][] = [];
+    const byPatient = new Map<string, Record[]>();
+    for (const r of records) {
+      if (!byPatient.has(r.patient_id)) byPatient.set(r.patient_id, []);
+      byPatient.get(r.patient_id)!.push(r);
+    }
+    return Array.from(byPatient.entries()).map(([patient_id, recs]) => ({
+      patient_id,
+      patient_email: recs[0]?.patient_email || null,
+      records: recs.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || "")),
+      total: recs.length,
+      pending: recs.filter((r) => r.status === "pending").length,
+      latestDate: recs[0]?.created_at,
+    })).sort((a, b) => (b.latestDate || "").localeCompare(a.latestDate || ""));
+  }, [records, isDoctor]);
+
+  // Filter for either current view
+  const filteredPatientGroups = useMemo(() => {
+    if (!searchQuery.trim()) return patientGroups;
+    const q = searchQuery.toLowerCase();
+    return patientGroups.filter((g) =>
+      (g.patient_email || "").toLowerCase().includes(q) ||
+      g.records.some((r) => r.ai_prediction?.toLowerCase().includes(q))
+    );
+  }, [patientGroups, searchQuery]);
+
+  const filteredRecords = useMemo(() => {
+    // Doctor with selected patient → show that patient's records
+    let pool = records;
+    if (isDoctor && selectedPatientId) {
+      pool = records.filter((r) => r.patient_id === selectedPatientId);
+    }
+    if (!searchQuery.trim()) return pool;
+    const query = searchQuery.toLowerCase();
+    return pool.filter(
+      (r) =>
+        r.ai_prediction?.toLowerCase().includes(query) ||
+        r.symptoms?.some((s) => s.toLowerCase().includes(query)) ||
+        r.recommended_specialist?.toLowerCase().includes(query)
+    );
+  }, [records, searchQuery, isDoctor, selectedPatientId]);
+
+  // For doctor: showing patient list (when no patient selected)
+  const showingPatientList = isDoctor && !selectedPatientId;
+  const selectedPatientInfo = selectedPatientId
+    ? patientGroups.find((g) => g.patient_id === selectedPatientId)
+    : null;
 
   const loadRecords = (page: number) => {
     setLoading(true);
@@ -59,16 +114,45 @@ export default function RecordsPage() {
         <motion.header
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-12"
+          className="mb-8 flex justify-between items-start"
         >
-          <h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-violet-200 via-violet-400 to-indigo-500 bg-clip-text text-transparent">
-            {isDoctor ? "Medical Records" : "Health History"}
-          </h1>
-          <p className="text-zinc-500 mt-2 font-medium">
-            {isDoctor
-              ? `${records.length} records • All patients`
-              : `${records.length} diagnoses • Your health`}
-          </p>
+          <div className="flex items-center gap-4">
+            {isDoctor && selectedPatientId && (
+              <motion.button
+                whileHover={{ x: -4 }}
+                onClick={() => setSelectedPatientId(null)}
+                className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all"
+                aria-label="Back to patient list"
+              >
+                <ArrowLeft size={20} />
+              </motion.button>
+            )}
+            <div>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight bg-gradient-to-br from-violet-200 via-violet-400 to-indigo-500 bg-clip-text text-transparent">
+                {isDoctor
+                  ? (selectedPatientInfo ? (selectedPatientInfo.patient_email || "Patient Records") : "Medical Records")
+                  : "Health History"}
+              </h1>
+              <p className="text-zinc-500 mt-2 text-sm sm:text-base font-medium">
+                {isDoctor && !selectedPatientId
+                  ? `${patientGroups.length} patients • ${records.length} total records`
+                  : isDoctor && selectedPatientId
+                  ? `${selectedPatientInfo?.total || 0} records for this patient`
+                  : `${records.length} diagnoses • Your health`}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center glass-card px-4 py-2.5 rounded-2xl text-zinc-400 focus-within:text-[var(--foreground)] transition-colors">
+            <Search size={18} />
+            <input
+              type="text"
+              placeholder="Search records..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-transparent border-none outline-none ml-3 text-sm w-48 font-medium"
+              style={{ color: "var(--foreground)" }}
+            />
+          </div>
         </motion.header>
 
         <motion.div
@@ -79,10 +163,12 @@ export default function RecordsPage() {
         >
           <h2 className="text-xl font-black mb-8 flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-500/20">
-              <BarChart3 size={20} className="text-white" />
+              {showingPatientList ? <Users size={20} className="text-white" /> : <BarChart3 size={20} className="text-white" />}
             </div>
             <span className="bg-gradient-to-r from-violet-200 to-purple-300 bg-clip-text text-transparent">
-              {isDoctor ? "Patient Records" : "My Diagnosis Records"}
+              {isDoctor
+                ? (showingPatientList ? "Patients" : "Records")
+                : "My Diagnosis Records"}
             </span>
           </h2>
 
@@ -90,12 +176,66 @@ export default function RecordsPage() {
             <div className="flex justify-center py-16">
               <div className="w-10 h-10 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
             </div>
-          ) : records.length === 0 ? (
+          ) : showingPatientList ? (
+            // ── Doctor: Patient list view (default) ──
+            filteredPatientGroups.length === 0 ? (
+              <div className="text-center py-16">
+                <Users size={40} className="text-zinc-700 mx-auto mb-4" />
+                <p className="text-zinc-500 font-medium">
+                  {searchQuery ? "No patients match your search" : "No patients yet"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredPatientGroups.map((g, idx) => (
+                  <motion.div
+                    key={g.patient_id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    whileHover={{ y: -4, scale: 1.02 }}
+                    onClick={() => setSelectedPatientId(g.patient_id)}
+                    className="relative cursor-pointer rounded-2xl p-5 glass-premium border border-white/10 hover:border-violet-500/30 transition-all group"
+                  >
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-violet-500/30 shrink-0">
+                        {(g.patient_email || "?").charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm truncate" style={{ color: "var(--foreground)" }}>
+                          {g.patient_email?.split("@")[0] || `Patient ${g.patient_id.slice(0, 6)}`}
+                        </p>
+                        <p className="text-xs text-zinc-500 truncate">{g.patient_email || g.patient_id.slice(0, 12) + "…"}</p>
+                      </div>
+                      <ChevronRight size={18} className="text-zinc-600 group-hover:text-violet-400 group-hover:translate-x-1 transition-all shrink-0" />
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-violet-500/10 text-violet-300">
+                        {g.total} {g.total === 1 ? "record" : "records"}
+                      </span>
+                      {g.pending > 0 && (
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400">
+                          {g.pending} pending
+                        </span>
+                      )}
+                      {g.latestDate && (
+                        <span className="text-[10px] text-zinc-500 ml-auto">
+                          Last: {new Date(g.latestDate).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )
+          ) : filteredRecords.length === 0 ? (
             <div className="text-center py-16">
               <FileSearch size={40} className="text-zinc-700 mx-auto mb-4" />
-              <p className="text-zinc-500 font-medium">No records found</p>
+              <p className="text-zinc-500 font-medium">
+                {searchQuery ? "No records match your search" : "No records found"}
+              </p>
               <p className="text-zinc-600 text-sm mt-1">
-                {isDoctor ? "No patients have been diagnosed yet." : "Run a symptom check to create your first record."}
+                {!searchQuery && (isDoctor ? "This patient has no records yet." : "Run a symptom check to create your first record.")}
               </p>
             </div>
           ) : (
@@ -104,7 +244,7 @@ export default function RecordsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-zinc-500 text-xs uppercase tracking-wider border-b border-white/5">
-                      {isDoctor && <th className="text-left pb-4 font-semibold">Patient ID</th>}
+                      {isDoctor && !selectedPatientId && <th className="text-left pb-4 font-semibold">Patient ID</th>}
                       <th className="text-left pb-4 font-semibold">Symptoms</th>
                       <th className="text-left pb-4 font-semibold">Diagnosis</th>
                       <th className="text-left pb-4 font-semibold">Confidence</th>
@@ -113,7 +253,7 @@ export default function RecordsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {records.map((r, idx) => (
+                    {filteredRecords.map((r, idx) => (
                       <motion.tr
                         key={r.id}
                         custom={idx}
@@ -124,7 +264,7 @@ export default function RecordsPage() {
                         onClick={() => router.push(`/dashboard/records/${r.id}`)}
                         className="transition-colors cursor-pointer hover:shadow-lg hover:shadow-violet-500/10"
                       >
-                        {isDoctor && (
+                        {isDoctor && !selectedPatientId && (
                           <td className="py-4 font-mono text-xs text-zinc-400">{r.patient_id.slice(0, 12)}…</td>
                         )}
                         <td className="py-4">

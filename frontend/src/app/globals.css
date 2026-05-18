@@ -113,3 +113,126 @@ body {
   .font-serif { font-family: 'Georgia', serif; }
   /* .font-geist uses default from root */
 }
+
+/* Form element visibility — force visible text on dark theme */
+input, select, textarea {
+  color-scheme: dark;
+}
+input[type="date"], input[type="time"], input[type="datetime-local"] {
+  color: #fff !important;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.7;
+  cursor: pointer;
+}
+select option {
+  background: #1a1a1a !important;
+  color: #fff !important;
+}
+select:not([multiple]) {
+  color: #fff !important;
+}
+
+/* ─────────── Hospital Vibe + 3D Glass Enhancements ─────────── */
+
+/* Premium glass — deeper, more medical */
+.glass-premium {
+  background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.1);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-premium:hover {
+  border-color: rgba(14,165,233,0.3);
+  box-shadow:
+    0 12px 48px rgba(14,165,233,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+  transform: translateY(-2px);
+}
+.light .glass-premium {
+  background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(255,255,255,0.3));
+  border-color: rgba(0,0,0,0.06);
+}
+
+/* Medical pulse line — ECG style */
+@keyframes ecg-pulse {
+  0%, 100% { stroke-dashoffset: 0; opacity: 0.3; }
+  50% { stroke-dashoffset: -100; opacity: 1; }
+}
+.ecg-line {
+  animation: ecg-pulse 2s ease-in-out infinite;
+  stroke-dasharray: 200;
+}
+
+/* Heartbeat pulse */
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  10%, 30% { transform: scale(1.15); }
+  20%, 40% { transform: scale(0.95); }
+}
+.heartbeat {
+  animation: heartbeat 1.4s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Medical scan effect */
+@keyframes scan {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 0.6; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+.scan-line {
+  position: absolute;
+  left: 0; right: 0; height: 100px;
+  background: linear-gradient(180deg, transparent, rgba(14,165,233,0.15), transparent);
+  animation: scan 4s linear infinite;
+  pointer-events: none;
+}
+
+/* 3D hover lift card */
+.card-3d {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+.card-3d:hover {
+  transform: translateY(-6px) rotateX(2deg) rotateY(-2deg);
+  box-shadow: 0 20px 60px rgba(14,165,233,0.2), 0 8px 24px rgba(0,0,0,0.3);
+}
+
+/* Medical gradient text */
+.text-medical {
+  background: linear-gradient(135deg, #38bdf8, #06b6d4, #10b981);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Vital sign blink */
+@keyframes vital-blink {
+  0%, 100% { opacity: 1; box-shadow: 0 0 12px currentColor; }
+  50% { opacity: 0.5; box-shadow: 0 0 4px currentColor; }
+}
+.vital-dot {
+  animation: vital-blink 1.2s ease-in-out infinite;
+}
+
+/* Responsive container helper */
+.dash-page {
+  min-height: 100%;
+  position: relative;
+}
+/* removed: overrode Tailwind absolute on bg layers */
+
+/* Hospital cross pattern bg */
+.bg-medical-grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(14,165,233,0.08) 1px, transparent 0);
+  background-size: 32px 32px;
+}
