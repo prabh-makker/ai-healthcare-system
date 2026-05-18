@@ -121,20 +121,27 @@ def list_appointments(
             .all()
         )
     elif current_user.role == UserRole.DOCTOR:
-        # Doctors see appointments of their assigned patients
+        # Doctors see appointments directly assigned to them (by doctor_id)
+        # OR appointments of their assigned patients (DoctorPatient relation)
         from app.models.models import DoctorPatient
+        from sqlalchemy import or_
         assigned_patient_ids = [dp.patient_id for dp in db.query(DoctorPatient).filter(
             DoctorPatient.doctor_id == current_user.id,
             DoctorPatient.status == "active"
         ).all()]
         records = (
             db.query(Appointment)
-            .filter(Appointment.patient_id.in_(assigned_patient_ids) if assigned_patient_ids else False)
+            .filter(
+                or_(
+                    Appointment.doctor_id == str(current_user.id),
+                    Appointment.patient_id.in_(assigned_patient_ids) if assigned_patient_ids else False,
+                )
+            )
             .order_by(Appointment.created_at.desc())
             .offset(skip)
             .limit(limit)
             .all()
-        ) if assigned_patient_ids else []
+        )
     else:
         # Patients see only their own appointments
         records = (
@@ -173,6 +180,18 @@ def create_appointment(
             detail=f"Invalid specialist. Must include one of: {sorted(VALID_SPECIALISTS)}"
         )
 
+    # Auto-assign doctor_id by matching specialization to the booked specialist type
+    from app.models.models import DoctorProfile
+    matched_doctor = (
+        db.query(User)
+        .join(DoctorProfile, DoctorProfile.user_id == User.id)
+        .filter(
+            User.role == UserRole.DOCTOR,
+            DoctorProfile.specialization == spec_parts[0],
+        )
+        .first()
+    )
+
     appt = Appointment(
         id=str(uuid.uuid4()),
         patient_id=str(current_user.id),
@@ -181,6 +200,7 @@ def create_appointment(
         time=body.time,
         reason=body.reason,
         status="upcoming",
+        doctor_id=str(matched_doctor.id) if matched_doctor else None,
     )
     db.add(appt)
     db.commit()
