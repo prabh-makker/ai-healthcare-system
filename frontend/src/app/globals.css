@@ -9,16 +9,28 @@
   --glass-bg: rgba(255, 255, 255, 0.03);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-shine: rgba(255, 255, 255, 0.1);
+  --teal-1: #5eead4;
+  --teal-2: #2dd4bf;
+  --teal-3: #14b8a6;
+  --teal-4: #0d9488;
+  --teal-gradient: linear-gradient(135deg, #5eead4, #2dd4bf, #14b8a6);
+  --teal-soft-gradient: linear-gradient(135deg, #99f6e4, #5eead4, #2dd4bf, #14b8a6);
 }
 
 .light {
   --background: #ecfdf5;
-  --foreground: #134e4a;
-  --primary: #14b8a6;
-  --accent: #14b8a6;
-  --glass-bg: rgba(255, 255, 255, 0.65);
-  --glass-border: rgba(20, 184, 166, 0.18);
-  --glass-shine: rgba(20, 184, 166, 0.25);
+  --foreground: #0f3a37;
+  --primary: #0f766e;
+  --accent: #0f766e;
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(15, 118, 110, 0.22);
+  --glass-shine: rgba(15, 118, 110, 0.32);
+  --teal-1: #0d9488;
+  --teal-2: #0f766e;
+  --teal-3: #115e59;
+  --teal-4: #134e4a;
+  --teal-gradient: linear-gradient(135deg, #0d9488, #0f766e, #115e59);
+  --teal-soft-gradient: linear-gradient(135deg, #14b8a6, #0d9488, #0f766e, #115e59);
 }
 
 body {
@@ -67,25 +79,26 @@ body {
     color: transparent;
   }
 
-  /* Light mode text color overrides - teal/mint palette */
-  .light .text-zinc-500 { color: #115e59 !important; }
-  .light .text-zinc-600 { color: #134e4a !important; }
-  .light .text-zinc-700 { color: #0f3a37 !important; }
-  .light .text-zinc-300 { color: #115e59 !important; }
-  .light .text-zinc-400 { color: #115e59 !important; }
-  .light .text-zinc-200 { color: #134e4a !important; }
-  .light .text-zinc-100 { color: #0f3a37 !important; }
-  .light .text-white { color: #134e4a !important; }
-  .light .text-sky-500 { color: #0f766e !important; }
-  .light .text-sky-400 { color: #0f766e !important; }
-  .light .text-sky-300 { color: #0f766e !important; }
-  .light .text-emerald-400 { color: #047857 !important; }
-  .light .text-emerald-500 { color: #047857 !important; }
-  .light .text-teal-400 { color: #0f766e !important; }
-  .light .text-amber-400 { color: #b45309 !important; }
-  .light .text-violet-400 { color: #6d28d9 !important; }
-  .light .text-rose-400 { color: #be123c !important; }
-  .light .text-red-400 { color: #b91c1c !important; }
+  /* Light mode text color overrides - DARK teal palette for readability */
+  .light .text-zinc-500 { color: #0f3a37 !important; }
+  .light .text-zinc-600 { color: #0a2925 !important; }
+  .light .text-zinc-700 { color: #052e2b !important; }
+  .light .text-zinc-300 { color: #0f3a37 !important; }
+  .light .text-zinc-400 { color: #0f3a37 !important; }
+  .light .text-zinc-200 { color: #0a2925 !important; }
+  .light .text-zinc-100 { color: #052e2b !important; }
+  .light .text-white { color: #052e2b !important; }
+  .light .text-sky-500 { color: #0c4a47 !important; }
+  .light .text-sky-400 { color: #0c4a47 !important; }
+  .light .text-sky-300 { color: #0c4a47 !important; }
+  .light .text-emerald-400 { color: #064e3b !important; }
+  .light .text-emerald-500 { color: #064e3b !important; }
+  .light .text-teal-400 { color: #0c4a47 !important; }
+  .light .text-teal-300 { color: #0c4a47 !important; }
+  .light .text-amber-400 { color: #78350f !important; }
+  .light .text-violet-400 { color: #4c1d95 !important; }
+  .light .text-rose-400 { color: #881337 !important; }
+  .light .text-red-400 { color: #7f1d1d !important; }
 
   /* Light mode form input fixes */
   .light input,

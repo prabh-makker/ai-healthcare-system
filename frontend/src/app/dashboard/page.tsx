@@ -830,7 +830,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3 mb-1">
             <motion.div
               className="p-2.5 rounded-2xl"
-              style={{ background: "linear-gradient(135deg, #5eead4, #2dd4bf, #14b8a6)", boxShadow: "0 8px 20px rgba(45,212,191,0.3)" }}
+              style={{ background: "var(--teal-gradient)", boxShadow: "0 8px 20px var(--glass-shine)" }}
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
             >
@@ -840,7 +840,7 @@ export default function Dashboard() {
           </div>
           <h1
             className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight"
-            style={{ backgroundImage: "linear-gradient(135deg, #99f6e4, #5eead4, #2dd4bf, #14b8a6)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
+            style={{ backgroundImage: "var(--teal-soft-gradient)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
           >
             My Health Portal
           </h1>
@@ -867,7 +867,7 @@ export default function Dashboard() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
         <section className="xl:col-span-2">
           <div className="flex justify-between items-center mb-5">
-            <h2 className="text-xl font-bold" style={{ backgroundImage: "linear-gradient(135deg, #5eead4, #2dd4bf, #14b8a6)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
+            <h2 className="text-xl font-bold" style={{ backgroundImage: "var(--teal-gradient)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
               Recent Diagnoses
             </h2>
             <Link href="/dashboard/records" className="text-teal-400 text-sm font-bold hover:text-teal-300 flex items-center gap-1 group">
