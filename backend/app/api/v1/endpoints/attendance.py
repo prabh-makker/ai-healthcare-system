@@ -6,11 +6,14 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone
 import uuid
+import logging
 
 from app.db.session import get_db
-from app.models.models import User, UserRole, AttendanceLog, LeaveApplication
+from app.models.models import User, UserRole, AttendanceLog, LeaveApplication, Notification
 from app.core.security import get_current_user, require_role
 from app.core.pagination import validate_pagination
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -63,6 +66,49 @@ class LeaveApplicationResponse(BaseModel):
         from_attributes = True
 
 
+def _notify_admins_of_attendance(db: Session, doctor: User, status: str, notes: Optional[str] = None):
+    """Create attendance notification for all admins (no commit)."""
+    try:
+        # Get all admins
+        admins = db.query(User).filter(User.role == UserRole.ADMIN).all()
+        logger.info(f"[ATTENDANCE_NOTIF] Found {len(admins)} admins to notify for doctor {doctor.email}")
+
+        if not admins:
+            logger.warning(f"[ATTENDANCE_NOTIF] No admins found in database")
+            return
+
+        # Determine notification title based on status
+        status_labels = {
+            "present": "Present",
+            "absent": "Absent",
+            "leave": "On Leave",
+            "emergency": "Emergency Absent",
+            "half_day": "Half Day",
+            "holiday": "Holiday",
+        }
+        status_label = status_labels.get(status, status)
+
+        # Create notification for each admin
+        for admin in admins:
+            try:
+                notif = Notification(
+                    id=str(uuid.uuid4()),
+                    user_id=str(admin.id),
+                    type="attendance",
+                    title=f"Dr. {doctor.first_name or doctor.email.split('@')[0]} marked {status_label}",
+                    message=f"{doctor.email} marked attendance as {status} on {datetime.now(timezone.utc).strftime('%Y-%m-%d')}" + (f": {notes}" if notes else ""),
+                    related_id=str(doctor.id),
+                    related_url="/dashboard/attendance",
+                )
+                db.add(notif)
+                logger.info(f"[ATTENDANCE_NOTIF] Added notification for admin {admin.id}")
+            except Exception as inner_e:
+                logger.error(f"[ATTENDANCE_NOTIF] Error creating notification for admin {admin.id}: {inner_e}")
+    except Exception as e:
+        # Log the error but don't fail the attendance marking
+        logger.error(f"[ATTENDANCE_NOTIF] Error in _notify_admins_of_attendance: {e}", exc_info=True)
+
+
 @router.post("/mark", status_code=201)
 def mark_attendance(
     body: AttendanceMarkRequest,
@@ -71,6 +117,7 @@ def mark_attendance(
 ):
     """Mark attendance for today."""
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    logger.info(f"[ATTENDANCE_MARK] Doctor {current_user.email} marking {body.status} for {today}")
 
     # Check if already marked today
     existing = db.query(AttendanceLog).filter(
@@ -79,11 +126,20 @@ def mark_attendance(
     ).first()
 
     if existing:
+        logger.info(f"[ATTENDANCE_MARK] Updating existing record (ID: {existing.id})")
         # Update existing record
         existing.status = body.status
         existing.marked_at = datetime.now(timezone.utc)
         existing.notes = body.notes
+
+        # Notify admins of the updated attendance BEFORE commit
+        logger.info(f"[ATTENDANCE_MARK] Calling _notify_admins_of_attendance for update")
+        _notify_admins_of_attendance(db, current_user, body.status, body.notes)
+        logger.info(f"[ATTENDANCE_MARK] About to commit after update")
+
         db.commit()
+        logger.info(f"[ATTENDANCE_MARK] Committed successfully after update")
+
         return {
             "id": str(existing.id),
             "user_id": str(existing.user_id),
@@ -94,6 +150,7 @@ def mark_attendance(
             "created_at": existing.created_at.isoformat() if existing.created_at else None,
         }
     else:
+        logger.info(f"[ATTENDANCE_MARK] Creating new record")
         # Create new record
         log = AttendanceLog(
             id=str(uuid.uuid4()),
@@ -104,8 +161,16 @@ def mark_attendance(
             notes=body.notes,
         )
         db.add(log)
+
+        # Notify admins BEFORE committing
+        logger.info(f"[ATTENDANCE_MARK] Calling _notify_admins_of_attendance for new")
+        _notify_admins_of_attendance(db, current_user, body.status, body.notes)
+        logger.info(f"[ATTENDANCE_MARK] About to commit after new")
+
         db.commit()
         db.refresh(log)
+        logger.info(f"[ATTENDANCE_MARK] Committed successfully after new")
+
         return {
             "id": str(log.id),
             "user_id": str(log.user_id),
@@ -212,6 +277,26 @@ def apply_leave(
     )
 
     db.add(app)
+
+    # Notify admins of leave application BEFORE commit
+    try:
+        admins = db.query(User).filter(User.role == UserRole.ADMIN).all()
+        logger.info(f"[LEAVE_NOTIF] Notifying {len(admins)} admins of leave application from {current_user.email}")
+        for admin in admins:
+            notif = Notification(
+                id=str(uuid.uuid4()),
+                user_id=str(admin.id),
+                type="attendance",
+                title=f"📋 Dr. {current_user.first_name or current_user.email.split('@')[0]} applied for leave",
+                message=f"Leave request from {body.start_date} to {body.end_date}. Reason: {body.reason}",
+                related_id=str(app.id),
+                related_url="/dashboard/admin",
+            )
+            db.add(notif)
+            logger.info(f"[LEAVE_NOTIF] Added leave notification for admin {admin.id}")
+    except Exception as e:
+        logger.error(f"[LEAVE_NOTIF] Error creating leave notification: {e}", exc_info=True)
+
     db.commit()
     db.refresh(app)
 
@@ -425,6 +510,9 @@ def admin_decide_leave(
     leave.status = body.status
     leave.updated_at = datetime.now(timezone.utc)
 
+    # Get the doctor to notify them
+    doctor = db.query(User).filter(User.id == leave.user_id).first()
+
     # If approved, auto-create attendance entries for the leave period
     if body.status == "approved":
         try:
@@ -451,8 +539,26 @@ def admin_decide_leave(
                     ))
                 from datetime import timedelta
                 current = current + timedelta(days=1)
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error creating attendance for approved leave: {e}")
             pass  # Don't fail the approval if attendance create fails
+
+    # Notify the doctor of the decision BEFORE final commit
+    try:
+        if doctor:
+            notif = Notification(
+                id=str(uuid.uuid4()),
+                user_id=str(doctor.id),
+                type="attendance",
+                title=f"✓ Leave Request {body.status.capitalize()}" if body.status == "approved" else f"✗ Leave Request Rejected",
+                message=f"Your leave request from {leave.start_date} to {leave.end_date} has been {body.status}" + (f". Notes: {body.admin_notes}" if body.admin_notes else ""),
+                related_id=str(leave.id),
+                related_url="/dashboard/attendance",
+            )
+            db.add(notif)
+            logger.info(f"[LEAVE_DECISION_NOTIF] Added notification for doctor {doctor.id} - {body.status}")
+    except Exception as e:
+        logger.error(f"Error creating leave decision notification: {e}", exc_info=True)
 
     db.commit()
     db.refresh(leave)

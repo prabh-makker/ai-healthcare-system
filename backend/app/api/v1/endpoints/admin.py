@@ -81,6 +81,8 @@ def list_users(
         "id": str(u.id),
         "email": u.email,
         "role": u.role.value if hasattr(u.role, 'value') else str(u.role),
+        "first_name": u.first_name,
+        "last_name": u.last_name,
         "is_active": u.is_active,
         "last_login": u.last_login.isoformat() if u.last_login else None,
         "created_at": u.created_at.isoformat() if u.created_at else None,

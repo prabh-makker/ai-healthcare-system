@@ -150,7 +150,12 @@
       "Bash(wmic process *)",
       "Bash(taskkill.exe /PID 34056 /F)",
       "Bash(python app/main.py)",
-      "Bash(curl -s http://localhost:3006)"
+      "Bash(curl -s http://localhost:3006)",
+      "Bash(git push *)",
+      "Bash(git pull *)",
+      "Bash(grep -n \"@router.get.*\\\\\"$\\\\|@router.get.*\\\\\"/$\" \"C:\\\\Users\\\\khalo\\\\ai healthcare\\\\backend\\\\app\\\\api\\\\v1\\\\endpoints\\\\records.py\")",
+      "Bash(git commit -m 'fix: improve doctor dashboard header layout and fix search permission error *)",
+      "Bash(git commit -m 'refactor: reorganize doctor dashboard header layout *)"
     ]
   }
 }

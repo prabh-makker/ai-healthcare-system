@@ -19113,3 +19113,27 @@
 {"message": "Request: GET /api/v1/medications", "method": "GET", "path": "/api/v1/medications", "client": "127.0.0.1", "timestamp": "2026-05-17T19:45:45.439555", "environment": "development", "level": "INFO", "logger": "app.main"}
 {"message": "HTTP Exception: 404 - Not Found", "status_code": 404, "detail": "Not Found", "path": "/api/v1/medications", "timestamp": "2026-05-17T19:45:45.439943", "environment": "development", "level": "ERROR", "logger": "app.main"}
 {"message": "Response: 404 for GET /api/v1/medications", "status_code": 404, "method": "GET", "path": "/api/v1/medications", "timestamp": "2026-05-17T19:45:45.440222", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "Logging configured for development environment", "timestamp": "2026-05-19T06:59:11.778080", "environment": "development", "level": "INFO", "logger": "root"}
+{"message": "Logging configured for development environment", "timestamp": "2026-05-19T07:06:36.592591", "environment": "development", "level": "INFO", "logger": "root"}
+{"message": "Logging configured for development environment", "timestamp": "2026-05-19T07:10:09.688351", "environment": "development", "level": "INFO", "logger": "root"}
+{"message": "Logging configured for development environment", "timestamp": "2026-05-19T07:13:15.718453", "environment": "development", "level": "INFO", "logger": "root"}
+{"message": "Logging configured for development environment", "timestamp": "2026-05-19T07:44:54.279889", "environment": "development", "level": "INFO", "logger": "root"}
+{"message": "Database tables created successfully", "timestamp": "2026-05-19T07:44:54.448491", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "ML model pre-loaded successfully", "timestamp": "2026-05-19T07:44:56.911667", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "HTTP Request: POST http://localhost:11434/api/generate \"HTTP/1.1 200 OK\"", "timestamp": "2026-05-19T07:45:04.782492", "environment": "development", "level": "INFO", "logger": "httpx"}
+{"message": "Ollama pre-warmed (llama2 loaded into memory)", "timestamp": "2026-05-19T07:45:04.782787", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "Logging configured for development environment", "timestamp": "2026-05-19T07:45:36.719918", "environment": "development", "level": "INFO", "logger": "root"}
+{"message": "Database tables created successfully", "timestamp": "2026-05-19T07:45:36.896677", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "ML model pre-loaded successfully", "timestamp": "2026-05-19T07:45:38.585780", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "HTTP Request: POST http://localhost:11434/api/generate \"HTTP/1.1 200 OK\"", "timestamp": "2026-05-19T07:45:41.185092", "environment": "development", "level": "INFO", "logger": "httpx"}
+{"message": "Ollama pre-warmed (llama2 loaded into memory)", "timestamp": "2026-05-19T07:45:41.185457", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "Logging configured for development environment", "timestamp": "2026-05-19T07:47:21.163338", "environment": "development", "level": "INFO", "logger": "root"}
+{"message": "Database tables created successfully", "timestamp": "2026-05-19T07:47:21.307592", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "ML model pre-loaded successfully", "timestamp": "2026-05-19T07:47:22.422453", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "HTTP Request: POST http://localhost:11434/api/generate \"HTTP/1.1 200 OK\"", "timestamp": "2026-05-19T07:47:24.937764", "environment": "development", "level": "INFO", "logger": "httpx"}
+{"message": "Ollama pre-warmed (llama2 loaded into memory)", "timestamp": "2026-05-19T07:47:24.938188", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "Logging configured for development environment", "timestamp": "2026-05-19T07:47:55.134137", "environment": "development", "level": "INFO", "logger": "root"}
+{"message": "Database tables created successfully", "timestamp": "2026-05-19T07:47:55.273850", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "ML model pre-loaded successfully", "timestamp": "2026-05-19T07:47:56.505619", "environment": "development", "level": "INFO", "logger": "app.main"}
+{"message": "HTTP Request: POST http://localhost:11434/api/generate \"HTTP/1.1 200 OK\"", "timestamp": "2026-05-19T07:47:59.022992", "environment": "development", "level": "INFO", "logger": "httpx"}
+{"message": "Ollama pre-warmed (llama2 loaded into memory)", "timestamp": "2026-05-19T07:47:59.023300", "environment": "development", "level": "INFO", "logger": "app.main"}

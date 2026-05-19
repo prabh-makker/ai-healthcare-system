@@ -749,7 +749,7 @@ export default function Dashboard() {
         className="mb-14 mt-2"
       >
         {/* Top Row: Title + Heading with Actions */}
-        <div className="flex items-start justify-between gap-6 sm:gap-8 mb-4">
+        <div className="flex items-end justify-between gap-8 sm:gap-10 lg:gap-12 mb-6">
           {/* Left: Icon + Title */}
           <div className="flex-1 space-y-2 min-w-0">
             <div className="flex items-center gap-3 mb-2">
@@ -775,7 +775,7 @@ export default function Dashboard() {
           </div>
 
           {/* Right: Attendance + Bell + Actions */}
-          <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+          <div className="flex items-center gap-4 sm:gap-5 lg:gap-6 flex-shrink-0">
             <div className="hidden sm:block">
               <AttendanceWidget />
             </div>

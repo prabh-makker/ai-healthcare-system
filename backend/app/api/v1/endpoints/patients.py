@@ -213,7 +213,9 @@ def get_my_patients(
             result.append({
                 "id": patient.id,
                 "email": patient.email,
-                "name": patient.email.split("@")[0],
+                "first_name": patient.first_name or "",
+                "last_name": patient.last_name or "",
+                "name": f"{patient.first_name or ''} {patient.last_name or ''}".strip() or patient.email.split("@")[0],
                 "chronic_conditions": profile.chronic_conditions if profile else [],
                 "blood_group": profile.blood_group if profile else None,
                 "assigned_date": assignment.assigned_date.isoformat() if assignment.assigned_date else None,

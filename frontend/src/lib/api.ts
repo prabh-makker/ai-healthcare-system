@@ -424,6 +424,9 @@ export const api = {
   getDoctorSchedule: (date: string) =>
     request(`/api/v1/doctor-calendar/doctor-schedule?date=${date}`),
 
+  getDoctorWeekly: (startDate: string) =>
+    request(`/api/v1/doctor-calendar/doctor-weekly?start_date=${startDate}`),
+
   getAvailableSlots: (date: string, doctorId: string) =>
     request(`/api/v1/doctor-calendar/available-slots?date=${date}&doctor_id=${doctorId}`),
 
