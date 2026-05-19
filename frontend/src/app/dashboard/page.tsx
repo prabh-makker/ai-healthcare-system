@@ -748,42 +748,50 @@ export default function Dashboard() {
         transition={{ duration: 0.5, delay: 0.1 }}
         className="mb-14 mt-2"
       >
-        {/* Title Section */}
-        <div className="space-y-3 flex-shrink-0 mb-4">
-          <div className="flex items-center gap-3 mb-2">
-            <motion.div
-              className="p-2.5 rounded-2xl"
-              style={{ background: "linear-gradient(135deg, #0ea5e9, #06b6d4)", boxShadow: "0 12px 32px rgba(14,165,233,0.35)" }}
-              animate={{ rotate: [0, -5, 5, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        {/* Top Row: Title + Heading with Actions */}
+        <div className="flex items-start justify-between gap-6 sm:gap-8 mb-4">
+          {/* Left: Icon + Title */}
+          <div className="flex-1 space-y-2 min-w-0">
+            <div className="flex items-center gap-3 mb-2">
+              <motion.div
+                className="p-2.5 rounded-2xl flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, #0ea5e9, #06b6d4)", boxShadow: "0 12px 32px rgba(14,165,233,0.35)" }}
+                animate={{ rotate: [0, -5, 5, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Stethoscope size={22} className="text-white" />
+              </motion.div>
+              <PulseDots color="#0ea5e9" />
+            </div>
+            <h1
+              className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight"
+              style={{ backgroundImage: "linear-gradient(135deg, #bae6fd, #7dd3fc, #0ea5e9, #06b6d4)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
             >
-              <Stethoscope size={22} className="text-white" />
-            </motion.div>
-            <PulseDots color="#0ea5e9" />
+              Clinical Dashboard
+            </h1>
+            <p className="text-zinc-500 text-sm sm:text-base font-bold">
+              Welcome back, Dr. {user?.first_name || user?.email?.split("@")[0] || "Physician"}
+            </p>
           </div>
-          <h1
-            className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight"
-            style={{ backgroundImage: "linear-gradient(135deg, #bae6fd, #7dd3fc, #0ea5e9, #06b6d4)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
-          >
-            Clinical Dashboard
-          </h1>
-          <p className="text-zinc-500 mt-1 text-sm sm:text-base font-bold">
-            Welcome back, Dr. {user?.first_name || user?.email?.split("@")[0] || "Physician"}
-          </p>
-          <StatusBar />
-        </div>
 
-        {/* Attendance + NotificationBell + Actions Row */}
-        <div className="flex items-center justify-between gap-6 sm:gap-8">
-          <div className="flex-shrink-0">
-            <AttendanceWidget />
-          </div>
-          <div className="flex items-center gap-4 sm:gap-5 flex-shrink-0">
+          {/* Right: Attendance + Bell + Actions */}
+          <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+            <div className="hidden sm:block">
+              <AttendanceWidget />
+            </div>
             <NotificationBell />
             <ShimmerButton href="/dashboard/approvals" gradFrom="#0ea5e9" gradTo="#06b6d4" shadow="rgba(14,165,233,0.3)">
               <FileCheck size={20} strokeWidth={3} />
-              <span>Review Approvals</span>
+              <span className="hidden sm:inline">Review Approvals</span>
             </ShimmerButton>
+          </div>
+        </div>
+
+        {/* Status Bar + Mobile Attendance */}
+        <div className="flex items-center justify-between gap-4">
+          <StatusBar />
+          <div className="sm:hidden flex-shrink-0">
+            <AttendanceWidget />
           </div>
         </div>
       </motion.header>
