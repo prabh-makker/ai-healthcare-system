@@ -620,7 +620,7 @@ export default function Dashboard() {
 
   if (!mounted || user?.role === "ADMIN") return null;
 
-  const handleMarkAttendance = async (status: "present" | "absent" | "leave") => {
+  const handleMarkAttendance = async (status: "present" | "absent" | "leave" | "emergency") => {
     try {
       setAttendanceMarking(true);
       await api.markAttendance(status);
@@ -656,9 +656,9 @@ export default function Dashboard() {
       return () => document.removeEventListener("mousedown", handleClick);
     }, []);
 
-    const handleMark = async (status: "present" | "absent" | "leave") => {
+    const handleMark = async (status: "present" | "absent" | "leave" | "emergency") => {
       setShowAttendanceMenu(false);
-      await handleMarkAttendance(status);
+      await handleMarkAttendance(status as any);
       setMarkSuccess(true);
       setTimeout(() => setMarkSuccess(false), 2000);
     };
@@ -667,6 +667,7 @@ export default function Dashboard() {
       present: { color: "emerald", dot: "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]", pill: "bg-emerald-500/15 border-emerald-500/40 text-emerald-300", label: "Present" },
       absent:  { color: "rose",    dot: "bg-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.6)]",      pill: "bg-rose-500/15 border-rose-500/40 text-rose-300",       label: "Absent" },
       leave:   { color: "amber",   dot: "bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.6)]",    pill: "bg-amber-500/15 border-amber-500/40 text-amber-300",     label: "On Leave" },
+      emergency: { color: "red",   dot: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]",       pill: "bg-red-500/15 border-red-500/40 text-red-300",           label: "Emergency Absent" },
     } as const;
     const current = attendanceStatus ? statusConfig[attendanceStatus as keyof typeof statusConfig] : null;
 
@@ -718,6 +719,7 @@ export default function Dashboard() {
                 { status: "present", label: "Present",  dot: "bg-emerald-400", hover: "hover:bg-emerald-500/15", text: "text-emerald-300" },
                 { status: "absent",  label: "Absent",   dot: "bg-rose-400",    hover: "hover:bg-rose-500/15",    text: "text-rose-300" },
                 { status: "leave",   label: "On Leave", dot: "bg-amber-400",   hover: "hover:bg-amber-500/15",   text: "text-amber-300" },
+                { status: "emergency", label: "Emergency Absent", dot: "bg-red-500", hover: "hover:bg-red-500/15", text: "text-red-300" },
               ] as const).map(({ status, label, dot, hover, text }) => (
                 <button
                   key={status}
@@ -744,10 +746,10 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="flex items-start justify-between gap-4 mb-14 mt-2"
+        className="mb-14 mt-2"
       >
-        {/* Left: Title */}
-        <div className="space-y-3 flex-shrink-0">
+        {/* Title Section */}
+        <div className="space-y-3 flex-shrink-0 mb-4">
           <div className="flex items-center gap-3 mb-2">
             <motion.div
               className="p-2.5 rounded-2xl"
@@ -771,25 +773,20 @@ export default function Dashboard() {
           <StatusBar />
         </div>
 
-        {/* Center: Attendance — fills the empty header space */}
-        <div className="flex-1 flex justify-center items-start pt-6 hidden md:flex">
-          <AttendanceWidget />
-        </div>
-
-        {/* Right: Actions */}
-        <div className="flex items-center gap-3 flex-shrink-0 pt-2">
-          <NotificationBell />
-          <ShimmerButton href="/dashboard/approvals" gradFrom="#0ea5e9" gradTo="#06b6d4" shadow="rgba(14,165,233,0.3)">
-            <FileCheck size={20} strokeWidth={3} />
-            <span>Review Approvals</span>
-          </ShimmerButton>
+        {/* Attendance + NotificationBell + Actions Row */}
+        <div className="flex items-center justify-between gap-6 sm:gap-8">
+          <div className="flex-shrink-0">
+            <AttendanceWidget />
+          </div>
+          <div className="flex items-center gap-4 sm:gap-5 flex-shrink-0">
+            <NotificationBell />
+            <ShimmerButton href="/dashboard/approvals" gradFrom="#0ea5e9" gradTo="#06b6d4" shadow="rgba(14,165,233,0.3)">
+              <FileCheck size={20} strokeWidth={3} />
+              <span>Review Approvals</span>
+            </ShimmerButton>
+          </div>
         </div>
       </motion.header>
-
-      {/* Attendance on mobile (below header) */}
-      <div className="md:hidden mb-6 flex justify-center">
-        <AttendanceWidget />
-      </div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8 sm:mb-12 overflow-hidden">
         <StatCard3D label="My Patients" value={myPatientsCount === null ? "—" : String(myPatientsCount)} icon={Users} trend="assigned" gradFrom="#0ea5e9" gradTo="#06b6d4" glowColor="rgba(14,165,233,0.2)" delay={0} onClick={() => router.push("/dashboard/my-patients")} />

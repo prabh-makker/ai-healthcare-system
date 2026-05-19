@@ -8,10 +8,10 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import DashboardBg from "@/components/DashboardBg";
 
-type Category = "all" | "users" | "records" | "appointments" | "prescriptions";
+type Category = "all" | "users" | "patients" | "records" | "appointments" | "prescriptions";
 
 interface SearchResult {
-  type: "user" | "record" | "appointment" | "prescription";
+  type: "user" | "patient" | "record" | "appointment" | "prescription";
   id: string;
   title: string;
   subtitle: string;
@@ -35,6 +35,7 @@ export default function SearchPage() {
 
   const categories: { key: Category; label: string; icon: any; access: boolean }[] = [
     { key: "all", label: "All", icon: Search, access: true },
+    { key: "patients", label: "Patients", icon: Users, access: true },
     { key: "users", label: "Users", icon: Users, access: isAdmin },
     { key: "records", label: "Records", icon: ClipboardList, access: true },
     { key: "appointments", label: "Appointments", icon: Calendar, access: true },
@@ -100,6 +101,32 @@ export default function SearchPage() {
         } catch (e) { console.error("appts search failed", e); }
       }
 
+      // Patients search (admin can search all patients; others search via records/appointments)
+      if (isAdmin && (category === "all" || category === "patients")) {
+        try {
+          const users: any = await api.getAllUsers();
+          if (Array.isArray(users)) {
+            for (const u of users) {
+              if (u.role !== "PATIENT") continue; // Only patients
+              const name = u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.email.split("@")[0];
+              const haystack = `${u.email} ${name}`.toLowerCase();
+              if (haystack.includes(q)) {
+                collected.push({
+                  type: "patient",
+                  id: u.id,
+                  title: name,
+                  subtitle: u.email,
+                  meta: "Patient",
+                  badge: u.is_active ? "active" : "inactive",
+                  badgeColor: u.is_active ? "emerald" : "rose",
+                  href: `/dashboard/patients`,
+                });
+              }
+            }
+          }
+        } catch (e) { console.error("patients search failed", e); }
+      }
+
       // Users search (admin only)
       if (isAdmin && (category === "all" || category === "users")) {
         try {
@@ -157,13 +184,14 @@ export default function SearchPage() {
   };
 
   const grouped = useMemo(() => {
-    const g: Record<string, SearchResult[]> = { user: [], record: [], appointment: [], prescription: [] };
+    const g: Record<string, SearchResult[]> = { user: [], patient: [], record: [], appointment: [], prescription: [] };
     for (const r of results) g[r.type].push(r);
     return g;
   }, [results]);
 
   const TYPE_META: Record<string, { label: string; icon: any; color: string }> = {
     user: { label: "Users", icon: Users, color: "violet" },
+    patient: { label: "Patients", icon: Users, color: "cyan" },
     record: { label: "Records", icon: ClipboardList, color: "sky" },
     appointment: { label: "Appointments", icon: Calendar, color: "rose" },
     prescription: { label: "Prescriptions", icon: Pill, color: "amber" },
