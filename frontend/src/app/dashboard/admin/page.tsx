@@ -44,6 +44,8 @@ interface DoctorOverview {
 interface Appointment {
   id: string;
   patient_id: string;
+  first_name?: string;
+  last_name?: string;
   specialist: string;
   date: string;
   time: string;
@@ -107,7 +109,7 @@ const TAB_CONFIG: Array<{ id: AdminTab; label: string; icon: React.ElementType }
 function AdminContent() {
   const router = useRouter();
   const [adminTab, setAdminTab] = useState<AdminTab>("overview");
-  const [userRoleFilter, setUserRoleFilter] = useState<string>("ALL");
+  const [userStatusFilter, setUserStatusFilter] = useState<string>("ALL");
   const [userSearchQuery, setUserSearchQuery] = useState<string>("");
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUserForm, setNewUserForm] = useState({ email: "", password: "", role: "DOCTOR", specialization: "General Physician" });
@@ -131,6 +133,7 @@ function AdminContent() {
   const [doctorAttSummary, setDoctorAttSummary] = useState<any[]>([]);
   const [doctorAttLoading, setDoctorAttLoading] = useState(false);
   const [attMonth, setAttMonth] = useState(new Date());
+  const [attYear, setAttYear] = useState(new Date().getFullYear());
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
   const [doctorDetail, setDoctorDetail] = useState<any>(null);
   const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
@@ -473,7 +476,7 @@ function AdminContent() {
                 {appointments.length === 0 ? (
                   <p className="py-8 text-center text-zinc-600">No appointments scheduled</p>
                 ) : (
-                  appointments.slice(0, 6).map((appt) => (
+                  appointments.slice(0, 10).map((appt) => (
                     <div
                       key={appt.id}
                       className="flex items-center justify-between p-4 bg-white/3 rounded-2xl hover:bg-white/5 transition-all"
@@ -483,7 +486,7 @@ function AdminContent() {
                           <Calendar size={16} className="text-emerald-400" />
                         </div>
                         <div>
-                          <p className="font-bold text-sm">{appt.specialist}</p>
+                          <p className="font-bold text-sm">{appt.first_name} {appt.last_name} — {appt.specialist}</p>
                           <p className="text-zinc-500 text-xs">{appt.reason ?? "—"}</p>
                         </div>
                       </div>
@@ -546,7 +549,7 @@ function AdminContent() {
                     </span>
                   </h2>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-zinc-500">{users.filter(u => (userRoleFilter === "ALL" || u.role === userRoleFilter) && (userSearchQuery === "" || u.email.toLowerCase().includes(userSearchQuery.toLowerCase()))).length} of {users.length}</span>
+                    <span className="text-xs text-zinc-500">{users.filter(u => (userStatusFilter === "ALL" || (userStatusFilter === "ACTIVE" ? u.is_active : !u.is_active)) && (userSearchQuery === "" || u.email.toLowerCase().includes(userSearchQuery.toLowerCase()))).length} of {users.length}</span>
                     <button
                       onClick={() => setShowAddUser(true)}
                       className="px-4 py-2 bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold rounded-lg transition-all shadow-lg shadow-sky-500/30 flex items-center gap-1.5"
@@ -566,18 +569,18 @@ function AdminContent() {
                     style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)", color: "var(--foreground)" }}
                   />
                   <div className="flex items-center gap-1.5 p-1 rounded-lg border" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)" }}>
-                    {["ALL", "ADMIN", "DOCTOR", "PATIENT"].map((role) => (
+                    {["ALL", "ACTIVE", "INACTIVE"].map((status) => (
                       <button
-                        key={role}
-                        onClick={() => setUserRoleFilter(role)}
+                        key={status}
+                        onClick={() => setUserStatusFilter(status)}
                         className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                          userRoleFilter === role
+                          userStatusFilter === status
                             ? "bg-sky-500 text-white shadow-md shadow-sky-500/30"
                             : "hover:bg-white/5"
                         }`}
-                        style={userRoleFilter === role ? {} : { color: "var(--foreground)", opacity: 0.7 }}
+                        style={userStatusFilter === status ? {} : { color: "var(--foreground)", opacity: 0.7 }}
                       >
-                        {role}
+                        {status}
                       </button>
                     ))}
                   </div>
@@ -588,7 +591,6 @@ function AdminContent() {
                   <thead className="sticky top-0 backdrop-blur z-10" style={{ background: "var(--background)" }}>
                     <tr className="text-zinc-500 text-xs uppercase tracking-wider border-b border-white/5">
                       <th className="text-left pb-3 font-semibold">Name / Email</th>
-                      <th className="text-left pb-3 font-semibold">Role</th>
                       <th className="text-left pb-3 font-semibold">Status</th>
                       <th className="text-left pb-3 font-semibold">Joined</th>
                       <th className="text-right pb-3 font-semibold">Actions</th>
@@ -596,7 +598,7 @@ function AdminContent() {
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {users
-                      .filter(u => (userRoleFilter === "ALL" || u.role === userRoleFilter) && (userSearchQuery === "" || u.email.toLowerCase().includes(userSearchQuery.toLowerCase())))
+                      .filter(u => (userStatusFilter === "ALL" || (userStatusFilter === "ACTIVE" ? u.is_active : !u.is_active)) && (userSearchQuery === "" || u.email.toLowerCase().includes(userSearchQuery.toLowerCase())))
                       .map((u) => (
                       <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="py-3">
@@ -604,18 +606,6 @@ function AdminContent() {
                             {(u.first_name || u.last_name) ? `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() : u.email.split("@")[0]}
                           </p>
                           <p className="text-xs text-zinc-500">{u.email}</p>
-                        </td>
-                        <td className="py-3">
-                          <select
-                            value={u.role}
-                            onChange={(e) => changeUserRole(u, e.target.value)}
-                            className="text-xs font-bold rounded-lg px-2 py-1 outline-none border transition-colors"
-                            style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)", color: "var(--foreground)" }}
-                          >
-                            {ROLE_OPTIONS.map((r) => (
-                              <option key={r} value={r}>{r}</option>
-                            ))}
-                          </select>
                         </td>
                         <td className="py-3">
                           <span className={`text-xs font-bold px-2 py-1 rounded-lg ${STATUS_COLOR_MAP[u.is_active ? "emerald" : "rose"]}`}>
@@ -672,6 +662,18 @@ function AdminContent() {
                   {attMonth.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                 </span>
                 <button onClick={() => setAttMonth(new Date(attMonth.getFullYear(), attMonth.getMonth() + 1))} className="px-3 py-2 rounded-lg border" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)", color: "var(--foreground)" }}>→</button>
+                <select
+                  value={attYear}
+                  onChange={(e) => {
+                    const newYear = parseInt(e.target.value);
+                    setAttYear(newYear);
+                    setAttMonth(new Date(newYear, attMonth.getMonth()));
+                  }}
+                  className="px-3 py-2 rounded-lg border text-sm font-bold"
+                  style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)", color: "var(--foreground)" }}
+                >
+                  {[2024, 2025, 2026].map(yr => <option key={yr} value={yr}>{yr}</option>)}
+                </select>
                 <button onClick={() => setShowHolidayModal(true)} className="px-4 py-2 text-sm font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-lg shadow-amber-500/20">+ Holiday</button>
                 <button onClick={() => loadDoctorAttSummary(attMonth)} className="px-4 py-2 text-sm font-bold bg-sky-500 hover:bg-sky-600 text-white rounded-lg">Refresh</button>
               </div>
@@ -747,6 +749,11 @@ function AdminContent() {
                       {doc.pending_leaves > 0 && (
                         <div className="mt-3 px-2 py-1 bg-amber-500/15 text-amber-400 text-[11px] font-bold rounded-md text-center">
                           {doc.pending_leaves} pending leave{doc.pending_leaves > 1 ? "s" : ""}
+                        </div>
+                      )}
+                      {doc.failed_logins > 0 && (
+                        <div className="mt-2 px-2 py-1 bg-red-500/15 text-red-400 text-[11px] font-bold rounded-md text-center">
+                          Failed Logins: {doc.failed_logins}
                         </div>
                       )}
                     </motion.div>
