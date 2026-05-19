@@ -155,7 +155,13 @@
       "Bash(git pull *)",
       "Bash(grep -n \"@router.get.*\\\\\"$\\\\|@router.get.*\\\\\"/$\" \"C:\\\\Users\\\\khalo\\\\ai healthcare\\\\backend\\\\app\\\\api\\\\v1\\\\endpoints\\\\records.py\")",
       "Bash(git commit -m 'fix: improve doctor dashboard header layout and fix search permission error *)",
-      "Bash(git commit -m 'refactor: reorganize doctor dashboard header layout *)"
+      "Bash(git commit -m 'refactor: reorganize doctor dashboard header layout *)",
+      "Bash(python3)",
+      "PowerShell(& \"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\" 2>&1)",
+      "PowerShell(head -5)",
+      "Bash(curl -s http://localhost:8006/api/v1/auth/login -X POST -H \"Content-Type: application/x-www-form-urlencoded\" -d \"username=dr.sharma@healthai.com&password=Doctor@1234\")",
+      "Bash(curl -s http://localhost:8006/api/v1/auth/me -H \"Cookie: session=test\")",
+      "Bash(curl -s http://localhost:8006/api/v1/patients/my-patients -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzkyMTE2NDgsInN1YiI6ImViNTZiOGRmLTAyMGEtNDBkZS1hYzk0LTUwMGZkZTVlZTIxNiJ9.Kv3VOVLxd7f4vOSLHaSBd2GoULf2rKkF2Y8xQYvI4hc')"
     ]
   }
 }
