@@ -26,6 +26,8 @@ def _serialize_profile(user: User, profile: Optional[PatientProfile]) -> dict:
     return {
         "id": str(user.id),
         "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
         "role": user.role,
         "is_active": user.is_active,
         "created_at": user.created_at.isoformat() if user.created_at else None,
@@ -116,7 +118,8 @@ def admin_doctors_overview(
     return [{
         "id": str(doc.id),
         "email": doc.email,
-        "name": doc.email.split("@")[0].replace(".", " ").title(),
+        "first_name": doc.first_name or "",
+        "last_name": doc.last_name or "",
         "specialization": profiles.get(doc.id, {}).specialization if profiles.get(doc.id) else "General",
         "is_available": profiles.get(doc.id, {}).availability_status if profiles.get(doc.id) else True,
         "patient_count": patient_counts.get(doc.id, 0),
@@ -211,11 +214,10 @@ def get_my_patients(
 
         if patient:
             result.append({
-                "id": patient.id,
+                "id": str(patient.id),
                 "email": patient.email,
                 "first_name": patient.first_name or "",
                 "last_name": patient.last_name or "",
-                "name": f"{patient.first_name or ''} {patient.last_name or ''}".strip() or patient.email.split("@")[0],
                 "chronic_conditions": profile.chronic_conditions if profile else [],
                 "blood_group": profile.blood_group if profile else None,
                 "assigned_date": assignment.assigned_date.isoformat() if assignment.assigned_date else None,

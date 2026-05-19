@@ -68,45 +68,48 @@ class LeaveApplicationResponse(BaseModel):
 
 def _notify_admins_of_attendance(db: Session, doctor: User, status: str, notes: Optional[str] = None):
     """Create attendance notification for all admins (no commit)."""
-    try:
-        # Get all admins
-        admins = db.query(User).filter(User.role == UserRole.ADMIN).all()
-        logger.info(f"[ATTENDANCE_NOTIF] Found {len(admins)} admins to notify for doctor {doctor.email}")
+    # Get a fresh copy of the doctor from the database
+    fresh_doctor = db.query(User).filter(User.id == doctor.id).first()
+    if not fresh_doctor:
+        logger.error(f"[ATTENDANCE_NOTIF] Could not find doctor with ID {doctor.id} in database")
+        return
 
-        if not admins:
-            logger.warning(f"[ATTENDANCE_NOTIF] No admins found in database")
-            return
+    # Get all admins
+    admins = db.query(User).filter(User.role == UserRole.ADMIN).all()
+    logger.info(f"[ATTENDANCE_NOTIF] Found {len(admins)} admins to notify for doctor {fresh_doctor.email}")
 
-        # Determine notification title based on status
-        status_labels = {
-            "present": "Present",
-            "absent": "Absent",
-            "leave": "On Leave",
-            "emergency": "Emergency Absent",
-            "half_day": "Half Day",
-            "holiday": "Holiday",
-        }
-        status_label = status_labels.get(status, status)
+    if not admins:
+        logger.warning(f"[ATTENDANCE_NOTIF] No admins found in database")
+        return
 
-        # Create notification for each admin
-        for admin in admins:
-            try:
-                notif = Notification(
-                    id=str(uuid.uuid4()),
-                    user_id=str(admin.id),
-                    type="attendance",
-                    title=f"Dr. {doctor.first_name or doctor.email.split('@')[0]} marked {status_label}",
-                    message=f"{doctor.email} marked attendance as {status} on {datetime.now(timezone.utc).strftime('%Y-%m-%d')}" + (f": {notes}" if notes else ""),
-                    related_id=str(doctor.id),
-                    related_url="/dashboard/attendance",
-                )
-                db.add(notif)
-                logger.info(f"[ATTENDANCE_NOTIF] Added notification for admin {admin.id}")
-            except Exception as inner_e:
-                logger.error(f"[ATTENDANCE_NOTIF] Error creating notification for admin {admin.id}: {inner_e}")
-    except Exception as e:
-        # Log the error but don't fail the attendance marking
-        logger.error(f"[ATTENDANCE_NOTIF] Error in _notify_admins_of_attendance: {e}", exc_info=True)
+    # Determine notification title based on status
+    status_labels = {
+        "present": "Present",
+        "absent": "Absent",
+        "leave": "On Leave",
+        "emergency": "Emergency Absent",
+        "half_day": "Half Day",
+        "holiday": "Holiday",
+    }
+    status_label = status_labels.get(status, status)
+
+    # Create notification for each admin
+    notif_count = 0
+    for admin in admins:
+        notif = Notification(
+            id=str(uuid.uuid4()),
+            user_id=str(admin.id),
+            type="attendance",
+            title=f"Dr. {fresh_doctor.first_name or fresh_doctor.email.split('@')[0]} marked {status_label}",
+            message=f"{fresh_doctor.email} marked attendance as {status} on {datetime.now(timezone.utc).strftime('%Y-%m-%d')}" + (f": {notes}" if notes else ""),
+            related_id=str(fresh_doctor.id),
+            related_url="/dashboard/attendance",
+        )
+        db.add(notif)
+        notif_count += 1
+        logger.info(f"[ATTENDANCE_NOTIF] Added notification for admin {admin.id}")
+
+    logger.info(f"[ATTENDANCE_NOTIF] Total notifications added to session: {notif_count}")
 
 
 @router.post("/mark", status_code=201)
@@ -116,6 +119,7 @@ def mark_attendance(
     current_user: User = Depends(require_role(UserRole.DOCTOR)),
 ):
     """Mark attendance for today."""
+
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     logger.info(f"[ATTENDANCE_MARK] Doctor {current_user.email} marking {body.status} for {today}")
 
@@ -137,8 +141,12 @@ def mark_attendance(
         _notify_admins_of_attendance(db, current_user, body.status, body.notes)
         logger.info(f"[ATTENDANCE_MARK] About to commit after update")
 
-        db.commit()
-        logger.info(f"[ATTENDANCE_MARK] Committed successfully after update")
+        try:
+            db.commit()
+            logger.info(f"[ATTENDANCE_MARK] Committed successfully after update")
+        except Exception as commit_e:
+            logger.error(f"[ATTENDANCE_MARK] Commit failed: {commit_e}", exc_info=True)
+            raise
 
         return {
             "id": str(existing.id),
@@ -167,9 +175,14 @@ def mark_attendance(
         _notify_admins_of_attendance(db, current_user, body.status, body.notes)
         logger.info(f"[ATTENDANCE_MARK] About to commit after new")
 
-        db.commit()
+        try:
+            db.commit()
+            logger.info(f"[ATTENDANCE_MARK] Committed successfully after new")
+        except Exception as commit_e:
+            logger.error(f"[ATTENDANCE_MARK] Commit failed: {commit_e}", exc_info=True)
+            raise
+
         db.refresh(log)
-        logger.info(f"[ATTENDANCE_MARK] Committed successfully after new")
 
         return {
             "id": str(log.id),

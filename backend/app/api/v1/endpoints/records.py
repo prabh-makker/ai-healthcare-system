@@ -55,11 +55,23 @@ def get_stats(
         .limit(5)
         .all()
     )
+    # Fetch patient info for recent records
+    patient_ids = [str(r.patient_id) for r in recent_records]
+    patient_map = {}
+    if patient_ids:
+        patients = db.query(User).filter(User.id.in_(patient_ids)).all()
+        patient_map = {str(p.id): {"email": p.email, "first_name": p.first_name, "last_name": p.last_name} for p in patients}
+
     return {
         "total_records": total_records,
         "total_patients": total_patients,
         "total_doctors": total_doctors,
-        "recent_records": [serialize_medical_record(r) for r in recent_records],
+        "recent_records": [serialize_medical_record(
+            r,
+            patient_email=patient_map.get(str(r.patient_id), {}).get("email"),
+            first_name=patient_map.get(str(r.patient_id), {}).get("first_name"),
+            last_name=patient_map.get(str(r.patient_id), {}).get("last_name")
+        ) for r in recent_records],
     }
 
 
@@ -139,7 +151,14 @@ def get_record(
         raise HTTPException(status_code=404, detail="Record not found")
     if not check_record_ownership(record, current_user):
         raise HTTPException(status_code=403, detail="Forbidden")
-    return serialize_medical_record(record)
+    # Fetch patient info
+    patient = db.query(User).filter(User.id == record.patient_id).first()
+    return serialize_medical_record(
+        record,
+        patient_email=patient.email if patient else None,
+        first_name=patient.first_name if patient else None,
+        last_name=patient.last_name if patient else None
+    )
 
 
 @router.patch("/{record_id}")
@@ -168,7 +187,14 @@ def patch_record(
         record.accuracy_feedback = body.accuracy_feedback
     db.commit()
     db.refresh(record)
-    return serialize_medical_record(record)
+    # Fetch patient info
+    patient = db.query(User).filter(User.id == record.patient_id).first()
+    return serialize_medical_record(
+        record,
+        patient_email=patient.email if patient else None,
+        first_name=patient.first_name if patient else None,
+        last_name=patient.last_name if patient else None
+    )
 
 
 @router.delete("/{record_id}", status_code=204)
