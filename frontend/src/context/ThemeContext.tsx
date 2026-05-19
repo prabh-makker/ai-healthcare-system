@@ -10,9 +10,11 @@ interface ThemeContextType {
   theme: Theme;
   accent: Accent;
   font: Font;
+  customColor: string | null;
   setTheme: (theme: Theme) => void;
   setAccent: (accent: Accent) => void;
   setFont: (font: Font) => void;
+  setCustomColor: (color: string | null) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -21,12 +23,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("dark");
   const [accent, setAccentState] = useState<Accent>("sky");
   const [font, setFontState] = useState<Font>("geist");
+  const [customColor, setCustomColorState] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as Theme | null;
     const savedAccent = localStorage.getItem("accent") as Accent | null;
     const savedFont = localStorage.getItem("font") as Font | null;
+    const savedCustomColor = localStorage.getItem("customColor") as string | null;
 
     if (savedTheme) {
       setThemeState(savedTheme);
@@ -67,6 +71,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         sans: "'Trebuchet MS', 'Arial', sans-serif",
       };
       document.documentElement.style.fontFamily = fontFamilies[savedFont];
+    }
+
+    if (savedCustomColor) {
+      setCustomColorState(savedCustomColor);
+      document.documentElement.style.setProperty("--accent-primary", savedCustomColor);
     }
 
     setMounted(true);
@@ -142,12 +151,42 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.style.fontFamily = fontFamilies[newFont];
   };
 
+  const setCustomColor = (color: string | null) => {
+    setCustomColorState(color);
+    if (color) {
+      localStorage.setItem("customColor", color);
+      document.documentElement.style.setProperty("--accent-primary", color);
+
+      // Create or update style tag for custom color overrides
+      let styleTag = document.getElementById("custom-color-styles");
+      if (!styleTag) {
+        styleTag = document.createElement("style");
+        styleTag.id = "custom-color-styles";
+        document.head.appendChild(styleTag);
+      }
+      styleTag.textContent = `
+        :root {
+          --accent-primary: ${color};
+        }
+        .bg-sky-500, .bg-sky-600 { background-color: ${color} !important; }
+        .text-sky-500, .text-sky-400 { color: ${color} !important; }
+        .border-sky-500 { border-color: ${color} !important; }
+        .shadow-sky-500 { --tw-shadow-color: ${color}; }
+        .ring-sky-500 { --tw-ring-color: ${color}; }
+      `;
+    } else {
+      localStorage.removeItem("customColor");
+      let styleTag = document.getElementById("custom-color-styles");
+      if (styleTag) styleTag.remove();
+    }
+  };
+
   if (!mounted) {
     return <>{children}</>;
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, accent, font, setTheme, setAccent, setFont }}>
+    <ThemeContext.Provider value={{ theme, accent, font, customColor, setTheme, setAccent, setFont, setCustomColor }}>
       <div className={theme === "light" ? "light" : "dark"}>
         {children}
       </div>

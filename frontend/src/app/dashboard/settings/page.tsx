@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
-  const { theme, accent, font, setTheme, setAccent, setFont } = useTheme();
+  const { theme, accent, customColor, setTheme, setAccent, setCustomColor } = useTheme();
   const router = useRouter();
   const [activeSection, setActiveSection] = useState("profile");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -487,34 +487,37 @@ export default function SettingsPage() {
                 </div>
 
                 <div>
-                  <p className="text-zinc-500 text-sm font-medium mb-4">Font Family</p>
-                  <div className="flex gap-3 flex-wrap">
-                    {(["geist", "inter", "mono", "serif", "sans"] as const).map((f) => (
+                  <p className="text-zinc-500 text-sm font-medium mb-4">Custom Color</p>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={customColor || "#0ea5e9"}
+                      onChange={(e) => setCustomColor(e.target.value)}
+                      className="w-16 h-10 rounded-lg cursor-pointer border border-white/10"
+                    />
+                    <div className="flex-1 flex gap-2">
+                      <input
+                        type="text"
+                        value={customColor || "#0ea5e9"}
+                        onChange={(e) => {
+                          if (/^#[0-9A-F]{6}$/i.test(e.target.value)) {
+                            setCustomColor(e.target.value);
+                          }
+                        }}
+                        placeholder="#000000"
+                        className="px-3 py-2 rounded-lg text-sm border border-white/10"
+                        style={{ background: "var(--glass-bg)", color: "var(--foreground)" }}
+                      />
                       <button
-                        key={f}
-                        onClick={() => setFont(f)}
-                        className={`px-4 py-2 rounded-2xl font-medium transition-all ${
-                          font === f
-                            ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20"
-                            : "text-zinc-500 hover:text-white hover:bg-white/5 border border-white/10"
-                        }`}
-                        style={
-                          f === "mono"
-                            ? { fontFamily: "'Courier New', monospace" }
-                            : f === "serif"
-                            ? { fontFamily: "'Georgia', serif" }
-                            : f === "inter"
-                            ? { fontFamily: "'Inter', sans-serif" }
-                            : f === "sans"
-                            ? { fontFamily: "'Trebuchet MS', sans-serif" }
-                            : {}
-                        }
+                        onClick={() => setCustomColor(null)}
+                        className="px-4 py-2 rounded-lg text-sm font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all"
                       >
-                        {f === "geist" ? "Geist" : f === "inter" ? "Inter" : f === "mono" ? "Mono" : f === "serif" ? "Serif" : "Sans"}
+                        Reset
                       </button>
-                    ))}
+                    </div>
                   </div>
                 </div>
+
               </div>
             </motion.div>
           )}
