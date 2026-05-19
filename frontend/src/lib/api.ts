@@ -372,7 +372,7 @@ export const api = {
     request(`/api/v1/messages/${userId}`),
 
   // Attendance
-  markAttendance: (status: "present" | "absent" | "leave", notes?: string) =>
+  markAttendance: (status: "present" | "absent" | "leave" | "emergency" | "half_day" | "holiday", notes?: string) =>
     request("/api/v1/attendance/mark", {
       method: "POST",
       body: JSON.stringify({ status, notes: notes || null }),
