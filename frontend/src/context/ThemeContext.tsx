@@ -11,10 +11,12 @@ interface ThemeContextType {
   accent: Accent;
   font: Font;
   customColor: string | null;
+  customGradient: string | null;
   setTheme: (theme: Theme) => void;
   setAccent: (accent: Accent) => void;
   setFont: (font: Font) => void;
   setCustomColor: (color: string | null) => void;
+  setCustomGradient: (gradient: string | null) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -24,6 +26,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [accent, setAccentState] = useState<Accent>("sky");
   const [font, setFontState] = useState<Font>("geist");
   const [customColor, setCustomColorState] = useState<string | null>(null);
+  const [customGradient, setCustomGradientState] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -76,6 +79,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (savedCustomColor) {
       setCustomColorState(savedCustomColor);
       document.documentElement.style.setProperty("--accent-primary", savedCustomColor);
+    }
+
+    const savedGradient = localStorage.getItem("customGradient");
+    if (savedGradient) {
+      setCustomGradientState(savedGradient);
+      applyGradientStyles(savedGradient);
     }
 
     setMounted(true);
@@ -181,12 +190,57 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const applyGradientStyles = (gradient: string) => {
+    let styleTag = document.getElementById("custom-gradient-styles");
+    if (!styleTag) {
+      styleTag = document.createElement("style");
+      styleTag.id = "custom-gradient-styles";
+      document.head.appendChild(styleTag);
+    }
+    // Apply gradient to backgrounds, and the first gradient color to text/border
+    const firstColor = gradient.match(/#[0-9a-fA-F]{6}/)?.[0] || "#0ea5e9";
+    styleTag.textContent = `
+      :root {
+        --accent-primary: ${firstColor};
+        --accent-gradient: ${gradient};
+      }
+      .bg-sky-500, .bg-sky-600,
+      button.bg-sky-500, button.bg-sky-600,
+      [class*="from-sky-"][class*="to-sky-"],
+      [class*="from-sky-"][class*="to-blue-"] {
+        background: ${gradient} !important;
+      }
+      .text-sky-500, .text-sky-400 { color: ${firstColor} !important; }
+      .border-sky-500 { border-color: ${firstColor} !important; }
+      .shadow-sky-500 { --tw-shadow-color: ${firstColor}; }
+      .ring-sky-500 { --tw-ring-color: ${firstColor}; }
+      /* Apply gradient to gradient text classes */
+      .bg-gradient-to-r.from-sky-200,
+      .bg-gradient-to-r.from-sky-300,
+      .bg-gradient-to-br.from-sky-500 {
+        background-image: ${gradient} !important;
+      }
+    `;
+  };
+
+  const setCustomGradient = (gradient: string | null) => {
+    setCustomGradientState(gradient);
+    if (gradient) {
+      localStorage.setItem("customGradient", gradient);
+      applyGradientStyles(gradient);
+    } else {
+      localStorage.removeItem("customGradient");
+      const styleTag = document.getElementById("custom-gradient-styles");
+      if (styleTag) styleTag.remove();
+    }
+  };
+
   if (!mounted) {
     return <>{children}</>;
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, accent, font, customColor, setTheme, setAccent, setFont, setCustomColor }}>
+    <ThemeContext.Provider value={{ theme, accent, font, customColor, customGradient, setTheme, setAccent, setFont, setCustomColor, setCustomGradient }}>
       <div className={theme === "light" ? "light" : "dark"}>
         {children}
       </div>

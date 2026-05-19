@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
-  const { theme, accent, customColor, setTheme, setAccent, setCustomColor } = useTheme();
+  const { theme, accent, customColor, customGradient, setTheme, setAccent, setCustomColor, setCustomGradient } = useTheme();
   const router = useRouter();
   const [activeSection, setActiveSection] = useState("profile");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -516,6 +516,44 @@ export default function SettingsPage() {
                       </button>
                     </div>
                   </div>
+                </div>
+
+                <div>
+                  <p className="text-zinc-500 text-sm font-medium mb-4">Vibrant Multi-Color Gradients ✨</p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {[
+                      { name: "Aurora", grad: "linear-gradient(135deg, #5eead4, #22d3ee, #818cf8, #c084fc)" },
+                      { name: "Sunset", grad: "linear-gradient(135deg, #fb7185, #f97316, #fbbf24, #fde047)" },
+                      { name: "Ocean", grad: "linear-gradient(135deg, #0ea5e9, #06b6d4, #14b8a6, #10b981)" },
+                      { name: "Galaxy", grad: "linear-gradient(135deg, #a78bfa, #ec4899, #fb7185, #f472b6)" },
+                      { name: "Neon", grad: "linear-gradient(135deg, #22d3ee, #a78bfa, #ec4899, #f97316)" },
+                      { name: "Rainbow", grad: "linear-gradient(135deg, #ef4444, #f97316, #facc15, #22c55e, #06b6d4, #818cf8, #c084fc)" },
+                      { name: "Tropical", grad: "linear-gradient(135deg, #2dd4bf, #fbbf24, #fb7185)" },
+                      { name: "Cosmic", grad: "linear-gradient(135deg, #312e81, #a855f7, #ec4899, #f59e0b)" },
+                      { name: "Mint Fresh", grad: "linear-gradient(135deg, #99f6e4, #5eead4, #22d3ee, #38bdf8)" },
+                    ].map((preset) => (
+                      <button
+                        key={preset.name}
+                        onClick={() => setCustomGradient(preset.grad)}
+                        className={`relative h-16 rounded-xl overflow-hidden border-2 transition-all hover:scale-105 ${
+                          customGradient === preset.grad ? "border-white shadow-lg" : "border-white/10"
+                        }`}
+                        style={{ background: preset.grad }}
+                      >
+                        <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white drop-shadow-lg">
+                          {preset.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {customGradient && (
+                    <button
+                      onClick={() => setCustomGradient(null)}
+                      className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all"
+                    >
+                      Remove Gradient
+                    </button>
+                  )}
                 </div>
 
               </div>
