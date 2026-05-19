@@ -1,294 +1,62 @@
+### AI Healthcare API Testing
 @baseUrl = http://localhost:8000/api/v1
-@authToken = <PASTE_TOKEN_HERE>
+@token = your_jwt_token_here
 
-# ============================================================================
-# HEALTH & SYSTEM
-# ============================================================================
-
-### System health check
-GET {{baseUrl}}/health
-
-### Prometheus metrics
-GET http://localhost:8000/metrics
-
-# ============================================================================
-# AUTHENTICATION
-# ============================================================================
-
-### Register new patient account
+### Register User
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "email": "patient@example.com",
+  "email": "test@example.com",
   "password": "SecurePass123!",
   "role": "PATIENT"
 }
 
-### Register doctor account (admin only)
-POST {{baseUrl}}/auth/register
-Content-Type: application/json
-
-{
-  "email": "doctor@example.com",
-  "password": "SecurePass123!",
-  "role": "DOCTOR"
-}
-
-### Login (returns token in httpOnly cookie + response body)
+### Login
 POST {{baseUrl}}/auth/login
 Content-Type: application/x-www-form-urlencoded
 
-username=patient@example.com&password=SecurePass123!
+username=test@example.com&password=SecurePass123!
 
-### Change password (requires authentication)
-POST {{baseUrl}}/auth/change-password
-Content-Type: application/json
-Authorization: Bearer {{authToken}}
+### Get Current User
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
 
-{
-  "old_password": "SecurePass123!",
-  "new_password": "NewSecurePass456!"
-}
-
-# ============================================================================
-# PATIENT PROFILE
-# ============================================================================
-
-### Get my profile
+### Get Patient Profile
 GET {{baseUrl}}/patients/me
-Authorization: Bearer {{authToken}}
+Authorization: Bearer {{token}}
 
-### Update my profile
-POST {{baseUrl}}/patients/me
-Content-Type: application/json
-Authorization: Bearer {{authToken}}
-
-{
-  "date_of_birth": "1990-01-15",
-  "blood_group": "O+",
-  "chronic_conditions": ["asthma", "diabetes"],
-  "emergency_contact": "+1234567890"
-}
-
-# ============================================================================
-# AI DIAGNOSIS
-# ============================================================================
-
-### Analyze symptoms (XGBoost + Ollama)
+### Analyze Symptoms
 POST {{baseUrl}}/diagnosis/analyze
+Authorization: Bearer {{token}}
 Content-Type: application/json
-Authorization: Bearer {{authToken}}
 
 {
-  "symptoms": ["fever", "cough", "fatigue"],
+  "symptoms": ["headache", "fever", "cough"],
   "duration_days": 3,
-  "severity": "moderate"
+  "severity": 5
 }
 
-### Get diagnosis history
-GET {{baseUrl}}/diagnosis/history
-Authorization: Bearer {{authToken}}
+### List Appointments
+GET {{baseUrl}}/appointments
+Authorization: Bearer {{token}}
 
-### Get single diagnosis result
-GET {{baseUrl}}/diagnosis/{diagnosis_id}
-Authorization: Bearer {{authToken}}
-
-# ============================================================================
-# MEDICAL RECORDS
-# ============================================================================
-
-### List my medical records (pagination)
-GET {{baseUrl}}/records?skip=0&limit=10
-Authorization: Bearer {{authToken}}
-
-### List records with filters
-GET {{baseUrl}}/records?status=pending&skip=0&limit=10
-Authorization: Bearer {{authToken}}
-
-### Get single medical record
-GET {{baseUrl}}/records/{record_id}
-Authorization: Bearer {{authToken}}
-
-### Create medical record from diagnosis
-POST {{baseUrl}}/records
-Content-Type: application/json
-Authorization: Bearer {{authToken}}
-
-{
-  "symptoms": ["fever", "cough"],
-  "duration_days": 3,
-  "severity": "moderate"
-}
-
-### Update medical record (doctor adds notes)
-PATCH {{baseUrl}}/records/{record_id}
-Content-Type: application/json
-Authorization: Bearer {{authToken}}
-
-{
-  "doctor_notes": "Patient shows improvement. Continue current treatment.",
-  "status": "reviewed"
-}
-
-# ============================================================================
-# APPOINTMENTS
-# ============================================================================
-
-### List my appointments
-GET {{baseUrl}}/appointments?skip=0&limit=10
-Authorization: Bearer {{authToken}}
-
-### Create appointment (patients)
+### Create Appointment
 POST {{baseUrl}}/appointments
+Authorization: Bearer {{token}}
 Content-Type: application/json
-Authorization: Bearer {{authToken}}
 
 {
-  "doctor_id": "doctor-uuid-here",
-  "appointment_date": "2026-05-25T14:30:00",
-  "reason": "Follow-up for fever and cough"
+  "specialist": "Cardiologist",
+  "date": "2026-05-26",
+  "time": "14:30",
+  "reason": "Regular checkup"
 }
 
-### Cancel appointment
-PATCH {{baseUrl}}/appointments/{appointment_id}
-Content-Type: application/json
-Authorization: Bearer {{authToken}}
+### Get Medical Records
+GET {{baseUrl}}/records/me
+Authorization: Bearer {{token}}
 
-{
-  "status": "cancelled"
-}
-
-### Reschedule appointment
-PATCH {{baseUrl}}/appointments/{appointment_id}
-Content-Type: application/json
-Authorization: Bearer {{authToken}}
-
-{
-  "appointment_date": "2026-05-26T15:00:00",
-  "status": "rescheduled"
-}
-
-# ============================================================================
-# PRESCRIPTIONS
-# ============================================================================
-
-### List my prescriptions
-GET {{baseUrl}}/prescriptions
-Authorization: Bearer {{authToken}}
-
-### Get prescription details
-GET {{baseUrl}}/prescriptions/{prescription_id}
-Authorization: Bearer {{authToken}}
-
-# ============================================================================
-# MESSAGES
-# ============================================================================
-
-### Send message to doctor/patient
-POST {{baseUrl}}/messages
-Content-Type: application/json
-Authorization: Bearer {{authToken}}
-
-{
-  "to_user_id": "recipient-uuid",
-  "content": "I'm having side effects from the prescribed medication."
-}
-
-### Get messages (inbox)
-GET {{baseUrl}}/messages?skip=0&limit=20
-Authorization: Bearer {{authToken}}
-
-### Get conversation with user
-GET {{baseUrl}}/messages/{user_id}?skip=0&limit=50
-Authorization: Bearer {{authToken}}
-
-# ============================================================================
-# NOTIFICATIONS
-# ============================================================================
-
-### Get notifications
-GET {{baseUrl}}/notifications?skip=0&limit=20
-Authorization: Bearer {{authToken}}
-
-### Mark notification as read
-PATCH {{baseUrl}}/notifications/{notification_id}
-Content-Type: application/json
-Authorization: Bearer {{authToken}}
-
-{
-  "is_read": true
-}
-
-# ============================================================================
-# DOCTOR CALENDAR (Doctor/Admin only)
-# ============================================================================
-
-### Get doctor availability for date range
-GET {{baseUrl}}/doctor-calendar/{doctor_id}/availability?date_from=2026-05-20&date_to=2026-05-31
-Authorization: Bearer {{authToken}}
-
-### Add available time slot
-POST {{baseUrl}}/doctor-calendar/availability
-Content-Type: application/json
-Authorization: Bearer {{authToken}}
-
-{
-  "date": "2026-05-25",
-  "start_time": "09:00",
-  "end_time": "17:00"
-}
-
-# ============================================================================
-# ATTENDANCE (Admin/Doctor only)
-# ============================================================================
-
-### Check in
-POST {{baseUrl}}/attendance/check-in
-Content-Type: application/json
-Authorization: Bearer {{authToken}}
-
-{
-  "date": "2026-05-19"
-}
-
-### Get attendance history
-GET {{baseUrl}}/attendance/history?skip=0&limit=30
-Authorization: Bearer {{authToken}}
-
-### Get attendance stats
-GET {{baseUrl}}/attendance/stats
-Authorization: Bearer {{authToken}}
-
-# ============================================================================
-# ADMIN OPERATIONS
-# ============================================================================
-
-### List all users (admin only)
-GET {{baseUrl}}/admin/users?role=PATIENT&skip=0&limit=20
-Authorization: Bearer {{authToken}}
-
-### Get user by ID (admin only)
-GET {{baseUrl}}/admin/users/{user_id}
-Authorization: Bearer {{authToken}}
-
-### Update user status (admin only)
-PATCH {{baseUrl}}/admin/users/{user_id}/status
-Content-Type: application/json
-Authorization: Bearer {{authToken}}
-
-{
-  "is_active": false
-}
-
-### Get audit log (admin only)
-GET {{baseUrl}}/admin/audit-log?skip=0&limit=50&action=login
-Authorization: Bearer {{authToken}}
-
-### Doctor performance metrics (admin only)
-GET {{baseUrl}}/admin/doctor-performance
-Authorization: Bearer {{authToken}}
-
-### System statistics (admin only)
-GET {{baseUrl}}/admin/statistics
-Authorization: Bearer {{authToken}}
+### Logout
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{token}}

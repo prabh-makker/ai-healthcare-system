@@ -11,6 +11,14 @@
     "type-check": "tsc --noEmit",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed",
+    "e2e:debug": "playwright test --debug",
+    "e2e:ui": "playwright test --ui",
+    "e2e:auth": "playwright test e2e/auth.spec.ts",
+    "e2e:patient": "playwright test e2e/patient-flow.spec.ts",
+    "e2e:doctor": "playwright test e2e/doctor-flow.spec.ts",
+    "e2e:admin": "playwright test e2e/admin-flow.spec.ts",
     "format": "prettier --write src/",
     "format:check": "prettier --check src/"
   },
@@ -26,6 +34,7 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/react": "^14.1.2",

@@ -1,1224 +1,708 @@
 # AI Healthcare API Reference
 
-**Generated:** 2026-05-19  
-**Version:** 1.0.0  
-**Base URL:** `http://localhost:8000/api/v1` (development) or `https://api.healthcaresystem.com/api/v1` (production)
-
 ## Overview
 
-Production-ready healthcare platform with AI-powered diagnosis using XGBoost machine learning models, medical records management, appointment scheduling, prescription tracking, and comprehensive patient/doctor management. Features JWT/OAuth2 authentication, role-based access control (PATIENT/DOCTOR/ADMIN), real-time notifications via WebSocket, and full audit logging.
+The AI Healthcare Diagnosis System API provides a comprehensive REST interface for:
+- **Authentication**: User registration, login, password management with JWT + httpOnly cookies
+- **Diagnosis**: AI-powered symptom analysis using XGBoost + Ollama NLP
+- **Patient Management**: Patient profiles, medical records, health history
+- **Appointments**: Schedule and manage medical appointments with availability tracking
+- **Prescriptions**: Track and manage patient medications with status lifecycle
+- **Doctor Calendar**: Doctor scheduling, availability management, time slot booking
+- **Messages**: Patient-doctor secure messaging and conversation history
+- **Notifications**: Real-time alerts, system notifications, event tracking
+- **Admin**: System administration, user management, audit logging, metrics
+- **Attendance**: Medical professional attendance tracking and clock in/out
+- **Websocket**: Real-time bidirectional communication for live updates
 
-## Key Features
+## Architecture
 
-- **AI Diagnosis Engine:** XGBoost-powered symptom analysis with confidence scoring
-- **Role-Based Access Control:** Patient, Doctor, and Admin roles with granular permissions
-- **Real-time Communication:** WebSocket support for instant notifications and messages
-- **Medical Records:** Comprehensive patient history with doctor annotations
-- **Appointment Management:** Scheduling, rescheduling, and calendar management
-- **Prescription Tracking:** Drug prescriptions with dosage and compliance tracking
-- **Audit Logging:** Full audit trail of all user actions
-- **Security:** JWT tokens in httpOnly cookies, CORS protection, rate limiting
+### Tech Stack
+- **Framework**: FastAPI 0.104+ (async Python web framework)
+- **Database**: SQLAlchemy ORM + PostgreSQL/SQLite
+- **Auth**: JWT tokens + httpOnly secure cookies
+- **ML**: XGBoost model for diagnosis + Ollama (llama2) for NLP
+- **Monitoring**: Prometheus metrics, Sentry error tracking
+- **Caching**: Redis (optional) for rate limiting and response caching
+- **Validation**: Pydantic 2.0 with strict type checking
 
----
+### Key Features
+- Role-based access control (PATIENT, DOCTOR, ADMIN)
+- Rate limiting per endpoint
+- Audit logging for compliance
+- Structured error responses
+- Medical data (PHI) protection headers
+- CORS enabled for frontend integration
+- Health checks and metrics endpoints
 
 ## Authentication
 
-### Overview
+### JWT + httpOnly Cookie Flow
 
-All endpoints (except `/auth/register` and `/auth/login`) require JWT authentication. Tokens are stored in **httpOnly cookies** for security and also available via `Authorization` header.
-
-### Cookie-Based Authentication (Recommended)
-
-After successful login, the server sets an httpOnly cookie:
+#### 1. Register New User
 ```
-Set-Cookie: Authorization=<jwt_token>; Path=/; HttpOnly; Secure; SameSite=Strict
+POST /api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "patient@example.com",
+  "password": "SecurePass123!",
+  "role": "PATIENT"
+}
+
+Response 201:
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "email": "patient@example.com",
+    "role": "PATIENT",
+    "is_active": true,
+    "created_at": "2026-05-19T15:30:00Z"
+  },
+  "timestamp": "2026-05-19T15:30:00Z"
+}
 ```
 
-The browser automatically includes this cookie in all subsequent requests.
+**Password Requirements:**
+- Minimum 8 characters
+- At least 1 uppercase letter (A-Z)
+- At least 1 lowercase letter (a-z)
+- At least 1 digit (0-9)
+- At least 1 special character (!@#$%^&*)
 
-### Authorization Header
+**Restrictions:**
+- Only PATIENT role allowed for self-registration
+- Doctors and admins created via admin panel only
+- Email must be unique
 
-Alternatively, include the token in the Authorization header:
+#### 2. Login
 ```
-Authorization: Bearer <access_token>
+POST /api/v1/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=patient@example.com&password=SecurePass123!
+
+Response 200:
+{
+  "success": true,
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "bearer"
+  },
+  "timestamp": "2026-05-19T15:30:00Z"
+}
+
+Headers (automatic):
+Set-Cookie: access_token_cookie=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...;
+    HttpOnly; Secure; SameSite=Lax; Max-Age=86400; Path=/
 ```
 
-### Token Expiration
+**Token Lifetime:**
+- Default: 24 hours (configurable via ACCESS_TOKEN_EXPIRE_MINUTES)
+- Refresh: Not rotated (use new login)
+- Expiration error: 401 Unauthorized
 
-- **Access Token:** 24 hours (configurable)
-- **Refresh:** Re-login to get new token
+**Cookie Security:**
+- HttpOnly: Not accessible via JavaScript (XSS protection)
+- Secure: Only sent over HTTPS (production)
+- SameSite=Lax: CSRF protection
+- Automatic: Browser sends with every request
 
-### Rate Limiting
+#### 3. Get Current User
+```
+GET /api/v1/auth/me
+Authorization: Bearer <token>
+Cookie: access_token_cookie=<token>
 
-- **Auth endpoints:** 5 requests per minute per IP
-- **API endpoints:** 100 requests per minute per user
-- **Diagnosis:** 10 requests per minute per user
+Response 200:
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "email": "patient@example.com",
+    "role": "PATIENT",
+    "is_active": true,
+    "created_at": "2026-05-19T15:30:00Z"
+  },
+  "timestamp": "2026-05-19T15:30:00Z"
+}
+```
 
----
+#### 4. Logout
+```
+POST /api/v1/auth/logout
+Authorization: Bearer <token>
 
-## Endpoints by Category
+Response 204 No Content
 
-### Admin
+Headers (automatic):
+Set-Cookie: access_token_cookie=; Max-Age=0; Path=/
+```
 
-#### PATCH /api/v1/admin/users/{user_id}/status
+#### 5. Change Password
+```
+POST /api/v1/auth/change-password
+Authorization: Bearer <token>
+Content-Type: application/json
 
-**Summary:** Update User Status
+{
+  "old_password": "OldPass123!",
+  "new_password": "NewPass456!"
+}
 
-**Parameters:**
+Response 204 No Content
+```
 
-- `user_id` (path, string) *required: 
+**Validation:**
+- Old password must match current password
+- New password must meet complexity requirements
+- New password cannot be same as old password
 
-**Request Body:**
+### Security Headers (All Responses)
+
+```
+X-Frame-Options: DENY                              # Clickjacking protection
+X-Content-Type-Options: nosniff                    # MIME sniffing protection
+X-XSS-Protection: 1; mode=block                    # XSS filter
+Strict-Transport-Security: max-age=31536000; includeSubDomains  # Production only
+Content-Security-Policy: default-src 'self'; ...   # Production only
+```
+
+### Role-Based Access Control (RBAC)
+
+| Role | Permissions |
+|------|-----------|
+| **PATIENT** | View own profile, records, appointments; upload medical data; send messages to doctor; view diagnoses |
+| **DOCTOR** | View assigned patients; write medical records & diagnoses; manage appointments; write prescriptions; view audit logs of own actions |
+| **ADMIN** | Full system access; user management; audit logs; system metrics; configuration changes |
+
+**Access Denied Example:**
+```
+Response 403 Forbidden:
+{
+  "success": false,
+  "error": {
+    "message": "Insufficient permissions for this operation",
+    "status_code": 403
+  },
+  "data": null,
+  "timestamp": "2026-05-19T15:30:00Z"
+}
+```
+
+## Response Format
+
+### Standard Success Response
 
 ```json
-// See schema: UserStatusUpdate
+{
+  "success": true,
+  "data": {
+    // endpoint-specific data
+  },
+  "timestamp": "2026-05-19T15:30:01Z"
+}
 ```
 
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### PATCH /api/v1/admin/users/{user_id}/role
-
-**Summary:** Update User Role
-
-**Parameters:**
-
-- `user_id` (path, string) *required: 
-
-**Request Body:**
+### Standard Error Response
 
 ```json
-// See schema: UserRoleUpdate
+{
+  "success": false,
+  "error": {
+    "message": "User not found",
+    "status_code": 404
+  },
+  "data": null,
+  "timestamp": "2026-05-19T15:30:01Z"
+}
 ```
 
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### DELETE /api/v1/admin/users/{user_id}
-
-**Summary:** Delete User
-
-**Parameters:**
-
-- `user_id` (path, string) *required: 
-
-**Responses:**
-
-- **204**: Successful Response
-- **422**: Validation Error
-
-
-#### GET /api/v1/admin/audit-log
-
-**Summary:** Get Audit Log
-
-**Parameters:**
-
-- `skip` (query, integer): 
-- `limit` (query, integer): 
-- `action` (query, string): 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### GET /api/v1/admin/doctor-performance
-
-**Summary:** Doctor Performance
-
-**Description:** Per-doctor metrics: avg approval time, total approved, pending count.
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### POST /api/v1/admin/bulk-assign-patients
-
-**Summary:** Bulk Assign
-
-**Request Body:**
+### Validation Error Response (422)
 
 ```json
-// See schema: BulkAssign
+{
+  "success": false,
+  "error": {
+    "message": "Validation error",
+    "status_code": 422,
+    "details": [
+      {
+        "loc": ["body", "email"],
+        "msg": "invalid email format",
+        "type": "value_error.email"
+      },
+      {
+        "loc": ["body", "password"],
+        "msg": "ensure this value has at least 8 characters",
+        "type": "value_error.any_str.min_length"
+      }
+    ]
+  },
+  "data": null,
+  "timestamp": "2026-05-19T15:30:01Z"
+}
 ```
 
-**Responses:**
+## Endpoint Groups
 
-- **200**: Successful Response
-- **422**: Validation Error
+### Auth Endpoints (`/api/v1/auth`)
 
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| POST | `/register` | ❌ | — | Register new PATIENT user |
+| POST | `/login` | ❌ | — | Login (get JWT + cookie) |
+| POST | `/logout` | ✅ | Any | Logout (clear cookie) |
+| GET | `/me` | ✅ | Any | Get current user profile |
+| POST | `/change-password` | ✅ | Any | Change password |
 
-#### GET /api/v1/admin/system-health
+### Diagnosis Endpoints (`/api/v1/diagnosis`)
 
-**Summary:** System Health
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| POST | `/analyze` | ✅ | PATIENT | Analyze symptoms (AI diagnosis) |
+| GET | `/history` | ✅ | PATIENT | Get diagnosis history |
+| POST | `/validate` | ✅ | DOCTOR | Expert validation of diagnosis |
+| GET | `/templates` | ✅ | ADMIN | View response templates (cache) |
 
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### GET /api/v1/admin/diagnoses-distribution
-
-**Summary:** Diagnoses Distribution
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### GET /api/v1/admin/export/users
-
-**Summary:** Export Users
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### GET /api/v1/admin/export/records
-
-**Summary:** Export Records
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### GET /api/v1/admin/export/appointments
-
-**Summary:** Export Appointments
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-### Appointments
-
-#### GET /api/v1/appointments/
-
-**Summary:** List Appointments
-
-**Parameters:**
-
-- `skip` (query, integer): 
-- `limit` (query, integer): 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### POST /api/v1/appointments/
-
-**Summary:** Create Appointment
-
-**Request Body:**
-
+**Diagnosis Response:**
 ```json
-// See schema: AppointmentCreate
+{
+  "primary_diagnosis": "Common Cold",
+  "confidence_score": 78.5,
+  "alternative_diagnoses": [
+    {"diagnosis": "Allergic Rhinitis", "confidence": 62.3},
+    {"diagnosis": "Acute Bronchitis", "confidence": 45.1}
+  ],
+  "recommended_specialist": "General Physician",
+  "severity_assessment": "Mild",
+  "recommendations": [
+    "Rest for 5-7 days",
+    "Stay hydrated",
+    "Monitor fever"
+  ],
+  "disclaimer": "This is an AI-generated assessment. Please consult with a healthcare provider."
+}
 ```
 
-**Responses:**
+### Patient Endpoints (`/api/v1/patients`)
 
-- **201**: Successful Response
-- **422**: Validation Error
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| GET | `/me` | ✅ | PATIENT | Get own profile |
+| POST | `/me` | ✅ | PATIENT | Update own profile |
+| GET | `/{id}` | ✅ | DOCTOR/ADMIN | Get patient details |
+| GET | `/` | ✅ | DOCTOR/ADMIN | List patients (with pagination) |
 
-
-#### PUT /api/v1/appointments/{appt_id}
-
-**Summary:** Update Appointment
-
-**Parameters:**
-
-- `appt_id` (path, string) *required: 
-
-**Request Body:**
-
+**Patient Profile Update:**
 ```json
-// See schema: AppointmentUpdate
+{
+  "date_of_birth": "1990-05-19T00:00:00Z",
+  "blood_group": "O+",
+  "chronic_conditions": ["Hypertension", "Type 2 Diabetes"],
+  "emergency_contact": "+1-555-0123"
+}
 ```
 
-**Responses:**
+### Medical Records Endpoints (`/api/v1/records`)
 
-- **200**: Successful Response
-- **422**: Validation Error
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| GET | `/` | ✅ | PATIENT/DOCTOR/ADMIN | List records (filtered by role) |
+| POST | `/` | ✅ | DOCTOR/ADMIN | Create record |
+| GET | `/{id}` | ✅ | PATIENT/DOCTOR/ADMIN | Get record details |
+| PUT | `/{id}` | ✅ | DOCTOR/ADMIN | Update record |
+| DELETE | `/{id}` | ✅ | ADMIN | Delete record |
+| GET | `/stats/summary` | ✅ | ADMIN | Get system statistics |
 
+**Record Statuses:**
+- `pending` — Awaiting doctor review
+- `reviewed` — Doctor has reviewed
+- `archived` — Closed/old record
 
-#### DELETE /api/v1/appointments/{appt_id}
+### Appointment Endpoints (`/api/v1/appointments`)
 
-**Summary:** Cancel Appointment
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| GET | `/` | ✅ | PATIENT/DOCTOR | List appointments |
+| POST | `/` | ✅ | PATIENT | Book appointment |
+| GET | `/{id}` | ✅ | PATIENT/DOCTOR | Get appointment |
+| PUT | `/{id}` | ✅ | PATIENT/DOCTOR | Reschedule |
+| DELETE | `/{id}` | ✅ | PATIENT/DOCTOR | Cancel appointment |
 
-**Parameters:**
+**Appointment Status:**
+- `upcoming` — Scheduled for future
+- `completed` — Finished
+- `cancelled` — User-cancelled
+- `no_show` — Patient didn't show up
 
-- `appt_id` (path, string) *required: 
+### Prescription Endpoints (`/api/v1/prescriptions`)
 
-**Responses:**
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| GET | `/` | ✅ | PATIENT/DOCTOR | List prescriptions |
+| POST | `/` | ✅ | DOCTOR | Create prescription |
+| GET | `/{id}` | ✅ | PATIENT/DOCTOR | Get prescription |
+| PUT | `/{id}` | ✅ | DOCTOR | Update prescription |
+| DELETE | `/{id}` | ✅ | DOCTOR | Discontinue prescription |
 
-- **204**: Successful Response
-- **422**: Validation Error
+**Prescription Status:**
+- `active` — Currently taking medication
+- `completed` — Course finished
+- `discontinued` — Stopped by doctor
 
+### Message Endpoints (`/api/v1/messages`)
 
-### Auth
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| GET | `/` | ✅ | PATIENT/DOCTOR | List conversations |
+| POST | `/` | ✅ | PATIENT/DOCTOR | Send message |
+| GET | `/{conversation_id}` | ✅ | PATIENT/DOCTOR | Get conversation thread |
 
-#### POST /api/v1/auth/change-password
+### Notification Endpoints (`/api/v1/notifications`)
 
-**Summary:** Change Password
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| GET | `/` | ✅ | PATIENT/DOCTOR | List notifications |
+| POST | `/{id}/read` | ✅ | PATIENT/DOCTOR | Mark as read |
+| DELETE | `/{id}` | ✅ | PATIENT/DOCTOR | Delete notification |
 
-**Description:** Change user password
+### Doctor Calendar Endpoints (`/api/v1/doctor-calendar`)
 
-**Request Body:**
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| GET | `/availability` | ✅ | PATIENT | Get doctor availability |
+| POST | `/slots` | ✅ | DOCTOR/ADMIN | Create time slot |
+| PUT | `/slots/{id}` | ✅ | DOCTOR/ADMIN | Update slot |
+| DELETE | `/slots/{id}` | ✅ | DOCTOR/ADMIN | Delete slot |
 
+### Attendance Endpoints (`/api/v1/attendance`)
+
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| GET | `/` | ✅ | ADMIN | List attendance records |
+| POST | `/` | ✅ | DOCTOR | Clock in/out |
+| GET | `/{id}` | ✅ | ADMIN | Get attendance record |
+
+### Admin Endpoints (`/api/v1/admin`)
+
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| GET | `/users` | ✅ | ADMIN | List all users |
+| POST | `/users` | ✅ | ADMIN | Create user |
+| PUT | `/users/{id}` | ✅ | ADMIN | Update user |
+| DELETE | `/users/{id}` | ✅ | ADMIN | Delete user |
+| GET | `/audit-log` | ✅ | ADMIN | View audit log |
+| POST | `/metrics` | ✅ | ADMIN | Get system metrics |
+
+### Health Check Endpoint
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/v1/health` | ❌ | System health status |
+
+**Response:**
 ```json
-// See schema: ChangePasswordRequest
+{
+  "status": "healthy",
+  "timestamp": "2026-05-19T15:30:00Z",
+  "checks": {
+    "database": "ok",
+    "cache": "ok",
+    "ml_model": "ok"
+  }
+}
 ```
 
-**Responses:**
+### Prometheus Metrics
 
-- **204**: Successful Response
-- **422**: Validation Error
+| Path | Format | Authentication |
+|------|--------|-----------------|
+| `/metrics` | Prometheus text format | No (internal only in prod) |
 
+## Rate Limiting
 
-#### POST /api/v1/auth/register
+### Limits by Endpoint
 
-**Summary:** Register User
+| Endpoint | Window | Limit | Status Code |
+|----------|--------|-------|-------------|
+| `/auth/login` | 1 minute | 5 attempts | 429 |
+| `/auth/register` | 1 minute | 3 attempts | 429 |
+| `/diagnosis/analyze` | 1 hour | 10 requests | 429 |
+| `/auth/change-password` | 1 minute | 3 attempts | 429 |
+| Other endpoints | 1 minute | 100 requests | 429 |
 
-**Request Body:**
+### Rate Limit Headers
 
+```
+X-RateLimit-Limit: 100           # Max requests in window
+X-RateLimit-Remaining: 42        # Requests left in current window
+X-RateLimit-Reset: 1684594800    # Unix timestamp of window reset
+Retry-After: 30                  # Seconds to wait before retrying (on 429)
+```
+
+**Rate Limit Exceeded (429):**
 ```json
-// See schema: UserCreate
+{
+  "success": false,
+  "error": {
+    "message": "Rate limit exceeded. Maximum 5 attempts per minute.",
+    "status_code": 429
+  },
+  "data": null,
+  "timestamp": "2026-05-19T15:30:01Z"
+}
 ```
 
-**Responses:**
+## Error Codes
 
-- **201**: Successful Response
-- **422**: Validation Error
+| Code | Meaning | Common Causes |
+|------|---------|---------------|
+| 200 | Success | Request completed successfully |
+| 201 | Created | Resource created successfully |
+| 204 | No Content | Success with no body (e.g., logout) |
+| 400 | Bad Request | Invalid input, business logic error |
+| 401 | Unauthorized | Missing/invalid JWT or cookie |
+| 403 | Forbidden | Insufficient role permissions |
+| 404 | Not Found | Resource doesn't exist |
+| 409 | Conflict | Duplicate resource (e.g., email exists) |
+| 422 | Unprocessable Entity | Validation error (see details) |
+| 429 | Too Many Requests | Rate limited, use Retry-After |
+| 500 | Internal Server Error | Backend error, contact support |
 
+## Pagination
 
-#### POST /api/v1/auth/login
+List endpoints support optional query parameters:
 
-**Summary:** Login Access Token
+```
+GET /api/v1/patients?skip=0&limit=20&role=PATIENT
+```
 
-**Request Body:**
+| Parameter | Type | Default | Max | Description |
+|-----------|------|---------|-----|-------------|
+| `skip` | integer | 0 | — | Records to skip (for offset pagination) |
+| `limit` | integer | 50 | 100 | Max records returned per page |
 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### POST /api/v1/auth/logout
-
-**Summary:** Logout
-
-**Responses:**
-
-- **204**: Successful Response
-
-
-#### GET /api/v1/auth/me
-
-**Summary:** Read Current User
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-### Diagnosis
-
-#### POST /api/v1/diagnosis/symptoms
-
-**Summary:** Analyze Symptoms
-
-**Request Body:**
-
+**Paginated Response Format:**
 ```json
-// See schema: SymptomRequest
+{
+  "success": true,
+  "data": [
+    { /* record 1 */ },
+    { /* record 2 */ }
+  ],
+  "pagination": {
+    "skip": 0,
+    "limit": 20,
+    "total": 150,
+    "pages": 8
+  },
+  "timestamp": "2026-05-19T15:30:01Z"
+}
 ```
 
-**Responses:**
+## Filtering
 
-- **200**: Successful Response
-- **422**: Validation Error
+List endpoints support optional filters (endpoint-specific):
 
+```
+GET /api/v1/appointments?skip=0&limit=20&status=upcoming&date_from=2026-05-19
+```
 
-#### POST /api/v1/diagnosis/chat
+Common filters:
+- `status` — Filter by status (values depend on resource type)
+- `role` — Filter by user role (PATIENT, DOCTOR, ADMIN)
+- `date_from` — Filter records from date (ISO 8601)
+- `date_to` — Filter records until date (ISO 8601)
 
-**Summary:** Diagnosis Chat
+## Websocket (Real-time)
 
-**Description:** Chat-based diagnosis supporting turn-based prompts and free-form symptom input.
+### Connection
 
-**Request Body:**
+```
+WS /api/v1/ws/{patient_id}/{user_id}?token=<jwt_token>
+```
 
+or via initial auth message:
+
+```
+WS /api/v1/ws/{patient_id}/{user_id}
+
+Message 1 (auth):
+{
+  "type": "auth",
+  "token": "<jwt_token>"
+}
+```
+
+### Message Types
+
+**Notification (server → client):**
 ```json
-// See schema: DiagnosisChatRequest
+{
+  "type": "notification",
+  "data": {
+    "id": "uuid",
+    "title": "New Appointment",
+    "message": "Dr. Smith has scheduled an appointment"
+  }
+}
 ```
 
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### POST /api/v1/diagnosis/xray
-
-**Summary:** Analyze Xray
-
-**Request Body:**
-
+**Message (server → client):**
 ```json
-// See schema: XrayRequest
+{
+  "type": "message",
+  "data": {
+    "sender_id": "uuid",
+    "sender_name": "Dr. Smith",
+    "content": "How are you feeling today?",
+    "timestamp": "2026-05-19T15:30:00Z"
+  }
+}
 ```
 
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### POST /api/v1/diagnosis/report
-
-**Summary:** Analyze Report
-
-**Request Body:**
-
+**Disconnect (server → client):**
 ```json
-// See schema: ReportRequest
+{
+  "type": "disconnect",
+  "reason": "User logged out"
+}
 ```
 
-**Responses:**
+## CORS Configuration
 
-- **200**: Successful Response
-- **422**: Validation Error
+Cross-Origin Resource Sharing enabled for frontend integration:
 
+**Allowed Origins:**
+- `http://localhost:3000` (development)
+- `https://aihealthcare.com` (production)
 
-### Health
+**Allowed Methods:** GET, POST, PUT, PATCH, DELETE, OPTIONS
 
-#### GET /api/v1/health
+**Allowed Headers:** Content-Type, Authorization
 
-**Summary:** Health Check
+**Preflight Cache:** 10 minutes (max_age=600)
 
-**Responses:**
+**Credentials:** Allowed (cookies sent with requests)
 
-- **200**: Successful Response
+## Environment Configuration
 
+### Required Variables
 
-### Messages
+```bash
+# Database
+DATABASE_URL=postgresql://user:pass@localhost/ai_healthcare
+SQLALCHEMY_ECHO=false  # Set to true for SQL debugging
 
-#### POST /api/v1/messages/
+# Environment
+ENVIRONMENT=development|staging|production
+DEBUG=true  # More error details
 
-**Summary:** Send Message
+# JWT & Auth
+JWT_SECRET_KEY=<random-256-bit-key>
+ACCESS_TOKEN_EXPIRE_MINUTES=1440  # 24 hours
+REFRESH_TOKEN_EXPIRE_DAYS=30
 
-**Description:** Send a message to another user (doctor-patient only).
+# ML & AI
+OLLAMA_API_URL=http://localhost:11434
+ML_MODEL_PATH=/path/to/models
 
-**Request Body:**
+# Redis (optional, for caching/rate limiting)
+REDIS_ENABLED=false
+REDIS_URL=redis://localhost:6379/0
 
-```json
-// See schema: MessageCreate
+# Monitoring (optional)
+SENTRY_DSN=https://...@sentry.io/...
+PROMETHEUS_METRICS_ENABLED=true
+
+# Rate Limiting
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS_PER_MINUTE=60
 ```
 
-**Responses:**
+## Testing
 
-- **201**: Successful Response
-- **422**: Validation Error
+### Using curl
 
-
-#### GET /api/v1/messages/conversations
-
-**Summary:** List Conversations
-
-**Description:** List all conversations for the current user.
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### GET /api/v1/messages/{user_id}
-
-**Summary:** Get Conversation
-
-**Description:** Get all messages between current user and specified user.
-
-**Parameters:**
-
-- `user_id` (path, string) *required: 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-### Notifications
-
-#### GET /api/v1/notifications/
-
-**Summary:** List Notifications
-
-**Description:** Get notifications for the current user.
-
-**Parameters:**
-
-- `skip` (query, integer): 
-- `limit` (query, integer): 
-- `unread_only` (query, boolean): 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### GET /api/v1/notifications/unread-count
-
-**Summary:** Get Unread Count
-
-**Description:** Get count of unread notifications.
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### PATCH /api/v1/notifications/{notification_id}/read
-
-**Summary:** Mark As Read
-
-**Description:** Mark a notification as read.
-
-**Parameters:**
-
-- `notification_id` (path, string) *required: 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### PATCH /api/v1/notifications/mark-all-read
-
-**Summary:** Mark All Read
-
-**Description:** Mark all notifications as read for the current user.
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### DELETE /api/v1/notifications/{notification_id}
-
-**Summary:** Delete Notification
-
-**Description:** Delete a notification.
-
-**Parameters:**
-
-- `notification_id` (path, string) *required: 
-
-**Responses:**
-
-- **204**: Successful Response
-- **422**: Validation Error
-
-
-### Patients
-
-#### GET /api/v1/patients/me
-
-**Summary:** Get My Profile
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### POST /api/v1/patients/me
-
-**Summary:** Update My Profile
-
-**Request Body:**
-
-```json
-// See schema: PatientProfileUpdate
+**Register:**
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "Test123!@#",
+    "role": "PATIENT"
+  }'
 ```
 
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### GET /api/v1/patients/admin/doctors-overview
-
-**Summary:** Admin Doctors Overview
-
-**Description:** Admin: list all doctors with patient counts, record counts.
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### GET /api/v1/patients/admin/all-users
-
-**Summary:** Admin All Users
-
-**Description:** Admin: list all users grouped by role.
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### GET /api/v1/patients/list
-
-**Summary:** List Patients
-
-**Parameters:**
-
-- `skip` (query, integer): 
-- `limit` (query, integer): 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### GET /api/v1/patients/my-patients
-
-**Summary:** Get My Patients
-
-**Description:** Get all patients assigned to this doctor.
-Only doctors can call this endpoint.
-
-**Parameters:**
-
-- `skip` (query, integer): 
-- `limit` (query, integer): 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### POST /api/v1/patients/assign/{patient_id}/{doctor_id}
-
-**Summary:** Assign Patient To Doctor
-
-**Description:** Assign a patient to a doctor. Only admins can do this.
-
-**Parameters:**
-
-- `patient_id` (path, string) *required: 
-- `doctor_id` (path, string) *required: 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-### Prescriptions
-
-#### POST /api/v1/prescriptions/
-
-**Summary:** Create Prescription
-
-**Description:** Create a new prescription.
-Only doctors can prescribe, and only to patients they're assigned to.
-
-**Request Body:**
-
-```json
-// See schema: PrescriptionCreate
+**Login:**
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=test@example.com&password=Test123!@#" \
+  -c cookies.txt  # Save cookies
 ```
 
-**Responses:**
-
-- **201**: Successful Response
-- **422**: Validation Error
-
-
-#### GET /api/v1/prescriptions/
-
-**Summary:** List Prescriptions
-
-**Description:** List prescriptions. Filtered by role:
-- Doctors see prescriptions they created
-- Patients see their own prescriptions
-- Admins see all prescriptions
-
-**Parameters:**
-
-- `skip` (query, integer): 
-- `limit` (query, integer): 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### GET /api/v1/prescriptions/{prescription_id}
-
-**Summary:** Get Prescription
-
-**Description:** Get a specific prescription by ID.
-Authorization: Doctor (if they created it), Patient (if it's theirs), or Admin
-
-**Parameters:**
-
-- `prescription_id` (path, string) *required: 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### PATCH /api/v1/prescriptions/{prescription_id}
-
-**Summary:** Update Prescription
-
-**Description:** Update a prescription. Only the prescribing doctor can update.
-Can update: status, end_date, instructions
-
-**Parameters:**
-
-- `prescription_id` (path, string) *required: 
-
-**Request Body:**
-
-```json
-// See schema: PrescriptionUpdate
+**Authenticated Request:**
+```bash
+curl -X GET http://localhost:8000/api/v1/auth/me \
+  -H "Authorization: Bearer <token>" \
+  -b cookies.txt  # Use saved cookies
 ```
 
-**Responses:**
+### Using Python requests
 
-- **200**: Successful Response
-- **422**: Validation Error
+```python
+import requests
 
+BASE_URL = "http://localhost:8000/api/v1"
+session = requests.Session()
 
-#### DELETE /api/v1/prescriptions/{prescription_id}
+# Register
+session.post(
+    f"{BASE_URL}/auth/register",
+    json={
+        "email": "test@example.com",
+        "password": "Test123!@#",
+        "role": "PATIENT"
+    }
+)
 
-**Summary:** Delete Prescription
+# Login
+response = session.post(
+    f"{BASE_URL}/auth/login",
+    data={"username": "test@example.com", "password": "Test123!@#"}
+)
+token = response.json()["data"]["access_token"]
 
-**Description:** Delete a prescription. Only the prescribing doctor can delete.
-
-**Parameters:**
-
-- `prescription_id` (path, string) *required: 
-
-**Responses:**
-
-- **204**: Successful Response
-- **422**: Validation Error
-
-
-#### POST /api/v1/prescriptions/{prescription_id}/log
-
-**Summary:** Log Medication Taken
-
-**Description:** Patient marks a medication as taken.
-
-**Parameters:**
-
-- `prescription_id` (path, string) *required: 
-
-**Request Body:**
-
-```json
-// See schema: MedicationLogCreate
+# Authenticated request
+response = session.get(
+    f"{BASE_URL}/auth/me",
+    headers={"Authorization": f"Bearer {token}"}
+)
+print(response.json())
 ```
 
-**Responses:**
-
-- **201**: Successful Response
-- **422**: Validation Error
-
-
-#### GET /api/v1/prescriptions/{prescription_id}/logs
-
-**Summary:** Get Medication Logs
-
-**Description:** Get medication intake logs for a prescription.
-
-**Parameters:**
-
-- `prescription_id` (path, string) *required: 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### GET /api/v1/prescriptions/adherence/summary
-
-**Summary:** Get Adherence Summary
-
-**Description:** Get adherence summary for the current patient (last 7 days).
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-### Records
-
-#### POST /api/v1/records/test-simple
-
-**Summary:** Test Simple
-
-**Description:** Simple test endpoint to verify routing works.
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### GET /api/v1/records/stats/summary
-
-**Summary:** Get Stats
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### GET /api/v1/records
-
-**Summary:** Get Records
-
-**Parameters:**
-
-- `skip` (query, integer): 
-- `limit` (query, integer): 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### POST /api/v1/records/
-
-**Summary:** Create Record
-
-**Request Body:**
-
-```json
-// See schema: RecordCreate
-```
-
-**Responses:**
-
-- **201**: Successful Response
-- **422**: Validation Error
-
-
-#### GET /api/v1/records/{record_id}
-
-**Summary:** Get Record
-
-**Parameters:**
-
-- `record_id` (path, string) *required: 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### PATCH /api/v1/records/{record_id}
-
-**Summary:** Patch Record
-
-**Parameters:**
-
-- `record_id` (path, string) *required: 
-
-**Request Body:**
-
-```json
-// See schema: RecordPatch
-```
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### DELETE /api/v1/records/{record_id}
-
-**Summary:** Delete Record
-
-**Parameters:**
-
-- `record_id` (path, string) *required: 
-
-**Responses:**
-
-- **204**: Successful Response
-- **422**: Validation Error
-
-
-#### POST /api/v1/records/bulk-approve
-
-**Summary:** Bulk Approve Records
-
-**Description:** Bulk approve multiple medical records.
-Only the assigned doctor (or admin) can approve.
-
-**Request Body:**
-
-```json
-// See schema: BulkApprove
-```
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-#### GET /api/v1/records/pending/list
-
-**Summary:** List Pending Records
-
-**Description:** Get pending records for the doctor (records assigned to them, status=pending).
-Used by the approval queue page.
-
-**Parameters:**
-
-- `skip` (query, integer): 
-- `limit` (query, integer): 
-
-**Responses:**
-
-- **200**: Successful Response
-- **422**: Validation Error
-
-
-### Uncategorized
-
-#### GET /metrics
-
-**Summary:** Prometheus Metrics
-
-**Responses:**
-
-- **200**: Successful Response
-
-
-#### GET /
-
-**Summary:** Root
-
-**Responses:**
-
-- **200**: Successful Response
-
-
----
-
-## Data Schemas
-
-### AppointmentCreate
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `specialist` | string | Yes |  |
-| `date` | string | Yes |  |
-| `time` | string | Yes |  |
-| `reason` | object | No |  |
-
-### AppointmentUpdate
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `specialist` | object | No |  |
-| `date` | object | No |  |
-| `time` | object | No |  |
-| `status` | object | No |  |
-| `reason` | object | No |  |
-
-### Body_login_access_token_api_v1_auth_login_post
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `grant_type` | object | No |  |
-| `username` | string | Yes |  |
-| `password` | string | Yes |  |
-| `scope` | string | No |  |
-| `client_id` | object | No |  |
-| `client_secret` | object | No |  |
-
-### BulkApprove
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `record_ids` | array | Yes |  |
-| `notes` | object | No |  |
-| `status` | object | No |  |
-
-### BulkAssign
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `doctor_id` | string | Yes |  |
-| `patient_ids` | array | Yes |  |
-
-### ChangePasswordRequest
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `old_password` | string | Yes |  |
-| `new_password` | string | Yes |  |
-
-### DiagnosisChatRequest
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `message` | string | Yes |  |
-| `selected_symptoms` | array | No |  |
-| `asked_symptoms` | array | No |  |
-| `last_asked_symptom` | object | No |  |
-| `session_id` | object | No |  |
-
-### DiagnosisChatResponse
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `assistant_message` | string | Yes |  |
-| `updated_symptoms` | array | Yes |  |
-| `current_diagnosis` | object | Yes |  |
-| `next_symptom_to_ask` | object | No |  |
-| `conversation_state` | string | Yes |  |
-| `recognized_keywords` | array | No |  |
-
-### HTTPValidationError
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `detail` | array | No |  |
-
-### MedicationLogCreate
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `notes` | string | No |  |
-
-### MessageCreate
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `receiver_id` | string | Yes |  |
-| `content` | string | Yes |  |
-
-### NotificationOut
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `id` | string | Yes |  |
-| `user_id` | string | Yes |  |
-| `type` | string | Yes |  |
-| `title` | string | Yes |  |
-| `message` | object | Yes |  |
-| `is_read` | boolean | Yes |  |
-| `related_id` | object | Yes |  |
-| `related_url` | object | Yes |  |
-| `created_at` | string | Yes |  |
-
-### PatientProfileUpdate
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `date_of_birth` | object | No |  |
-| `blood_group` | object | No |  |
-| `chronic_conditions` | object | No |  |
-| `emergency_contact` | object | No |  |
-
-### PredictionResponse
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `predicted_disease` | string | Yes |  |
-| `confidence` | number | Yes |  |
-| `recommended_specialist` | string | Yes |  |
-| `recognized_symptoms` | array | Yes |  |
-| `unknown_symptoms` | array | Yes |  |
-| `record_id` | object | No |  |
-
-### PrescriptionCreate
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `patient_id` | string | Yes |  |
-| `medication_name` | string | Yes |  |
-| `dosage` | string | Yes |  |
-| `frequency` | string | Yes |  |
-| `instructions` | string | Yes |  |
-| `start_date` | object | No |  |
-| `end_date` | object | No |  |
-
-### PrescriptionOut
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `id` | string | Yes |  |
-| `patient_id` | string | Yes |  |
-| `doctor_id` | string | Yes |  |
-| `medication_name` | string | Yes |  |
-| `dosage` | object | Yes |  |
-| `frequency` | object | Yes |  |
-| `instructions` | object | Yes |  |
-| `start_date` | string | Yes |  |
-| `end_date` | object | Yes |  |
-| `status` | string | Yes |  |
-| `created_at` | string | Yes |  |
-| `updated_at` | string | Yes |  |
-
-### PrescriptionUpdate
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `status` | object | No |  |
-| `end_date` | object | No |  |
-| `instructions` | object | No |  |
-
-### RecordCreate
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `symptoms` | array | Yes |  |
-| `ai_prediction` | object | No |  |
-| `confidence_score` | object | No |  |
-| `recommended_specialist` | object | No |  |
-
-### RecordPatch
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `doctor_notes` | object | No |  |
-| `status` | object | No |  |
-
-### ReportRequest
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `report_text` | string | Yes |  |
-| `save_record` | boolean | No |  |
-
-### ReportResponse
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `summary` | string | Yes |  |
-| `detected_conditions` | array | Yes |  |
-| `urgency` | string | Yes |  |
-| `recommended_specialist` | string | Yes |  |
-| `record_id` | object | No |  |
-
-### SymptomRequest
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `symptoms` | array | Yes |  |
-| `save_record` | boolean | No |  |
-
-### Token
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `access_token` | string | Yes |  |
-| `token_type` | string | Yes |  |
-
-### UserCreate
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `email` | string | Yes |  |
-| `password` | string | Yes |  |
-| `role` | string | No |  |
-
-### UserOut
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `id` | string | Yes |  |
-| `email` | string | Yes |  |
-| `role` | string | Yes |  |
-| `is_active` | boolean | Yes |  |
-| `created_at` | string | Yes |  |
-
-### UserRole
-
-
-### UserRoleUpdate
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `role` | object | Yes |  |
-
-### UserStatusUpdate
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `is_active` | boolean | Yes |  |
-
-### ValidationError
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `loc` | array | Yes |  |
-| `msg` | string | Yes |  |
-| `type` | string | Yes |  |
-| `input` | object | No |  |
-| `ctx` | object | No |  |
-
-### XrayRequest
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `image_base64` | string | Yes |  |
-| `save_record` | boolean | No |  |
-
-### XrayResponse
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `predicted_condition` | string | Yes |  |
-| `confidence` | number | Yes |  |
-| `severity` | string | Yes |  |
-| `recommended_action` | string | Yes |  |
-| `record_id` | object | No |  |
-
----
-
-## Security
-
-- **Authentication:** JWT via httpOnly cookie (httpOnly, SameSite=Lax, Secure in production)
-- **Roles:** PATIENT, DOCTOR, ADMIN
-- **HTTPS:** Required in production
-- **CORS:** Restricted to configured origins
-- **Rate Limiting:** Auth endpoints rate-limited
+### Postman Import
+
+1. Open Postman
+2. File → Import
+3. Select: Link (or Folder → Raw text)
+4. Paste: `http://localhost:8000/api/v1/openapi.json`
+5. Click Import
+6. Auto-generated collection with all endpoints ready to test
+
+## Live API Documentation
+
+- **Swagger UI**: http://localhost:8000/docs (development)
+- **ReDoc**: http://localhost:8000/redoc (development)
+- **OpenAPI JSON**: http://localhost:8000/api/v1/openapi.json
+
+## Support & Issues
+
+For questions, bugs, or feature requests:
+- **GitHub Issues**: [ai-healthcare/issues](https://github.com/yourorg/ai-healthcare/issues)
+- **Email**: support@aihealthcare.com
+- **Docs**: [Full technical documentation](https://docs.aihealthcare.com)

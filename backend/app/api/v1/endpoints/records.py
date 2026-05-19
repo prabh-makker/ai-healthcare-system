@@ -15,12 +15,6 @@ from app.core.serializers import serialize_medical_record
 router = APIRouter()
 
 
-@router.post("/test-simple", status_code=200)
-def test_simple():
-    """Simple test endpoint to verify routing works."""
-    return {"message": "test endpoint works"}
-
-
 class RecordCreate(BaseModel):
     symptoms: List[str]
     ai_prediction: Optional[str] = None
