@@ -830,17 +830,17 @@ export default function Dashboard() {
           <div className="flex items-center gap-3 mb-1">
             <motion.div
               className="p-2.5 rounded-2xl"
-              style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 12px 32px rgba(16,185,129,0.35)" }}
+              style={{ background: "linear-gradient(135deg, #5eead4, #2dd4bf)", boxShadow: "0 8px 20px rgba(94,234,212,0.25)" }}
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
             >
               <HeartPulse size={22} className="text-white" />
             </motion.div>
-            <PulseDots color="#10b981" />
+            <PulseDots color="#2dd4bf" />
           </div>
           <h1
             className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight"
-            style={{ backgroundImage: "linear-gradient(135deg, #dcfce7, #bbf7d0, #10b981, #059669)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
+            style={{ backgroundImage: "linear-gradient(135deg, #ccfbf1, #99f6e4, #5eead4, #2dd4bf)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
           >
             My Health Portal
           </h1>
@@ -850,7 +850,7 @@ export default function Dashboard() {
 
         <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
           <NotificationBell />
-          <ShimmerButton href="/dashboard/symptoms" gradFrom="#10b981" gradTo="#059669" shadow="rgba(16,185,129,0.3)">
+          <ShimmerButton href="/dashboard/symptoms" gradFrom="#5eead4" gradTo="#2dd4bf" shadow="rgba(94,234,212,0.25)">
             <Activity size={20} strokeWidth={3} />
             <span>Check Symptoms</span>
           </ShimmerButton>
@@ -858,7 +858,7 @@ export default function Dashboard() {
       </motion.header>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8 sm:mb-12 overflow-hidden">
-        <StatCard3D label="Health Score" value={stats?.recent_records?.length ? "Active" : "—"} icon={HeartPulse} trend={stats?.recent_records?.length ? "tracked" : "no data"} gradFrom="#10b981" gradTo="#059669" glowColor="rgba(16,185,129,0.2)" delay={0} />
+        <StatCard3D label="Health Score" value={stats?.recent_records?.length ? "Active" : "—"} icon={HeartPulse} trend={stats?.recent_records?.length ? "tracked" : "no data"} gradFrom="#5eead4" gradTo="#2dd4bf" glowColor="rgba(94,234,212,0.15)" delay={0} />
         <StatCard3D label="Medical Records" value={stats ? String(stats?.recent_records?.filter(r => r.patient_id === user?.id).length ?? 0) : "—"} icon={ClipboardList} trend="+latest" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} onClick={() => router.push("/dashboard/records")} />
         <StatCard3D label="Appointments" value={upcomingAppts === null ? "—" : String(upcomingAppts)} icon={Clock} trend={upcomingAppts ? "upcoming" : "none"} gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} onClick={() => router.push("/dashboard/appointments")} />
         <StatCard3D label="Medications" value={activeMedsCount === null ? "—" : `${activeMedsCount} Active`} icon={Pill} trend="on track" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} onClick={() => router.push("/dashboard/medications")} />
@@ -867,10 +867,10 @@ export default function Dashboard() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
         <section className="xl:col-span-2">
           <div className="flex justify-between items-center mb-5">
-            <h2 className="text-xl font-bold" style={{ backgroundImage: "linear-gradient(135deg, #dcfce7, #bbf7d0)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
+            <h2 className="text-xl font-bold" style={{ backgroundImage: "linear-gradient(135deg, #ccfbf1, #99f6e4)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
               Recent Diagnoses
             </h2>
-            <Link href="/dashboard/records" className="text-emerald-500 text-sm font-bold hover:text-emerald-400 flex items-center gap-1 group">
+            <Link href="/dashboard/records" className="text-teal-400 text-sm font-bold hover:text-teal-300 flex items-center gap-1 group">
               <span>View All</span><ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
