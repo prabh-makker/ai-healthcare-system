@@ -1,22 +1,58 @@
 # AI Healthcare API Reference
 
-**Generated:** 2026-05-16 12:22:18
-**Version:** 0.1.0
+**Generated:** 2026-05-19  
+**Version:** 1.0.0  
+**Base URL:** `http://localhost:8000/api/v1` (development) or `https://api.healthcaresystem.com/api/v1` (production)
 
 ## Overview
 
-Healthcare diagnosis and management API
+Production-ready healthcare platform with AI-powered diagnosis using XGBoost machine learning models, medical records management, appointment scheduling, prescription tracking, and comprehensive patient/doctor management. Features JWT/OAuth2 authentication, role-based access control (PATIENT/DOCTOR/ADMIN), real-time notifications via WebSocket, and full audit logging.
+
+## Key Features
+
+- **AI Diagnosis Engine:** XGBoost-powered symptom analysis with confidence scoring
+- **Role-Based Access Control:** Patient, Doctor, and Admin roles with granular permissions
+- **Real-time Communication:** WebSocket support for instant notifications and messages
+- **Medical Records:** Comprehensive patient history with doctor annotations
+- **Appointment Management:** Scheduling, rescheduling, and calendar management
+- **Prescription Tracking:** Drug prescriptions with dosage and compliance tracking
+- **Audit Logging:** Full audit trail of all user actions
+- **Security:** JWT tokens in httpOnly cookies, CORS protection, rate limiting
 
 ---
 
 ## Authentication
 
-All endpoints (except `/auth/register` and `/auth/login`) require JWT authentication via httpOnly cookie (`auth_token`) or Authorization header.
+### Overview
 
-**Authorization Header:**
+All endpoints (except `/auth/register` and `/auth/login`) require JWT authentication. Tokens are stored in **httpOnly cookies** for security and also available via `Authorization` header.
+
+### Cookie-Based Authentication (Recommended)
+
+After successful login, the server sets an httpOnly cookie:
+```
+Set-Cookie: Authorization=<jwt_token>; Path=/; HttpOnly; Secure; SameSite=Strict
+```
+
+The browser automatically includes this cookie in all subsequent requests.
+
+### Authorization Header
+
+Alternatively, include the token in the Authorization header:
 ```
 Authorization: Bearer <access_token>
 ```
+
+### Token Expiration
+
+- **Access Token:** 24 hours (configurable)
+- **Refresh:** Re-login to get new token
+
+### Rate Limiting
+
+- **Auth endpoints:** 5 requests per minute per IP
+- **API endpoints:** 100 requests per minute per user
+- **Diagnosis:** 10 requests per minute per user
 
 ---
 

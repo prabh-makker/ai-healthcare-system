@@ -1,3 +1,15 @@
+"""
+Comprehensive test suite for Appointment endpoints covering:
+- Appointment creation and scheduling
+- Specialist validation
+- DateTime format validation
+- Status transitions (pending → scheduled → completed)
+- Doctor-patient appointment assignment
+- Role-based access control
+- Appointment cancellation
+- Pagination and filtering
+- Admin appointment management
+"""
 import pytest
 from fastapi.testclient import TestClient
 from tests.conftest import create_test_user

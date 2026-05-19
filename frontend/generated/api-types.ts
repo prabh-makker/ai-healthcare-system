@@ -1,12 +1,19 @@
 /**
- * Auto-generated TypeScript types from OpenAPI spec
- * Generated: 2026-05-16 12:22:18
+ * Auto-generated TypeScript types from AI Healthcare API OpenAPI specification
+ * Generated: 2026-05-19
+ * DO NOT EDIT MANUALLY - regenerate from backend OpenAPI spec using /api-doc skill
+ *
+ * Features:
+ * - Type-safe API client integration
+ * - React hooks for data fetching
+ * - Comprehensive schema definitions
+ * - Authentication with JWT tokens
  */
 
 export interface ApiResponse<T = any> {
   success: boolean;
-  data: T | null;
-  error: { message: string; status_code: number } | null;
+  data?: T | null;
+  error?: { message: string; status_code: number; details?: Record<string, any> } | null;
   timestamp: string;
 }
 

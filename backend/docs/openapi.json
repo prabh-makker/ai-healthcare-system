@@ -1,8 +1,12 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "AI Healthcare Diagnosis System",
-    "version": "0.1.0"
+    "title": "AI Healthcare Diagnosis System API",
+    "version": "1.0.0",
+    "description": "Production-ready healthcare platform with AI-powered diagnosis (XGBoost), medical records, appointments, prescriptions, and patient management. Features JWT/OAuth2 authentication, role-based access control (PATIENT/DOCTOR/ADMIN), real-time notifications via WebSocket, and comprehensive audit logging.",
+    "contact": {
+      "name": "Healthcare API Support"
+    }
   },
   "paths": {
     "/api/v1/health": {
