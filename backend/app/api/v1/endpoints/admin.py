@@ -736,3 +736,82 @@ def get_accuracy_metrics(
         },
         "per_disease_accuracy": per_disease,
     }
+
+
+@router.get("/search")
+def admin_search(
+    q: str,
+    skip: int = 0,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Admin: search across users, records, and appointments"""
+    if not q or len(q.strip()) == 0:
+        return {"results": [], "total": 0}
+
+    query = q.lower().strip()
+    results = []
+
+    # Search users
+    users = db.query(User).filter(
+        (User.email.ilike(f"%{query}%")) |
+        (User.first_name.ilike(f"%{query}%")) |
+        (User.last_name.ilike(f"%{query}%"))
+    ).limit(10).all()
+
+    for u in users:
+        results.append({
+            "type": "user",
+            "id": str(u.id),
+            "title": f"{u.first_name or ''} {u.last_name or ''}".strip() or u.email.split("@")[0],
+            "subtitle": u.email,
+            "role": u.role.value,
+            "status": "active" if u.is_active else "inactive",
+        })
+
+    # Search records
+    records = db.query(MedicalRecord, User).join(
+        User, MedicalRecord.patient_id == User.id
+    ).filter(
+        (MedicalRecord.ai_prediction.ilike(f"%{query}%")) |
+        (User.email.ilike(f"%{query}%")) |
+        (User.first_name.ilike(f"%{query}%")) |
+        (User.last_name.ilike(f"%{query}%"))
+    ).limit(10).all()
+
+    for r, u in records:
+        results.append({
+            "type": "record",
+            "id": str(r.id),
+            "title": r.ai_prediction or "Diagnosis Record",
+            "subtitle": f"{u.first_name or ''} {u.last_name or ''}".strip() or u.email,
+            "specialist": r.recommended_specialist,
+            "status": r.status,
+        })
+
+    # Search appointments
+    appointments = db.query(Appointment, User).join(
+        User, Appointment.patient_id == User.id
+    ).filter(
+        (Appointment.specialist.ilike(f"%{query}%")) |
+        (User.email.ilike(f"%{query}%")) |
+        (User.first_name.ilike(f"%{query}%")) |
+        (User.last_name.ilike(f"%{query}%"))
+    ).limit(10).all()
+
+    for a, u in appointments:
+        results.append({
+            "type": "appointment",
+            "id": str(a.id),
+            "title": f"{a.specialist} - {u.first_name or ''} {u.last_name or ''}".strip(),
+            "date": a.date,
+            "time": a.time,
+            "status": a.status,
+        })
+
+    return {
+        "results": results[:limit],
+        "total": len(results),
+        "query": q,
+    }

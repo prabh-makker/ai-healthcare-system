@@ -51,33 +51,81 @@ export default function SearchPage() {
     const collected: SearchResult[] = [];
 
     try {
-      // Records search (everyone)
-      if (category === "all" || category === "records") {
+      // Use backend search for admins, fallback to client-side for others
+      if (isAdmin) {
         try {
-          const recs: any = await api.getRecords();
-          if (Array.isArray(recs)) {
-            for (const r of recs) {
-              const name = r.first_name && r.last_name ? `${r.first_name} ${r.last_name}` : r.patient_email?.split("@")[0] || "Unknown";
-              const haystack = `${r.ai_prediction || ""} ${(r.symptoms || []).join(" ")} ${r.recommended_specialist || ""} ${name} ${r.patient_email || ""}`.toLowerCase();
-              if (haystack.includes(q)) {
-                collected.push({
-                  type: "record",
-                  id: r.id,
-                  title: r.ai_prediction || "Diagnosis Record",
-                  subtitle: name,
-                  meta: r.recommended_specialist || "—",
-                  badge: r.status || "pending",
-                  badgeColor: r.status === "approved" ? "emerald" : r.status === "rejected" ? "rose" : "amber",
-                  href: `/dashboard/records/${r.id}`,
-                });
+          const res: any = await api.adminSearch(query.trim(), 0, 50);
+          if (res && res.results) {
+            for (const r of res.results) {
+              if (category === "all" || category === r.type) {
+                let result: SearchResult | null = null;
+                if (r.type === "user") {
+                  result = {
+                    type: "user",
+                    id: r.id,
+                    title: r.title,
+                    subtitle: r.subtitle,
+                    meta: r.role,
+                    badge: r.status,
+                    badgeColor: r.status === "active" ? "emerald" : "rose",
+                  };
+                } else if (r.type === "record") {
+                  result = {
+                    type: "record",
+                    id: r.id,
+                    title: r.title,
+                    subtitle: r.subtitle,
+                    meta: r.specialist || "—",
+                    badge: r.status || "pending",
+                    badgeColor: r.status === "approved" ? "emerald" : r.status === "rejected" ? "rose" : "amber",
+                    href: `/dashboard/records/${r.id}`,
+                  };
+                } else if (r.type === "appointment") {
+                  result = {
+                    type: "appointment",
+                    id: r.id,
+                    title: r.title,
+                    subtitle: r.date,
+                    meta: r.time,
+                    badge: r.status,
+                    badgeColor: r.status === "upcoming" ? "sky" : r.status === "completed" ? "emerald" : "rose",
+                  };
+                }
+                if (result) collected.push(result);
               }
             }
           }
-        } catch (e) { console.error("records search failed", e); }
+        } catch (e) { console.error("admin search failed", e); }
+      } else {
+        // Client-side search for non-admins (fallback)
+        // Records search (everyone)
+        if (category === "all" || category === "records") {
+          try {
+            const recs: any = await api.getRecords();
+            if (Array.isArray(recs)) {
+              for (const r of recs) {
+                const name = r.first_name && r.last_name ? `${r.first_name} ${r.last_name}` : r.patient_email?.split("@")[0] || "Unknown";
+                const haystack = `${r.ai_prediction || ""} ${(r.symptoms || []).join(" ")} ${r.recommended_specialist || ""} ${name} ${r.patient_email || ""}`.toLowerCase();
+                if (haystack.includes(q)) {
+                  collected.push({
+                    type: "record",
+                    id: r.id,
+                    title: r.ai_prediction || "Diagnosis Record",
+                    subtitle: name,
+                    meta: r.recommended_specialist || "—",
+                    badge: r.status || "pending",
+                    badgeColor: r.status === "approved" ? "emerald" : r.status === "rejected" ? "rose" : "amber",
+                    href: `/dashboard/records/${r.id}`,
+                  });
+                }
+              }
+            }
+          } catch (e) { console.error("records search failed", e); }
+        }
       }
 
-      // Appointments search
-      if (category === "all" || category === "appointments") {
+      // Appointments search (non-admin fallback)
+      if (!isAdmin && (category === "all" || category === "appointments")) {
         try {
           const appts: any = await api.getAppointments(0, 100);
           if (Array.isArray(appts)) {

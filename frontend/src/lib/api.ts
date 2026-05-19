@@ -417,6 +417,16 @@ export const api = {
       body: JSON.stringify({ date, name, notes: notes || null }),
     }),
 
+  // Admin Search
+  adminSearch: (q: string, skip = 0, limit = 20) => {
+    const params = new URLSearchParams({
+      q,
+      skip: String(skip),
+      limit: String(limit),
+    });
+    return request(`/api/v1/admin/search?${params.toString()}`);
+  },
+
   // Admin Appointments Summary
   getAdminDoctorsAppointmentSummary: () => request("/api/v1/appointments/admin/doctors-summary"),
 
