@@ -84,6 +84,11 @@ interface AllUser {
   created_at: string | null;
   first_name?: string | null;
   last_name?: string | null;
+  assigned_doctors?: Array<{
+    id: string;
+    name: string;
+    email: string;
+  }>;
 }
 
 interface DiagDist {
@@ -110,6 +115,7 @@ function AdminContent() {
   const router = useRouter();
   const [adminTab, setAdminTab] = useState<AdminTab>("overview");
   const [userStatusFilter, setUserStatusFilter] = useState<string>("ALL");
+  const [userRoleFilter, setUserRoleFilter] = useState<string>("ALL");
   const [userSearchQuery, setUserSearchQuery] = useState<string>("");
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUserForm, setNewUserForm] = useState({ email: "", password: "", role: "DOCTOR", specialization: "General Physician" });
@@ -145,6 +151,9 @@ function AdminContent() {
   const [retrainProgress, setRetrainProgress] = useState(0);
   const [retrainStep, setRetrainStep] = useState("");
   const [retrainResult, setRetrainResult] = useState<any>(null);
+
+  // Active cases count
+  const [activeCasesCount, setActiveCasesCount] = useState(0);
 
   const handleRetrain = async () => {
     setRetraining(true);
@@ -236,6 +245,15 @@ function AdminContent() {
     api.getDiagnosesDistribution().then(setDiag).catch(console.error);
     api.getSystemHealth().then(setHealth).catch(console.error);
     api.getAccuracyMetrics().then(setAccuracyMetrics).catch(console.error);
+    // Load active cases count
+    api.getRecords(0, 500)
+      .then((records: any[]) => {
+        const activeCases = records.filter(
+          (r) => r.status === "pending" || r.status === "approved"
+        );
+        setActiveCasesCount(activeCases.length);
+      })
+      .catch(console.error);
   };
 
   useEffect(() => { loadAll(); }, []);
@@ -313,7 +331,7 @@ function AdminContent() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-violet-200 via-purple-400 to-indigo-600 bg-clip-text text-transparent">
+          <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
             Admin Dashboard
           </h1>
           <p className="text-zinc-500 mt-2 font-medium">System overview &amp; management</p>
@@ -367,12 +385,13 @@ function AdminContent() {
             className="space-y-8"
           >
             {/* Stat Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               {[
                 { label: "Total Users", value: String((stats?.total_patients ?? 0) + (stats?.total_doctors ?? 0)), icon: Users, color: "sky" as const, gradient: "from-sky-500 to-blue-600", onClick: () => setAdminTab("users") },
-                { label: "Patients", value: String(stats?.total_patients ?? "…"), icon: Activity, color: "rose" as const, gradient: "from-rose-500 to-pink-600", onClick: () => { setAdminTab("users"); setUserRoleFilter("PATIENT"); } },
-                { label: "Doctors", value: String(stats?.total_doctors ?? "…"), icon: Stethoscope, color: "violet" as const, gradient: "from-violet-500 to-purple-600", onClick: () => { setAdminTab("users"); setUserRoleFilter("DOCTOR"); } },
+                { label: "Patients", value: String(stats?.total_patients ?? "…"), icon: Activity, color: "rose" as const, gradient: "from-rose-500 to-pink-600", onClick: () => router.push("/dashboard/patients") },
+                { label: "Doctors", value: String(stats?.total_doctors ?? "…"), icon: Stethoscope, color: "violet" as const, gradient: "from-violet-500 to-purple-600", onClick: () => { setAdminTab("users"); } },
                 { label: "Total Records", value: String(stats?.total_records ?? "…"), icon: Database, color: "emerald" as const, gradient: "from-emerald-500 to-teal-600", onClick: () => router.push("/dashboard/records") },
+                { label: "Active Cases", value: String(activeCasesCount ?? "…"), icon: Zap, color: "cyan" as const, gradient: "from-cyan-500 to-blue-600", onClick: () => router.push("/dashboard/active-cases") },
               ].map((card, idx) => (
                 <motion.div key={card.label} variants={item}>
                   <StatCard
@@ -477,12 +496,14 @@ function AdminContent() {
                   <p className="py-8 text-center text-zinc-600">No appointments scheduled</p>
                 ) : (
                   appointments.slice(0, 10).map((appt) => (
-                    <div
+                    <motion.div
                       key={appt.id}
-                      className="flex items-center justify-between p-4 bg-white/3 rounded-2xl hover:bg-white/5 transition-all"
+                      whileHover={{ x: 4, backgroundColor: "rgba(5,150,213,0.08)" }}
+                      onClick={() => router.push("/dashboard/appointments")}
+                      className="flex items-center justify-between p-4 bg-white/3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer group"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 rounded-lg bg-emerald-500/10">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="p-2 rounded-lg bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
                           <Calendar size={16} className="text-emerald-400" />
                         </div>
                         <div>
@@ -490,14 +511,14 @@ function AdminContent() {
                           <p className="text-zinc-500 text-xs">{appt.reason ?? "—"}</p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0">
                         <p className="text-sm font-semibold">{appt.date}</p>
                         <p className="text-xs text-zinc-500">{appt.time}</p>
                         <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-lg ${
                           STATUS_COLOR_MAP[appt.status === "upcoming" ? "sky" : appt.status === "completed" ? "emerald" : "rose"]
                         }`}>{appt.status}</span>
                       </div>
-                    </div>
+                    </motion.div>
                   ))
                 )}
               </div>
@@ -549,7 +570,7 @@ function AdminContent() {
                     </span>
                   </h2>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-zinc-500">{users.filter(u => (userStatusFilter === "ALL" || (userStatusFilter === "ACTIVE" ? u.is_active : !u.is_active)) && (userSearchQuery === "" || u.email.toLowerCase().includes(userSearchQuery.toLowerCase()))).length} of {users.length}</span>
+                    <span className="text-xs text-zinc-500">{users.filter(u => (userRoleFilter === "ALL" || u.role === userRoleFilter) && (userStatusFilter === "ALL" || (userStatusFilter === "ACTIVE" ? u.is_active : !u.is_active)) && (userSearchQuery === "" || u.email.toLowerCase().includes(userSearchQuery.toLowerCase()))).length} of {users.length}</span>
                     <button
                       onClick={() => setShowAddUser(true)}
                       className="px-4 py-2 bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold rounded-lg transition-all shadow-lg shadow-sky-500/30 flex items-center gap-1.5"
@@ -568,6 +589,22 @@ function AdminContent() {
                     className="flex-1 min-w-[200px] px-4 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus:border-sky-500"
                     style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)", color: "var(--foreground)" }}
                   />
+                  <div className="flex items-center gap-1.5 p-1 rounded-lg border" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)" }}>
+                    {["ALL", "DOCTOR", "PATIENT"].map((role) => (
+                      <button
+                        key={role}
+                        onClick={() => setUserRoleFilter(role)}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                          userRoleFilter === role
+                            ? "bg-amber-500 text-white shadow-md shadow-amber-500/30"
+                            : "hover:bg-white/5"
+                        }`}
+                        style={userRoleFilter === role ? {} : { color: "var(--foreground)", opacity: 0.7 }}
+                      >
+                        {role}
+                      </button>
+                    ))}
+                  </div>
                   <div className="flex items-center gap-1.5 p-1 rounded-lg border" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)" }}>
                     {["ALL", "ACTIVE", "INACTIVE"].map((status) => (
                       <button
@@ -591,14 +628,16 @@ function AdminContent() {
                   <thead className="sticky top-0 backdrop-blur z-10" style={{ background: "var(--background)" }}>
                     <tr className="text-zinc-500 text-xs uppercase tracking-wider border-b border-white/5">
                       <th className="text-left pb-3 font-semibold">Name / Email</th>
+                      <th className="text-left pb-3 font-semibold">Role</th>
                       <th className="text-left pb-3 font-semibold">Status</th>
+                      <th className="text-left pb-3 font-semibold">Assigned Doctor</th>
                       <th className="text-left pb-3 font-semibold">Joined</th>
                       <th className="text-right pb-3 font-semibold">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {users
-                      .filter(u => (userStatusFilter === "ALL" || (userStatusFilter === "ACTIVE" ? u.is_active : !u.is_active)) && (userSearchQuery === "" || u.email.toLowerCase().includes(userSearchQuery.toLowerCase())))
+                      .filter(u => (userRoleFilter === "ALL" || u.role === userRoleFilter) && (userStatusFilter === "ALL" || (userStatusFilter === "ACTIVE" ? u.is_active : !u.is_active)) && (userSearchQuery === "" || u.email.toLowerCase().includes(userSearchQuery.toLowerCase())))
                       .map((u) => (
                       <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="py-3">
@@ -608,9 +647,41 @@ function AdminContent() {
                           <p className="text-xs text-zinc-500">{u.email}</p>
                         </td>
                         <td className="py-3">
+                          <span className={`text-xs font-bold px-2 py-1 rounded-lg ${
+                            u.role === "DOCTOR" ? "bg-blue-500/10 text-blue-400" :
+                            u.role === "PATIENT" ? "bg-emerald-500/10 text-emerald-400" :
+                            "bg-purple-500/10 text-purple-400"
+                          }`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="py-3">
                           <span className={`text-xs font-bold px-2 py-1 rounded-lg ${STATUS_COLOR_MAP[u.is_active ? "emerald" : "rose"]}`}>
                             {u.is_active ? "Active" : "Inactive"}
                           </span>
+                        </td>
+                        <td className="py-3 text-xs">
+                          {u.role === "PATIENT" ? (
+                            u.assigned_doctors && u.assigned_doctors.length > 0 ? (
+                              <div className="flex flex-col gap-1">
+                                {u.assigned_doctors.map((doc) => (
+                                  <div key={doc.id} className="flex items-center justify-between gap-2 p-1.5 bg-white/5 rounded border border-white/10">
+                                    <div className="flex-1">
+                                      <p className="font-semibold text-sky-400 text-xs">{doc.name}</p>
+                                      <p className="text-zinc-600 text-xs">{doc.email}</p>
+                                    </div>
+                                    <button
+                                      className="text-xs px-2 py-1 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 rounded transition-colors whitespace-nowrap"
+                                    >
+                                      Reassign
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-zinc-600 italic">Not assigned</span>
+                            )
+                          ) : "—"}
                         </td>
                         <td className="py-3 text-zinc-500 text-xs">
                           {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
@@ -1204,43 +1275,45 @@ function AdminContent() {
             animate="show"
             className="space-y-8"
           >
-            {/* Recent Activity */}
+            {/* Recent Activity - System Actions */}
             <motion.div variants={item} className="glass-card rounded-[2rem] p-8 border border-white/[0.08]">
               <h2 className="text-xl font-black mb-8 flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/20">
-                  <TrendingUp size={20} className="text-white" />
+                  <Activity size={20} className="text-white" />
                 </div>
                 <span className="bg-gradient-to-r from-sky-200 to-blue-300 bg-clip-text text-transparent">
                   Recent Activity
                 </span>
               </h2>
-              <div className="space-y-3">
-                {(stats?.recent_records ?? []).length === 0 ? (
-                  <p className="py-8 text-center text-zinc-600">No recent records</p>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                {audit.length === 0 ? (
+                  <p className="py-8 text-center text-zinc-600">No recent activity</p>
                 ) : (
-                  (stats?.recent_records ?? []).slice(0, 8).map((r, idx) => (
+                  audit.slice(0, 10).map((e, idx) => (
                     <motion.div
-                      key={r.id}
+                      key={e.id}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: idx * 0.04 }}
                       whileHover={{ x: 4, backgroundColor: "rgba(139,92,246,0.06)" }}
-                      className="flex items-center justify-between p-4 bg-white/3 rounded-2xl transition-all duration-200"
+                      className="flex items-center justify-between p-4 bg-white/3 rounded-xl transition-all duration-200"
                     >
-                      <div>
-                        <p className="font-bold text-sm">{r.ai_prediction ?? "New Record"}</p>
-                        <p className="text-zinc-500 text-xs mt-0.5">
-                          Patient: {r.first_name && r.last_name
-                            ? `${r.first_name} ${r.last_name}`
-                            : r.patient_email?.split("@")[0] || "Unknown"}
-                        </p>
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <span className={`text-[10px] font-black px-2.5 py-1 rounded uppercase flex-shrink-0 ${
+                          e.action === "login"  ? "bg-sky-500/10 text-sky-400" :
+                          e.action === "delete" ? "bg-rose-500/10 text-rose-400" :
+                          e.action === "update" ? "bg-amber-500/10 text-amber-400" :
+                          e.action === "create" ? "bg-emerald-500/10 text-emerald-400" :
+                          "bg-zinc-500/10 text-zinc-400"
+                        }`}>{e.action}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-zinc-300 truncate">{e.user_email ?? "System"}</p>
+                          {e.resource_type && <p className="text-xs text-zinc-600 truncate">{e.resource_type}</p>}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="inline-block text-xs font-bold px-2.5 py-1.5 rounded-lg bg-violet-500/10 text-violet-400">
-                          {r.confidence_score != null ? `${r.confidence_score.toFixed(0)}%` : "—"}
-                        </span>
-                        <p className="text-zinc-600 text-[10px] mt-1">
-                          {r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}
+                      <div className="text-right flex-shrink-0 ml-2">
+                        <p className="text-zinc-600 text-[10px]">
+                          {e.created_at ? new Date(e.created_at).toLocaleString() : "—"}
                         </p>
                       </div>
                     </motion.div>

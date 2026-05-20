@@ -162,7 +162,7 @@ function AttendanceContent() {
           className="mb-8 flex justify-between items-start"
         >
           <div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight bg-gradient-to-br from-amber-200 via-amber-400 to-orange-500 bg-clip-text text-transparent">
+            <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
               Attendance Tracker
             </h1>
             <p className="text-zinc-500 mt-2 text-sm sm:text-base font-medium">
@@ -441,7 +441,7 @@ function AttendanceContent() {
 
 export default function AttendancePage() {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute requiredRole="DOCTOR">
       <AttendanceContent />
     </ProtectedRoute>
   );

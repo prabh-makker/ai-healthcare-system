@@ -169,6 +169,7 @@ def update_prescription(
         "completed": {"completed"},
         "discontinued": {"discontinued"},
     }
+    old_status = prescription.status or "active"
     if update_in.status:
         if update_in.status not in VALID_STATUSES:
             raise HTTPException(status_code=422, detail=f"Invalid status. Must be one of: {VALID_STATUSES}")
@@ -188,6 +189,22 @@ def update_prescription(
         db.commit()
         db.refresh(prescription)
         logger.info(f"Prescription updated: {prescription.id}")
+
+        # Create notification for patient if prescription status changed to discontinued
+        if update_in.status == "discontinued":
+            try:
+                create_notification(
+                    db=db,
+                    user_id=prescription.patient_id,
+                    notification_type="prescription",
+                    title="Prescription Discontinued",
+                    message=f"Your prescription for {prescription.medication_name} has been discontinued by Dr. {current_user.email.split('@')[0]}",
+                    related_id=str(prescription.id),
+                    related_url="/dashboard/prescriptions",
+                )
+            except Exception as notif_err:
+                logger.warning(f"Failed to create discontinuation notification: {notif_err}")
+
         return prescription
     except Exception as e:
         db.rollback()

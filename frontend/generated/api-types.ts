@@ -587,36 +587,5 @@ export const messageAPI = {
    EXPORT ALL TYPES FOR EXTERNAL USE
    ============================================================================ */
 
-export type {
-  UserCreate,
-  UserOut,
-  Token,
-  TokenPayload,
-  ChangePasswordRequest,
-  PatientProfile,
-  PatientProfileUpdate,
-  PatientWithProfile,
-  MedicalRecord,
-  RecordCreate,
-  RecordPatch,
-  DiagnosisRequest,
-  DiagnosisSuggestion,
-  DiagnosisResponse,
-  Appointment,
-  AppointmentCreate,
-  AppointmentUpdate,
-  Prescription,
-  PrescriptionCreate,
-  PrescriptionUpdate,
-  NotificationCreate,
-  NotificationOut,
-  Message,
-  MessageCreate,
-  Conversation,
-  ErrorDetail,
-  ErrorInfo,
-  SuccessResponse,
-  ErrorResponse,
-  PaginatedResponse,
-  APIResponse,
-};
+// All types are already exported individually above as interfaces
+// Removed duplicate export type block to prevent TypeScript conflicts

@@ -342,6 +342,19 @@ export const api = {
       method: "POST",
     }),
 
+  registerPatientByDoctor: (data: {
+    email: string;
+    first_name: string;
+    last_name: string;
+    blood_group?: string;
+    chronic_conditions?: string[];
+    emergency_contact?: string;
+  }) =>
+    request("/api/v1/patients/register-patient", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
   // Notifications
   getNotifications: (skip = 0, limit = 50, unreadOnly = false) =>
     request(`/api/v1/notifications?skip=${skip}&limit=${limit}&unread_only=${unreadOnly}`),

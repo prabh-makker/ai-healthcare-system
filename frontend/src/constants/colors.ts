@@ -24,6 +24,11 @@ export const COLOR_CLASS_MAP = {
     text: "text-emerald-400",
     hover: "group-hover:bg-emerald-500/20",
   },
+  cyan: {
+    bg: "bg-cyan-500/10",
+    text: "text-cyan-400",
+    hover: "group-hover:bg-cyan-500/20",
+  },
 } as const;
 
 export const STATUS_COLOR_MAP = {

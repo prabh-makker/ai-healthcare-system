@@ -134,17 +134,51 @@ def admin_all_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.ADMIN)),
 ):
-    """Admin: list all users grouped by role."""
+    """Admin: list all users grouped by role with doctor assignment for patients."""
     users = db.query(User).order_by(User.created_at.desc()).all()
-    return [{
-        "id": str(u.id),
-        "email": u.email,
-        "first_name": u.first_name,
-        "last_name": u.last_name,
-        "role": u.role.value,
-        "is_active": u.is_active,
-        "created_at": u.created_at.isoformat() if u.created_at else None,
-    } for u in users]
+
+    # For patients, fetch their assigned doctor(s)
+    # Build a mapping: patient_id -> list of assigned doctors
+    patient_ids = [u.id for u in users if u.role == UserRole.PATIENT]
+    doctor_assignments = {}
+    if patient_ids:
+        assignments = db.query(DoctorPatient).filter(
+            DoctorPatient.patient_id.in_(patient_ids),
+            DoctorPatient.status == "active"
+        ).all()
+
+        # Map patient_id to doctors
+        for assignment in assignments:
+            if assignment.patient_id not in doctor_assignments:
+                doctor_assignments[assignment.patient_id] = []
+            # Fetch the doctor info
+            doctor = db.query(User).filter(User.id == assignment.doctor_id).first()
+            if doctor:
+                doctor_assignments[assignment.patient_id].append({
+                    "id": str(doctor.id),
+                    "name": f"{doctor.first_name or ''} {doctor.last_name or ''}".strip() or doctor.email.split("@")[0],
+                    "email": doctor.email
+                })
+
+    result = []
+    for u in users:
+        user_data = {
+            "id": str(u.id),
+            "email": u.email,
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+            "role": u.role.value,
+            "is_active": u.is_active,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+        }
+
+        # Add doctor assignment for patients
+        if u.role == UserRole.PATIENT:
+            user_data["assigned_doctors"] = doctor_assignments.get(u.id, [])
+
+        result.append(user_data)
+
+    return result
 
 
 @router.get("/list")
@@ -286,3 +320,104 @@ def assign_patient_to_doctor(
         db.rollback()
         logger.error(f"Error assigning patient: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error assigning patient")
+
+
+class RegisterPatientRequest(BaseModel):
+    email: str
+    first_name: str
+    last_name: str
+    blood_group: Optional[str] = None
+    chronic_conditions: Optional[List[str]] = None
+    emergency_contact: Optional[str] = None
+
+
+@router.post("/register-patient")
+def register_patient_by_doctor(
+    body: RegisterPatientRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Doctor registers a new patient and automatically assigns them.
+    Only doctors can call this endpoint.
+    """
+    if current_user.role != UserRole.DOCTOR:
+        raise HTTPException(status_code=403, detail="Only doctors can register patients")
+
+    # Check if patient already exists
+    existing_user = db.query(User).filter(User.email == body.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Patient with this email already exists")
+
+    try:
+        import uuid
+        from app.core import security
+        from app.api.v1.endpoints.notifications import create_notification
+
+        # Create new patient user
+        patient_id = str(uuid.uuid4())
+        new_patient = User(
+            id=patient_id,
+            email=body.email,
+            first_name=body.first_name,
+            last_name=body.last_name,
+            role=UserRole.PATIENT,
+            hashed_password=security.get_password_hash("Temp@123Password"),  # Temporary password
+            is_active=True
+        )
+        db.add(new_patient)
+        db.commit()
+        db.refresh(new_patient)
+
+        # Create patient profile
+        patient_profile = PatientProfile(
+            user_id=patient_id,
+            blood_group=body.blood_group,
+            chronic_conditions=body.chronic_conditions or [],
+            emergency_contact=body.emergency_contact
+        )
+        db.add(patient_profile)
+        db.commit()
+
+        # Automatically assign patient to doctor
+        assignment = DoctorPatient(
+            id=str(uuid.uuid4()),
+            doctor_id=str(current_user.id),
+            patient_id=patient_id,
+            status="active"
+        )
+        db.add(assignment)
+        db.commit()
+        db.refresh(assignment)
+
+        # Send notification to patient
+        try:
+            create_notification(
+                db=db,
+                user_id=patient_id,
+                notification_type="assignment",
+                title="Doctor Assigned",
+                message=f"Dr. {current_user.first_name or 'Doctor'} has registered you as a patient. Your temporary password is: Temp@123Password. Please change it in settings.",
+                related_id=str(current_user.id),
+                related_url="/dashboard/settings"
+            )
+        except Exception as notif_err:
+            logger.warning(f"Failed to send notification: {str(notif_err)}")
+
+        logger.info(f"Doctor {current_user.id} registered patient {patient_id}")
+
+        return {
+            "id": patient_id,
+            "email": new_patient.email,
+            "first_name": new_patient.first_name,
+            "last_name": new_patient.last_name,
+            "role": new_patient.role,
+            "assigned_to_doctor": str(current_user.id),
+            "temporary_password": "Temp@123Password",
+            "message": "Patient registered successfully. A notification with temporary credentials has been sent to the patient."
+        }
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error registering patient: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error registering patient: {str(e)}")

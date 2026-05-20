@@ -7,6 +7,7 @@ import { Search, FileSearch, Loader2, Users, ClipboardList, Calendar, Pill, Stet
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import DashboardBg from "@/components/DashboardBg";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 type Category = "all" | "users" | "patients" | "records" | "appointments" | "prescriptions";
 
@@ -21,7 +22,7 @@ interface SearchResult {
   badgeColor?: string;
 }
 
-export default function SearchPage() {
+function SearchPageContent() {
   const router = useRouter();
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
@@ -34,12 +35,12 @@ export default function SearchPage() {
   const [category, setCategory] = useState<Category>("all");
 
   const categories: { key: Category; label: string; icon: any; access: boolean }[] = [
-    { key: "all", label: "All", icon: Search, access: true },
-    { key: "patients", label: "Patients", icon: Users, access: true },
-    { key: "users", label: "Users", icon: Users, access: isAdmin },
-    { key: "records", label: "Records", icon: ClipboardList, access: true },
-    { key: "appointments", label: "Appointments", icon: Calendar, access: true },
-    { key: "prescriptions", label: "Prescriptions", icon: Pill, access: isAdmin || isDoctor },
+    { key: "all" as const, label: "All", icon: Search, access: true },
+    { key: "patients" as const, label: "Patients", icon: Users, access: true },
+    { key: "users" as const, label: "Users", icon: Users, access: isAdmin },
+    { key: "records" as const, label: "Records", icon: ClipboardList, access: true },
+    { key: "appointments" as const, label: "Appointments", icon: Calendar, access: true },
+    { key: "prescriptions" as const, label: "Prescriptions", icon: Pill, access: isAdmin || isDoctor },
   ].filter(c => c.access);
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -251,7 +252,7 @@ export default function SearchPage() {
 
       <div className="relative z-10">
         <motion.header initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight bg-gradient-to-br from-cyan-200 via-blue-400 to-sky-500 bg-clip-text text-transparent">
+          <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
             Global Search
           </h1>
           <p className="text-zinc-500 mt-2 font-medium text-sm sm:text-base">
@@ -388,5 +389,13 @@ export default function SearchPage() {
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <ProtectedRoute requiredRole="PATIENT">
+      <SearchPageContent />
+    </ProtectedRoute>
   );
 }

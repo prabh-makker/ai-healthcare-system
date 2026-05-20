@@ -11,7 +11,12 @@ import PrescriptionForm from "@/components/forms/PrescriptionForm";
 interface Patient {
   id: string;
   email: string;
-  name: string;
+  first_name: string;
+  last_name: string;
+  chronic_conditions?: string[];
+  assigned_date?: string;
+  blood_group?: string;
+  emergency_contact?: string;
 }
 
 interface Prescription {
@@ -87,7 +92,10 @@ function PrescriptionsContent() {
 
   const getPatientName = (patientId: string) => {
     const patient = patients.find((p) => p.id === patientId);
-    return patient?.name || "Unknown Patient";
+    if (patient?.first_name && patient?.last_name) {
+      return `${patient.first_name} ${patient.last_name}`;
+    }
+    return patient?.email || "Unknown Patient";
   };
 
   const discontinuePrescription = async (id: string) => {
@@ -125,9 +133,9 @@ function PrescriptionsContent() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-12"
+          className="mb-12 pt-16"
         >
-          <h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-sky-200 via-blue-400 to-cyan-500 bg-clip-text text-transparent">
+          <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
             Prescription Management
           </h1>
           <p className="text-zinc-500 mt-2 font-medium">
@@ -280,7 +288,9 @@ function PrescriptionsContent() {
                 <option value="">— Select a patient —</option>
                 {patients.map((patient) => (
                   <option key={patient.id} value={patient.id}>
-                    {patient.name || patient.email}
+                    {patient.first_name && patient.last_name
+                      ? `${patient.first_name} ${patient.last_name}`
+                      : patient.email}
                   </option>
                 ))}
               </select>

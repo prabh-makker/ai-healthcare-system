@@ -152,7 +152,7 @@ function TimelineContent() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-12"
         >
-          <h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-sky-200 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
+          <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
             Health Timeline
           </h1>
           <p className="text-zinc-500 mt-2 font-medium">

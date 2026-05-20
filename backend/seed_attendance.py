@@ -68,7 +68,7 @@ def seed_attendance():
                 created_at=utc_now(),
             )
             db.add(log)
-            print(f"  ✓ {doctor.first_name or doctor.email} — {date}: {status}")
+            print(f"  [+] {doctor.first_name or doctor.email} - {date}: {status}")
 
     db.commit()
     print("\nAttendance seeding complete!")

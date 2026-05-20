@@ -18,6 +18,8 @@ services:
     depends_on:
       - postgres
       - redis
+    volumes:
+      - ../backend:/app
     networks:
       - aihealthcare-network
     healthcheck:
@@ -39,6 +41,7 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8006
       - API_BACKEND_URL=http://backend:8000
+      - PORT=3000
     depends_on:
       - backend
     networks:

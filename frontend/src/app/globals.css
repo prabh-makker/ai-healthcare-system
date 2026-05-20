@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
+@keyframes colorShift {
+  0% {
+    background-position: 0% center;
+  }
+  50% {
+    background-position: 100% center;
+  }
+  100% {
+    background-position: 0% center;
+  }
+}
+
+/* Remove all glow/shadow effects */
+h1 {
+  filter: none !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
 :root,
 .dark {
   --background: #050505;

@@ -2,17 +2,19 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { Search, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Search, AlertCircle, Plus, X } from "lucide-react";
 import { api, APIError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardBg from "@/components/DashboardBg";
+import RegisterPatientForm from "@/components/forms/RegisterPatientForm";
 
 interface Patient {
   id: string;
   email: string;
-  name: string;
+  first_name: string;
+  last_name: string;
   chronic_conditions: string[];
   assigned_date: string;
   blood_group?: string;
@@ -27,37 +29,47 @@ function MyPatientsContent() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+
+  const fetchPatients = async () => {
+    try {
+      setLoading(true);
+      const data = await api.getMyPatients(0, 50);
+      setPatients(data);
+      setFilteredPatients(data);
+    } catch (err: any) {
+      if (err instanceof APIError) {
+        setError(err.message);
+      } else {
+        setError("Failed to load patients");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        setLoading(true);
-        const data = await api.getMyPatients(0, 50);
-        setPatients(data);
-        setFilteredPatients(data);
-      } catch (err: any) {
-        if (err instanceof APIError) {
-          setError(err.message);
-        } else {
-          setError("Failed to load patients");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchPatients();
   }, []);
+
+  const handlePatientRegistered = () => {
+    setShowRegisterModal(false);
+    fetchPatients();
+  };
 
   // Filter patients by search
   useEffect(() => {
     const filtered = patients.filter(
-      (patient) =>
-        patient.name.toLowerCase().includes(search.toLowerCase()) ||
-        patient.email.toLowerCase().includes(search.toLowerCase()) ||
-        patient.chronic_conditions.some((cond) =>
-          cond.toLowerCase().includes(search.toLowerCase())
-        )
+      (patient) => {
+        const fullName = `${patient.first_name || ""} ${patient.last_name || ""}`.toLowerCase();
+        return (
+          fullName.includes(search.toLowerCase()) ||
+          (patient.email?.toLowerCase() || "").includes(search.toLowerCase()) ||
+          (patient.chronic_conditions?.some((cond) =>
+            cond?.toLowerCase().includes(search.toLowerCase())
+          ) ?? false)
+        );
+      }
     );
     setFilteredPatients(filtered);
   }, [search, patients]);
@@ -92,14 +104,25 @@ function MyPatientsContent() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="mb-12"
+          className="mb-12 flex justify-between items-start"
         >
-          <h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-sky-200 via-blue-400 to-cyan-500 bg-clip-text text-transparent">
-            My Patients
-          </h1>
-          <p className="text-zinc-500 mt-2 font-medium">
-            {filteredPatients.length} patient{filteredPatients.length !== 1 ? "s" : ""} assigned to you
-          </p>
+          <div>
+            <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
+              My Patients
+            </h1>
+            <p className="text-zinc-500 mt-2 font-medium">
+              {filteredPatients.length} patient{filteredPatients.length !== 1 ? "s" : ""} assigned to you
+            </p>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowRegisterModal(true)}
+            className="bg-sky-500 hover:bg-sky-400 text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2 transition-all shadow-xl shadow-sky-500/20"
+          >
+            <Plus size={20} strokeWidth={3} />
+            <span>Register Patient</span>
+          </motion.button>
         </motion.div>
 
         {/* Search Bar */}
@@ -161,7 +184,7 @@ function MyPatientsContent() {
                 {/* Patient Name */}
                 <div className="mb-4">
                   <h3 className="text-xl font-bold" style={{ color: "var(--foreground)" }}>
-                    {patient.name}
+                    {patient.first_name} {patient.last_name}
                   </h3>
                   <p className="text-sm text-zinc-500 mt-1">{patient.email}</p>
                 </div>
@@ -234,6 +257,37 @@ function MyPatientsContent() {
             )}
           </motion.div>
         )}
+
+        {/* Register Patient Modal */}
+        <AnimatePresence>
+          {showRegisterModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setShowRegisterModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              >
+                <div className="relative">
+                  <button
+                    onClick={() => setShowRegisterModal(false)}
+                    className="absolute right-6 top-6 z-10 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-zinc-400 hover:text-white transition-all"
+                  >
+                    <X size={24} />
+                  </button>
+                  <RegisterPatientForm onSuccess={handlePatientRegistered} isModal={true} />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

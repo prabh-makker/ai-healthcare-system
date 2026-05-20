@@ -151,7 +151,7 @@ export default function RecordsPage() {
               </motion.button>
             )}
             <div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight bg-gradient-to-br from-violet-200 via-violet-400 to-indigo-500 bg-clip-text text-transparent">
+              <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
                 {isAdmin
                   ? "All Medical Records"
                   : isDoctor

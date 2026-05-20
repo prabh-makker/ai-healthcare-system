@@ -290,14 +290,14 @@ export default function DiagnosticsChat() {
       <div className="relative min-h-full">
         <DashboardBg accentColor="#0ea5e9" />
 
-        <div className="relative z-10 p-12 max-w-5xl h-screen flex flex-col">
+        <div className="relative z-10 pt-28 px-12 pb-12 max-w-5xl h-screen flex flex-col">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-6"
           >
-            <h1 className="text-5xl font-black tracking-tight bg-gradient-to-br from-sky-200 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
+            <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
               AI Diagnostics
             </h1>
             <p className="text-zinc-500 mt-2 font-medium">Chat with our AI to get personalized diagnosis insights</p>

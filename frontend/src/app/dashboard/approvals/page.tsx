@@ -158,7 +158,7 @@ function ApprovalsContent() {
 
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight bg-gradient-to-br from-emerald-200 via-green-400 to-teal-500 bg-clip-text text-transparent">
+          <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
             Approval Queue
           </h1>
           <p className="text-zinc-500 mt-2 text-sm font-medium">

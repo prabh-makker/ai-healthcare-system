@@ -770,7 +770,7 @@ export default function Dashboard() {
               Clinical Dashboard
             </h1>
             <p className="text-zinc-500 text-sm sm:text-base font-bold">
-              Welcome back, Dr. {user?.first_name || user?.email?.split("@")[0] || "Physician"}
+              Welcome back, Dr. {user?.email?.split("@")[0] || "Physician"}
             </p>
           </div>
 
@@ -830,17 +830,24 @@ export default function Dashboard() {
           <div className="flex items-center gap-3 mb-1">
             <motion.div
               className="p-2.5 rounded-2xl"
-              style={{ background: "var(--teal-gradient)", boxShadow: "0 8px 20px var(--glass-shine)" }}
+              style={{ background: "linear-gradient(135deg, #a7f3d0 0%, #2dd4bf 50%, #0d9488 100%)", boxShadow: "0 8px 20px rgba(16,185,129,0.3)" }}
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
             >
               <HeartPulse size={22} className="text-white" />
             </motion.div>
-            <PulseDots color="#2dd4bf" />
+            <PulseDots color="#a7f3d0" />
           </div>
           <h1
             className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight"
-            style={{ backgroundImage: "var(--teal-soft-gradient)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
+            style={{
+              backgroundImage: "linear-gradient(90deg, #60ffc0 0%, #0077BE 30%, #00CED1 60%)",
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              color: "transparent",
+              backgroundSize: "200% 100%",
+              animation: "colorShift 4s ease-in-out infinite"
+            }}
           >
             My Health Portal
           </h1>
@@ -850,7 +857,7 @@ export default function Dashboard() {
 
         <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
           <NotificationBell />
-          <ShimmerButton href="/dashboard/symptoms" gradFrom="#5eead4" gradTo="#14b8a6" shadow="rgba(45,212,191,0.3)">
+          <ShimmerButton href="/dashboard/symptoms" gradFrom="#a7f3d0" gradTo="#0d9488" shadow="rgba(16,185,129,0.4)">
             <Activity size={20} strokeWidth={3} />
             <span>Check Symptoms</span>
           </ShimmerButton>
@@ -858,16 +865,16 @@ export default function Dashboard() {
       </motion.header>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8 sm:mb-12 overflow-hidden">
-        <StatCard3D label="Health Score" value={stats?.recent_records?.length ? "Active" : "—"} icon={HeartPulse} trend={stats?.recent_records?.length ? "tracked" : "no data"} gradFrom="#5eead4" gradTo="#14b8a6" glowColor="rgba(45,212,191,0.25)" delay={0} />
+        <StatCard3D label="Health Score" value={stats?.recent_records?.length ? "Active" : "—"} icon={HeartPulse} trend={stats?.recent_records?.length ? "tracked" : "no data"} gradFrom="#a7f3d0" gradTo="#0d9488" glowColor="rgba(16,185,129,0.25)" delay={0} />
         <StatCard3D label="Medical Records" value={stats ? String(stats?.recent_records?.filter(r => r.patient_id === user?.id).length ?? 0) : "—"} icon={ClipboardList} trend="+latest" gradFrom="#8b5cf6" gradTo="#a78bfa" glowColor="rgba(139,92,246,0.2)" delay={0.1} onClick={() => router.push("/dashboard/records")} />
-        <StatCard3D label="Appointments" value={upcomingAppts === null ? "—" : String(upcomingAppts)} icon={Clock} trend={upcomingAppts ? "upcoming" : "none"} gradFrom="#10b981" gradTo="#34d399" glowColor="rgba(16,185,129,0.2)" delay={0.2} onClick={() => router.push("/dashboard/appointments")} />
+        <StatCard3D label="Appointments" value={upcomingAppts === null ? "—" : String(upcomingAppts)} icon={Clock} trend={upcomingAppts ? "upcoming" : "none"} gradFrom="#a7f3d0" gradTo="#0d9488" glowColor="rgba(16,185,129,0.25)" delay={0.2} onClick={() => router.push("/dashboard/appointments")} />
         <StatCard3D label="Medications" value={activeMedsCount === null ? "—" : `${activeMedsCount} Active`} icon={Pill} trend="on track" gradFrom="#f59e0b" gradTo="#fbbf24" glowColor="rgba(245,158,11,0.2)" delay={0.3} onClick={() => router.push("/dashboard/medications")} />
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
         <section className="xl:col-span-2">
           <div className="flex justify-between items-center mb-5">
-            <h2 className="text-xl font-bold" style={{ backgroundImage: "var(--teal-gradient)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
+            <h2 className="text-xl font-bold" style={{ backgroundImage: "linear-gradient(135deg, #a7f3d0 0%, #2dd4bf 50%, #0d9488 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
               Recent Diagnoses
             </h2>
             <Link href="/dashboard/records" className="text-teal-400 text-sm font-bold hover:text-teal-300 flex items-center gap-1 group">
@@ -896,7 +903,7 @@ export default function Dashboard() {
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
                           <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                            <motion.div initial={{ width: 0 }} animate={{ width: `${r.confidence_score || 0}%` }} transition={{ duration: 1, delay: 0.6 }} className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #f43f5e, #ec4899)" }} />
+                            <motion.div initial={{ width: 0 }} animate={{ width: `${r.confidence_score || 0}%` }} transition={{ duration: 1, delay: 0.6 }} className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #a7f3d0, #0d9488)" }} />
                           </div>
                           <span className="text-xs font-bold" style={{ color: "var(--foreground)", opacity: 0.8 }}>{r.confidence_score ? `${r.confidence_score}%` : "—"}</span>
                         </div>
@@ -926,8 +933,8 @@ export default function Dashboard() {
           <h2 className="text-xl font-bold mb-5" style={{ color: "var(--foreground)" }}>Health Insights</h2>
           <div className="glass-card rounded-[2rem] p-7 space-y-4 border border-white/[0.07] relative overflow-hidden">
             <ScanLine />
-            <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="p-5 rounded-2xl border transition-all" style={{ background: "rgba(244,63,94,0.05)", borderColor: "rgba(244,63,94,0.15)" }}>
-              <div className="flex items-center gap-2 mb-2"><Zap size={13} style={{ color: "#fb7185" }} /><h4 className="font-bold text-sm">AI Health Tip</h4></div>
+            <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="p-5 rounded-2xl border transition-all" style={{ background: "rgba(16,185,129,0.05)", borderColor: "rgba(16,185,129,0.15)" }}>
+              <div className="flex items-center gap-2 mb-2"><Zap size={13} style={{ color: "#2dd4bf" }} /><h4 className="font-bold text-sm">AI Health Tip</h4></div>
               <p className="text-sm text-zinc-400 leading-relaxed">Stay hydrated and monitor your sleep patterns to improve your health score further.</p>
             </motion.div>
             <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.7 }} className="p-5 rounded-2xl border transition-all" style={{ background: "rgba(139,92,246,0.05)", borderColor: "rgba(139,92,246,0.15)" }}>
@@ -935,7 +942,7 @@ export default function Dashboard() {
               <p className="text-sm text-zinc-400 leading-relaxed">Review recent diagnoses and book with the recommended specialist if symptoms persist.</p>
             </motion.div>
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Link href="/dashboard/symptoms" className="w-full py-4 rounded-2xl border font-bold transition-all flex items-center justify-center gap-2 text-sm" style={{ background: "rgba(244,63,94,0.08)", borderColor: "rgba(244,63,94,0.2)", color: "#fb7185" }}>
+              <Link href="/dashboard/symptoms" className="w-full py-4 rounded-2xl border font-bold transition-all flex items-center justify-center gap-2 text-sm" style={{ background: "rgba(16,185,129,0.08)", borderColor: "rgba(16,185,129,0.2)", color: "#2dd4bf" }}>
                 <Activity size={15} />Analyze New Symptoms
               </Link>
             </motion.div>

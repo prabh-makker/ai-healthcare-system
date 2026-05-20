@@ -4,12 +4,16 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 import uuid
+import logging
 
 from app.db.session import get_db
 from app.models.models import Appointment, User, UserRole
 from app.core.security import get_current_user, require_role
 from app.core.pagination import validate_pagination
 from app.core.serializers import serialize_appointment
+from app.api.v1.endpoints.notifications import create_notification
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -205,6 +209,38 @@ def create_appointment(
     db.add(appt)
     db.commit()
     db.refresh(appt)
+
+    # Create notifications for doctor and admin
+    try:
+        # Notify the assigned doctor
+        if matched_doctor:
+            create_notification(
+                db=db,
+                user_id=str(matched_doctor.id),
+                notification_type="appointment",
+                title="New Appointment Request",
+                message=f"A patient has booked an appointment with you for {appt.date} at {appt.time}.",
+                related_id=appt.id,
+                related_url=f"/dashboard/appointments/{appt.id}"
+            )
+            logger.info(f"Notification sent to doctor {matched_doctor.id} for appointment {appt.id}")
+
+        # Notify admin
+        admin_user = db.query(User).filter(User.role == UserRole.ADMIN).first()
+        if admin_user:
+            create_notification(
+                db=db,
+                user_id=str(admin_user.id),
+                notification_type="appointment",
+                title="New Appointment Booked",
+                message=f"{current_user.first_name or current_user.email} booked an appointment with {body.specialist} for {appt.date} at {appt.time}.",
+                related_id=appt.id,
+                related_url=f"/dashboard/appointments/{appt.id}"
+            )
+            logger.info(f"Notification sent to admin for appointment {appt.id}")
+    except Exception as e:
+        logger.warning(f"Failed to create appointment notifications: {str(e)}")
+
     return serialize_appointment(appt, patient_email=current_user.email, first_name=current_user.first_name, last_name=current_user.last_name)
 
 

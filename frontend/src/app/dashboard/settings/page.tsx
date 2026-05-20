@@ -102,7 +102,7 @@ export default function SettingsPage() {
         className="mb-8 sm:mb-12"
       >
         <motion.h1
-          className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight bg-gradient-to-br from-indigo-200 via-purple-400 to-pink-500 bg-clip-text text-transparent"
+          style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}
