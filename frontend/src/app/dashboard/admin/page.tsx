@@ -290,10 +290,10 @@ function AdminContent() {
     api.getSystemHealth().then(setHealth).catch(console.error);
     api.getAccuracyMetrics().then(setAccuracyMetrics).catch(console.error);
     // Load active cases count
-    api.getRecords(0, 500)
+    api.getRecords(0, 100)
       .then((records: any[]) => {
         const activeCases = records.filter(
-          (r) => r.status === "pending" || r.status === "approved"
+          (r) => r.status === "pending" || r.status === "in_review" || r.status === "reviewed"
         );
         setActiveCasesCount(activeCases.length);
       })
