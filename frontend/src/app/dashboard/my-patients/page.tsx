@@ -26,6 +26,7 @@ function MyPatientsContent() {
   const { user } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
@@ -58,7 +59,7 @@ function MyPatientsContent() {
 
   // Filter patients by search
   useEffect(() => {
-    const cases = patients.filter(
+    const filtered = patients.filter(
       (patient) => {
         const fullName = `${patient.first_name || ""} ${patient.last_name || ""}`.toLowerCase();
         return (
@@ -70,7 +71,7 @@ function MyPatientsContent() {
         );
       }
     );
-    setFilteredPatients(cases);
+    setFilteredPatients(filtered);
   }, [search, patients]);
 
   const containerVariants = {

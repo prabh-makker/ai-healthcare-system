@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ClipboardList, ArrowUpRight, FileSearch, BarChart3, Users, ChevronRight, ArrowLeft, User as UserIcon } from "lucide-react";
+import { ClipboardList, ArrowUpRight, FileSearch, BarChart3, Search, Users, ChevronRight, ArrowLeft, User as UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -168,6 +168,17 @@ export default function RecordsPage() {
                   : `${records.length} diagnoses • Your health`}
               </p>
             </div>
+          </div>
+          <div className="flex items-center glass-card px-4 py-2.5 rounded-2xl text-zinc-400 focus-within:text-[var(--foreground)] transition-colors">
+            <Search size={18} />
+            <input
+              type="text"
+              placeholder="Search records..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-transparent border-none outline-none ml-3 text-sm w-48 font-medium"
+              style={{ color: "var(--foreground)" }}
+            />
           </div>
         </motion.header>
 
