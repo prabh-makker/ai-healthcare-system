@@ -288,36 +288,12 @@ function SearchPageContent() {
           </p>
         </motion.header>
 
-        {/* Search Bar */}
-        <form onSubmit={handleSearch} className="flex gap-3 mb-6">
-          <motion.div
-            animate={focused ? { scale: 1.01 } : { scale: 1 }}
-            className="flex-1 flex items-center glass-card px-5 py-3.5 rounded-2xl transition-colors"
-            style={{ boxShadow: focused ? "0 0 0 2px rgba(14,165,233,0.5), 0 0 20px rgba(14,165,233,0.15)" : undefined, color: "var(--foreground)" }}
-          >
-            <Search size={20} className="text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Search by name, email, diagnosis, medication..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              className="bg-transparent border-none outline-none ml-3 text-base w-full font-medium placeholder:text-zinc-600"
-              style={{ color: "var(--foreground)" }}
-            />
-          </motion.div>
-          <motion.button
-            type="submit"
-            disabled={loading || !query.trim()}
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
-            className="bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 disabled:opacity-50 text-white px-6 sm:px-8 py-3.5 rounded-2xl font-bold flex items-center gap-2 transition-colors shadow-xl shadow-sky-500/20"
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
-            <span className="hidden sm:inline">Search</span>
-          </motion.button>
-        </form>
+        {/* Search disabled - search functionality removed from dashboard */}
+        <div className="text-center py-16 glass-card rounded-2xl border border-white/[0.08] mb-6">
+          <FileSearch size={40} className="text-zinc-700 mx-auto mb-3" />
+          <p className="text-zinc-500 font-medium">Search functionality disabled</p>
+          <p className="text-zinc-600 text-xs mt-1">Global search has been removed from this application</p>
+        </div>
 
         {/* Category Filter */}
         <div className="flex gap-2 flex-wrap mb-8">
