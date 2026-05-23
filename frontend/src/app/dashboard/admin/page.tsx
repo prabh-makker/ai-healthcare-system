@@ -291,11 +291,11 @@ function AdminContent() {
     api.getDiagnosesDistribution().then(setDiag).catch(console.error);
     api.getSystemHealth().then(setHealth).catch(console.error);
     api.getAccuracyMetrics().then(setAccuracyMetrics).catch(console.error);
-    // Load active cases count
-    api.getRecords(0, 100)
+    // Load active cases count (in_review + reviewed = pending action)
+    api.getRecords(0, 1000)
       .then((records: any[]) => {
         const activeCases = records.filter(
-          (r) => r.status === "pending" || r.status === "in_review" || r.status === "reviewed"
+          (r) => r.status === "in_review" || r.status === "reviewed"
         );
         setActiveCasesCount(activeCases.length);
       })
