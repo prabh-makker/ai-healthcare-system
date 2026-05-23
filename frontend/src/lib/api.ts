@@ -222,6 +222,18 @@ export const api = {
       body: JSON.stringify({ doctor_id: doctorId, patient_ids: patientIds }),
     }),
 
+  assignDoctor: (doctorId: string, patientId: string) =>
+    request("/api/v1/admin/assign-doctor", {
+      method: "POST",
+      body: JSON.stringify({ doctor_id: doctorId, patient_id: patientId }),
+    }),
+
+  reassignDoctor: (doctorId: string, patientId: string) =>
+    request("/api/v1/admin/reassign-doctor", {
+      method: "POST",
+      body: JSON.stringify({ doctor_id: doctorId, patient_id: patientId }),
+    }),
+
   getSystemHealth: () => request("/api/v1/admin/system-health"),
 
   adminCreateUser: (data: { email: string; password: string; role: string; specialization?: string }) =>

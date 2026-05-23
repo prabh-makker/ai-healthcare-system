@@ -376,6 +376,188 @@ def bulk_assign(
 
 
 # ============================================================
+# SINGLE DOCTOR ASSIGNMENT (with notifications)
+# ============================================================
+class AssignDoctorRequest(BaseModel):
+    doctor_id: str
+    patient_id: str
+
+
+@router.post("/assign-doctor")
+def assign_doctor(
+    body: AssignDoctorRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Admin: Assign a specific doctor to a patient with notifications."""
+    from app.api.v1.endpoints.notifications import create_notification
+
+    doctor = db.query(User).filter(User.id == body.doctor_id, User.role == UserRole.DOCTOR).first()
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
+    patient = db.query(User).filter(User.id == body.patient_id, User.role == UserRole.PATIENT).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    # Check if assignment already exists
+    existing = db.query(DoctorPatient).filter(
+        DoctorPatient.doctor_id == body.doctor_id,
+        DoctorPatient.patient_id == body.patient_id,
+        DoctorPatient.status == "active"
+    ).first()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Doctor is already assigned to this patient")
+
+    # Create new assignment
+    assignment = DoctorPatient(
+        id=str(uuid.uuid4()),
+        doctor_id=body.doctor_id,
+        patient_id=body.patient_id,
+        status="active",
+    )
+    db.add(assignment)
+    db.commit()
+
+    # Notify doctor: "You have new patient from today"
+    try:
+        create_notification(
+            db=db,
+            user_id=str(doctor.id),
+            notification_type="assignment",
+            title="New Patient Assigned",
+            message=f"You have new patient from today: {patient.first_name or patient.email}",
+            related_id=body.patient_id,
+            related_url=f"/dashboard/my-patients/{body.patient_id}"
+        )
+    except Exception as e:
+        logger.warning(f"Failed to notify doctor of assignment: {str(e)}")
+
+    # Notify patient: "You have new doctor from today"
+    try:
+        create_notification(
+            db=db,
+            user_id=str(patient.id),
+            notification_type="assignment",
+            title="Doctor Assigned",
+            message=f"You have new doctor from today: Dr. {doctor.first_name or doctor.email}",
+            related_id=body.doctor_id,
+            related_url=f"/dashboard"
+        )
+    except Exception as e:
+        logger.warning(f"Failed to notify patient of assignment: {str(e)}")
+
+    log_action(db, current_user, "create", "doctor_patient", body.doctor_id,
+               f"Assigned doctor {doctor.email} to patient {patient.email}", request)
+
+    return {
+        "id": assignment.id,
+        "doctor_id": body.doctor_id,
+        "patient_id": body.patient_id,
+        "status": "active",
+        "message": "Doctor assigned successfully"
+    }
+
+
+@router.post("/reassign-doctor")
+def reassign_doctor(
+    body: AssignDoctorRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Admin: Reassign a doctor to a patient (replace existing assignment) with notifications."""
+    from app.api.v1.endpoints.notifications import create_notification
+
+    doctor = db.query(User).filter(User.id == body.doctor_id, User.role == UserRole.DOCTOR).first()
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
+    patient = db.query(User).filter(User.id == body.patient_id, User.role == UserRole.PATIENT).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    # Deactivate old assignment if exists
+    old_assignment = db.query(DoctorPatient).filter(
+        DoctorPatient.patient_id == body.patient_id,
+        DoctorPatient.status == "active"
+    ).first()
+
+    if old_assignment:
+        old_assignment.status = "inactive"
+        old_doctor = db.query(User).filter(User.id == old_assignment.doctor_id).first()
+    else:
+        old_doctor = None
+
+    # Create new assignment
+    assignment = DoctorPatient(
+        id=str(uuid.uuid4()),
+        doctor_id=body.doctor_id,
+        patient_id=body.patient_id,
+        status="active",
+    )
+    db.add(assignment)
+    db.commit()
+
+    # Notify old doctor that assignment is removed
+    if old_doctor:
+        try:
+            create_notification(
+                db=db,
+                user_id=str(old_doctor.id),
+                notification_type="reassignment",
+                title="Patient Assignment Removed",
+                message=f"Your assignment with {patient.first_name or patient.email} has been removed",
+                related_id=body.patient_id,
+                related_url=f"/dashboard/my-patients"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to notify old doctor of reassignment: {str(e)}")
+
+    # Notify new doctor: "You have new patient from today"
+    try:
+        create_notification(
+            db=db,
+            user_id=str(doctor.id),
+            notification_type="assignment",
+            title="New Patient Assigned",
+            message=f"You have new patient from today: {patient.first_name or patient.email}",
+            related_id=body.patient_id,
+            related_url=f"/dashboard/my-patients/{body.patient_id}"
+        )
+    except Exception as e:
+        logger.warning(f"Failed to notify new doctor of reassignment: {str(e)}")
+
+    # Notify patient: "You have new doctor from today"
+    try:
+        create_notification(
+            db=db,
+            user_id=str(patient.id),
+            notification_type="reassignment",
+            title="Doctor Changed",
+            message=f"You have new doctor from today: Dr. {doctor.first_name or doctor.email}",
+            related_id=body.doctor_id,
+            related_url=f"/dashboard"
+        )
+    except Exception as e:
+        logger.warning(f"Failed to notify patient of reassignment: {str(e)}")
+
+    log_action(db, current_user, "update", "doctor_patient", body.doctor_id,
+               f"Reassigned patient {patient.email} from {old_doctor.email if old_doctor else 'none'} to {doctor.email}", request)
+
+    return {
+        "id": assignment.id,
+        "doctor_id": body.doctor_id,
+        "patient_id": body.patient_id,
+        "status": "active",
+        "old_doctor_id": str(old_assignment.doctor_id) if old_assignment else None,
+        "message": "Doctor reassigned successfully"
+    }
+
+
+# ============================================================
 # SYSTEM HEALTH & STATS
 # ============================================================
 @router.get("/system-stats")
@@ -808,6 +990,25 @@ def admin_search(
             "date": a.date,
             "time": a.time,
             "status": a.status,
+        })
+
+    # Search doctors
+    doctors = db.query(User).filter(
+        User.role == UserRole.DOCTOR,
+        (User.email.ilike(f"%{query}%")) |
+        (User.first_name.ilike(f"%{query}%")) |
+        (User.last_name.ilike(f"%{query}%")) |
+        (User.specialty.ilike(f"%{query}%"))
+    ).limit(10).all()
+
+    for d in doctors:
+        results.append({
+            "type": "doctor",
+            "id": str(d.id),
+            "title": f"{d.first_name or ''} {d.last_name or ''}".strip() or d.email.split("@")[0],
+            "subtitle": d.email,
+            "specialty": d.specialty or "General Practitioner",
+            "status": "available" if d.is_active else "unavailable",
         })
 
     return {

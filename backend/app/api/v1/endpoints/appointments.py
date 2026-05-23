@@ -113,8 +113,11 @@ def list_appointments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from datetime import datetime
     # Validate pagination parameters
     validate_pagination(skip, limit)
+
+    today = datetime.now().date()
 
     if current_user.role == UserRole.ADMIN:
         records = (
@@ -124,6 +127,16 @@ def list_appointments(
             .limit(limit)
             .all()
         )
+        # Auto-update status for past appointments
+        for appt in records:
+            try:
+                appt_date = datetime.strptime(appt.date, "%Y-%m-%d").date()
+                if appt_date < today and appt.status == "upcoming":
+                    appt.status = "completed"
+                    db.add(appt)
+            except:
+                pass
+        db.commit()
     elif current_user.role == UserRole.DOCTOR:
         # Doctors see appointments directly assigned to them (by doctor_id)
         # OR appointments of their assigned patients (DoctorPatient relation)
@@ -146,6 +159,16 @@ def list_appointments(
             .limit(limit)
             .all()
         )
+        # Auto-update status for past appointments
+        for appt in records:
+            try:
+                appt_date = datetime.strptime(appt.date, "%Y-%m-%d").date()
+                if appt_date < today and appt.status == "upcoming":
+                    appt.status = "completed"
+                    db.add(appt)
+            except:
+                pass
+        db.commit()
     else:
         # Patients see only their own appointments
         records = (
@@ -156,6 +179,16 @@ def list_appointments(
             .limit(limit)
             .all()
         )
+        # Auto-update status for past appointments
+        for appt in records:
+            try:
+                appt_date = datetime.strptime(appt.date, "%Y-%m-%d").date()
+                if appt_date < today and appt.status == "upcoming":
+                    appt.status = "completed"
+                    db.add(appt)
+            except:
+                pass
+        db.commit()
     # Batch-load all patient info in one query to avoid N+1
     patient_ids = list({str(r.patient_id) for r in records})
     patients = db.query(User).filter(User.id.in_(patient_ids)).all() if patient_ids else []

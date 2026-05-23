@@ -107,6 +107,7 @@ def seed(target_records=60, target_appts=40):
             db.add(Appointment(
                 id=str(uuid.uuid4()),
                 patient_id=random.choice(patient_ids),
+                doctor_id=random.choice(doctor_ids) if doctor_ids else None,
                 specialist=random.choice(SPECIALISTS),
                 date=date_obj.strftime("%Y-%m-%d"),
                 time=f"{random.randint(8, 18):02d}:{random.choice(['00', '15', '30', '45'])}",

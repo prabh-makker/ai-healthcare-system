@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Send, MessageSquare, Pill, AlertCircle, Save, Calendar } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import DashboardBg from "@/components/DashboardBg";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
@@ -37,7 +38,11 @@ const STATE_CONFIG: Record<string, { cls: string; label: string }> = {
 
 export default function DiagnosticsChat() {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const router = useRouter();
+  const headerGradient = theme === "light"
+    ? "linear-gradient(135deg, #1e40af, #0c4a6e, #0f766e)"
+    : "linear-gradient(135deg, #bae6fd, #7dd3fc, #0ea5e9, #06b6d4)";
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [currentDiagnosis, setCurrentDiagnosis] = useState<CurrentDiagnosis>({});
@@ -297,7 +302,14 @@ export default function DiagnosticsChat() {
             animate={{ opacity: 1, y: 0 }}
             className="mb-6"
           >
-            <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
+            <h1 style={{
+              fontSize: '48px',
+              fontWeight: 'bold',
+              backgroundImage: headerGradient,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
               AI Diagnostics
             </h1>
             <p className="text-zinc-500 mt-2 font-medium">Chat with our AI to get personalized diagnosis insights</p>

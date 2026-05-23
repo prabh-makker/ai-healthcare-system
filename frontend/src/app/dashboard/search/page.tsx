@@ -9,10 +9,10 @@ import { useAuth } from "@/context/AuthContext";
 import DashboardBg from "@/components/DashboardBg";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
-type Category = "all" | "users" | "patients" | "records" | "appointments" | "prescriptions";
+type Category = "all" | "users" | "patients" | "doctors" | "records" | "appointments" | "prescriptions";
 
 interface SearchResult {
-  type: "user" | "patient" | "record" | "appointment" | "prescription";
+  type: "user" | "patient" | "doctor" | "record" | "appointment" | "prescription";
   id: string;
   title: string;
   subtitle: string;
@@ -37,6 +37,7 @@ function SearchPageContent() {
   const categories: { key: Category; label: string; icon: any; access: boolean }[] = [
     { key: "all" as const, label: "All", icon: Search, access: true },
     { key: "patients" as const, label: "Patients", icon: Users, access: true },
+    { key: "doctors" as const, label: "Doctors", icon: Stethoscope, access: true },
     { key: "users" as const, label: "Users", icon: Users, access: isAdmin },
     { key: "records" as const, label: "Records", icon: ClipboardList, access: true },
     { key: "appointments" as const, label: "Appointments", icon: Calendar, access: true },
@@ -176,6 +177,32 @@ function SearchPageContent() {
         } catch (e) { console.error("patients search failed", e); }
       }
 
+      // Doctors search (everyone can search for doctors)
+      if (category === "all" || category === "doctors") {
+        try {
+          const users: any = await api.getAllUsers();
+          if (Array.isArray(users)) {
+            for (const u of users) {
+              if (u.role !== "DOCTOR") continue; // Only doctors
+              const name = u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.email.split("@")[0];
+              const haystack = `${u.email} ${name} ${u.specialty || ""}`.toLowerCase();
+              if (haystack.includes(q)) {
+                collected.push({
+                  type: "doctor",
+                  id: u.id,
+                  title: name,
+                  subtitle: u.email,
+                  meta: u.specialty || "General Practitioner",
+                  badge: u.is_active ? "available" : "unavailable",
+                  badgeColor: u.is_active ? "emerald" : "rose",
+                  href: `/dashboard/appointments`,
+                });
+              }
+            }
+          }
+        } catch (e) { console.error("doctors search failed", e); }
+      }
+
       // Users search (admin only)
       if (isAdmin && (category === "all" || category === "users")) {
         try {
@@ -233,7 +260,7 @@ function SearchPageContent() {
   };
 
   const grouped = useMemo(() => {
-    const g: Record<string, SearchResult[]> = { user: [], patient: [], record: [], appointment: [], prescription: [] };
+    const g: Record<string, SearchResult[]> = { user: [], patient: [], doctor: [], record: [], appointment: [], prescription: [] };
     for (const r of results) g[r.type].push(r);
     return g;
   }, [results]);
@@ -241,6 +268,7 @@ function SearchPageContent() {
   const TYPE_META: Record<string, { label: string; icon: any; color: string }> = {
     user: { label: "Users", icon: Users, color: "violet" },
     patient: { label: "Patients", icon: Users, color: "cyan" },
+    doctor: { label: "Doctors", icon: Stethoscope, color: "emerald" },
     record: { label: "Records", icon: ClipboardList, color: "sky" },
     appointment: { label: "Appointments", icon: Calendar, color: "rose" },
     prescription: { label: "Prescriptions", icon: Pill, color: "amber" },

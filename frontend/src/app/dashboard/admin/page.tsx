@@ -155,6 +155,50 @@ function AdminContent() {
   // Active cases count
   const [activeCasesCount, setActiveCasesCount] = useState(0);
 
+  // Doctor assignment modal
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedPatientForAssignment, setSelectedPatientForAssignment] = useState<AllUser | null>(null);
+  const [selectedDoctorForAssignment, setSelectedDoctorForAssignment] = useState<string>("");
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
+
+  const handleReassignDoctor = async (patient: AllUser) => {
+    setSelectedPatientForAssignment(patient);
+    setSelectedDoctorForAssignment("");
+    setAssignmentError(null);
+    setShowAssignModal(true);
+  };
+
+  const submitDoctorAssignment = async () => {
+    if (!selectedPatientForAssignment || !selectedDoctorForAssignment) {
+      setAssignmentError("Please select a doctor");
+      return;
+    }
+
+    setAssignmentLoading(true);
+    setAssignmentError(null);
+
+    try {
+      if (selectedPatientForAssignment.assigned_doctors && selectedPatientForAssignment.assigned_doctors.length > 0) {
+        // Reassign
+        await api.reassignDoctor(selectedDoctorForAssignment, selectedPatientForAssignment.id);
+        toast("Doctor reassigned and notifications sent");
+      } else {
+        // New assignment
+        await api.assignDoctor(selectedDoctorForAssignment, selectedPatientForAssignment.id);
+        toast("Doctor assigned and notifications sent");
+      }
+      setShowAssignModal(false);
+      setSelectedPatientForAssignment(null);
+      setSelectedDoctorForAssignment("");
+      refreshUsers();
+    } catch (e: any) {
+      setAssignmentError(e.message || "Failed to assign doctor");
+    } finally {
+      setAssignmentLoading(false);
+    }
+  };
+
   const handleRetrain = async () => {
     setRetraining(true);
     setRetrainResult(null);
@@ -671,6 +715,7 @@ function AdminContent() {
                                       <p className="text-zinc-600 text-xs">{doc.email}</p>
                                     </div>
                                     <button
+                                      onClick={() => handleReassignDoctor(u)}
                                       className="text-xs px-2 py-1 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 rounded transition-colors whitespace-nowrap"
                                     >
                                       Reassign
@@ -679,7 +724,12 @@ function AdminContent() {
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-zinc-600 italic">Not assigned</span>
+                              <button
+                                onClick={() => handleReassignDoctor(u)}
+                                className="text-xs px-2 py-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded transition-colors"
+                              >
+                                + Assign Doctor
+                              </button>
                             )
                           ) : "—"}
                         </td>
@@ -1519,6 +1569,110 @@ function AdminContent() {
                     className="flex-1 px-4 py-2.5 bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white rounded-lg text-sm font-semibold transition-all disabled:opacity-50 shadow-lg shadow-sky-500/30"
                   >
                     {addUserLoading ? "Creating..." : "Create User"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Doctor Assignment Modal */}
+        {showAssignModal && selectedPatientForAssignment && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+            onClick={() => !assignmentLoading && setShowAssignModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="rounded-2xl p-8 max-w-md w-full border shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "var(--background)",
+                borderColor: "var(--glass-border)",
+                color: "var(--foreground)",
+              }}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold flex items-center gap-3" style={{ color: "var(--foreground)" }}>
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg">
+                    <Stethoscope size={18} className="text-white" />
+                  </div>
+                  {selectedPatientForAssignment.assigned_doctors && selectedPatientForAssignment.assigned_doctors.length > 0 ? "Reassign Doctor" : "Assign Doctor"}
+                </h3>
+                <button
+                  onClick={() => !assignmentLoading && setShowAssignModal(false)}
+                  disabled={assignmentLoading}
+                  className="text-zinc-400 hover:text-rose-400 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {assignmentError && (
+                <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+                  {assignmentError}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--foreground)", opacity: 0.7 }}>Patient</label>
+                  <div className="p-3 rounded-lg border" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)" }}>
+                    <p className="font-bold text-sm">{selectedPatientForAssignment.first_name} {selectedPatientForAssignment.last_name}</p>
+                    <p className="text-xs text-zinc-500">{selectedPatientForAssignment.email}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--foreground)", opacity: 0.7 }}>Select Doctor</label>
+                  <select
+                    value={selectedDoctorForAssignment}
+                    onChange={(e) => setSelectedDoctorForAssignment(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-lg border transition-colors focus:outline-none focus:border-sky-500"
+                    style={{
+                      background: "var(--glass-bg)",
+                      borderColor: "var(--glass-border)",
+                      color: "var(--foreground)",
+                    }}
+                  >
+                    <option value="">Choose a doctor...</option>
+                    {doctors.map(doc => (
+                      <option key={doc.id} value={doc.id}>
+                        Dr. {doc.name} — {doc.specialization}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-3 pt-3">
+                  <button
+                    onClick={() => {
+                      setShowAssignModal(false);
+                      setSelectedPatientForAssignment(null);
+                      setSelectedDoctorForAssignment("");
+                      setAssignmentError(null);
+                    }}
+                    disabled={assignmentLoading}
+                    className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all border hover:opacity-80"
+                    style={{
+                      background: "var(--glass-bg)",
+                      borderColor: "var(--glass-border)",
+                      color: "var(--foreground)",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={submitDoctorAssignment}
+                    disabled={assignmentLoading || !selectedDoctorForAssignment}
+                    className="flex-1 px-4 py-2.5 bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white rounded-lg text-sm font-semibold transition-all disabled:opacity-50 shadow-lg shadow-sky-500/30"
+                  >
+                    {assignmentLoading ? "Assigning..." : selectedPatientForAssignment.assigned_doctors && selectedPatientForAssignment.assigned_doctors.length > 0 ? "Reassign Doctor" : "Assign Doctor"}
                   </button>
                 </div>
               </div>

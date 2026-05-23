@@ -12,7 +12,6 @@ import {
   Settings,
   LogOut,
   HeartPulse,
-  Search,
   BarChart3,
   Pill,
   FileCheck,
@@ -86,7 +85,6 @@ export default function Sidebar() {
       { href: "/dashboard/appointments", icon: Calendar, label: "Appointments" },
       { href: "/dashboard/timeline", icon: GitBranch, label: "Timeline" },
     ]),
-    { href: "/dashboard/search", icon: Search, label: "Search" },
   ];
 
   return (
