@@ -13,6 +13,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardBg from "@/components/DashboardBg";
 import { STATUS_COLOR_MAP } from "@/constants/colors";
 import { StatCard } from "@/components/StatCard";
+import { useTheme } from "@/context/ThemeContext";
 
 const PIE_COLORS = ["#f43f5e", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ec4899", "#3b82f6", "#84cc16", "#f97316", "#a855f7"];
 const ROLE_OPTIONS = ["PATIENT", "DOCTOR", "ADMIN"] as const;
@@ -113,6 +114,10 @@ const TAB_CONFIG: Array<{ id: AdminTab; label: string; icon: React.ElementType }
 
 function AdminContent() {
   const router = useRouter();
+  const { theme } = useTheme();
+  const headerGradient = theme === "light"
+    ? "linear-gradient(135deg, #1e40af, #0c4a6e, #0f766e)"
+    : "linear-gradient(135deg, #bae6fd, #7dd3fc, #0ea5e9, #06b6d4)";
   const [adminTab, setAdminTab] = useState<AdminTab>("overview");
   const [userStatusFilter, setUserStatusFilter] = useState<string>("ALL");
   const [userRoleFilter, setUserRoleFilter] = useState<string>("ALL");
@@ -375,7 +380,14 @@ function AdminContent() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
+          <h1 style={{
+            fontSize: '48px',
+            fontWeight: 'bold',
+            backgroundImage: headerGradient,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
             Admin Dashboard
           </h1>
           <p className="text-zinc-500 mt-2 font-medium">System overview &amp; management</p>
