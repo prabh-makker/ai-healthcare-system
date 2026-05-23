@@ -671,6 +671,22 @@ def analyze_symptoms(
 
     record_id = None
     if request.save_record:
+        # Auto-assign a doctor based on the recommended specialist
+        from app.models.models import DoctorProfile
+        assigned_doctor_id = None
+        if specialist:
+            doctor = (
+                db.query(User)
+                .join(DoctorProfile, DoctorProfile.user_id == User.id)
+                .filter(
+                    User.role == UserRole.DOCTOR,
+                    DoctorProfile.specialization == specialist,
+                )
+                .first()
+            )
+            if doctor:
+                assigned_doctor_id = str(doctor.id)
+
         record = MedicalRecord(
             id=str(uuid.uuid4()),
             patient_id=str(current_user.id),
@@ -678,6 +694,7 @@ def analyze_symptoms(
             ai_prediction=disease_name,
             confidence_score=confidence,
             recommended_specialist=specialist,
+            doctor_id=assigned_doctor_id,
         )
         db.add(record)
         db.commit()
