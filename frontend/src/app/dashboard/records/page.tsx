@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ClipboardList, ArrowUpRight, FileSearch, BarChart3, Search, Users, ChevronRight, ArrowLeft, User as UserIcon } from "lucide-react";
+import { ClipboardList, ArrowUpRight, FileSearch, BarChart3, Users, ChevronRight, ArrowLeft, User as UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -30,7 +30,6 @@ export default function RecordsPage() {
   const [records, setRecords] = useState<Record[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [adminStatusFilter, setAdminStatusFilter] = useState<string>("ALL");
   const pageSize = 50;
@@ -56,16 +55,6 @@ export default function RecordsPage() {
     })).sort((a, b) => (b.latestDate || "").localeCompare(a.latestDate || ""));
   }, [records, isDoctor]);
 
-  // Filter for either current view
-  const filteredPatientGroups = useMemo(() => {
-    if (!searchQuery.trim()) return patientGroups;
-    const q = searchQuery.toLowerCase();
-    return patientGroups.filter((g) =>
-      (g.patient_email || "").toLowerCase().includes(q) ||
-      g.records.some((r) => r.ai_prediction?.toLowerCase().includes(q))
-    );
-  }, [patientGroups, searchQuery]);
-
   const filteredRecords = useMemo(() => {
     // Doctor with selected patient → show that patient's records
     let pool = records;
@@ -76,17 +65,8 @@ export default function RecordsPage() {
     if (isAdmin && adminStatusFilter !== "ALL") {
       pool = pool.filter((r) => r.status === adminStatusFilter.toLowerCase());
     }
-    if (!searchQuery.trim()) return pool;
-    const query = searchQuery.toLowerCase();
-    return pool.filter(
-      (r) =>
-        r.ai_prediction?.toLowerCase().includes(query) ||
-        r.symptoms?.some((s) => s.toLowerCase().includes(query)) ||
-        r.recommended_specialist?.toLowerCase().includes(query) ||
-        (r.first_name && (`${r.first_name} ${r.last_name || ""}`.toLowerCase().includes(query))) ||
-        (r.patient_email && r.patient_email.toLowerCase().includes(query))
-    );
-  }, [records, searchQuery, isDoctor, isAdmin, selectedPatientId, adminStatusFilter]);
+    return pool;
+  }, [records, isDoctor, isAdmin, selectedPatientId, adminStatusFilter]);
 
   // Admin stats summary
   const adminRecordStats = useMemo(() => {
@@ -169,17 +149,6 @@ export default function RecordsPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center glass-card px-4 py-2.5 rounded-2xl text-zinc-400 focus-within:text-[var(--foreground)] transition-colors">
-            <Search size={18} />
-            <input
-              type="text"
-              placeholder="Search records..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent border-none outline-none ml-3 text-sm w-48 font-medium"
-              style={{ color: "var(--foreground)" }}
-            />
-          </div>
         </motion.header>
 
         {/* Admin Stats + Filter Row */}
@@ -235,16 +204,16 @@ export default function RecordsPage() {
             </div>
           ) : showingPatientList ? (
             // ── Doctor: Patient list view (default) ──
-            filteredPatientGroups.length === 0 ? (
+            patientGroups.length === 0 ? (
               <div className="text-center py-16">
                 <Users size={40} className="text-zinc-700 mx-auto mb-4" />
                 <p className="text-zinc-500 font-medium">
-                  {searchQuery ? "No patients match your search" : "No patients yet"}
+                  No patients yet
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredPatientGroups.map((g, idx) => (
+                {patientGroups.map((g, idx) => (
                   <motion.div
                     key={g.patient_id}
                     initial={{ opacity: 0, y: 16 }}
@@ -291,10 +260,10 @@ export default function RecordsPage() {
             <div className="text-center py-16">
               <FileSearch size={40} className="text-zinc-700 mx-auto mb-4" />
               <p className="text-zinc-500 font-medium">
-                {searchQuery ? "No records match your search" : "No records found"}
+                No records found
               </p>
               <p className="text-zinc-600 text-sm mt-1">
-                {!searchQuery && (isDoctor ? "This patient has no records yet." : "Run a symptom check to create your first record.")}
+                {isDoctor ? "This patient has no records yet." : "Run a symptom check to create your first record."}
               </p>
             </div>
           ) : (
