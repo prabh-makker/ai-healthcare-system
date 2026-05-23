@@ -167,7 +167,7 @@ function MedicationsContent() {
             {medications.length === 0 ? (
               <div className="py-12 text-center">
                 <p className="text-zinc-600 font-medium">
-                  {search ? "No medications match your search" : "No medications prescribed yet"}
+                  No medications prescribed yet
                 </p>
               </div>
             ) : (
