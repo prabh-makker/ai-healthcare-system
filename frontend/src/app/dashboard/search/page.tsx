@@ -280,7 +280,7 @@ function SearchPageContent() {
 
       <div className="relative z-10">
         <motion.header initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
+          <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: '#4169E1' }}>
             Global Search
           </h1>
           <p className="text-zinc-500 mt-2 font-medium text-sm sm:text-base">

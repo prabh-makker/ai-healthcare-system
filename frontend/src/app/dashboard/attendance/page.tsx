@@ -162,7 +162,7 @@ function AttendanceContent() {
           className="mb-8 flex justify-between items-start"
         >
           <div>
-            <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
+            <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: '#4169E1' }}>
               Attendance Tracker
             </h1>
             <p className="text-zinc-500 mt-2 text-sm sm:text-base font-medium">

@@ -116,7 +116,7 @@ function MedicationsContent() {
       <div className="relative z-10">
         <header className="flex justify-between items-center mb-12">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
+            <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: '#4169E1' }}>
               Medications
             </h1>
             <p className="text-zinc-500 mt-2 font-medium">

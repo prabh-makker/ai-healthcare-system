@@ -155,7 +155,7 @@ function AppointmentsContent() {
           style={{ willChange: "transform", transition: "transform 0.12s ease-out" }}
         >
           <div>
-            <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
+            <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: '#4169E1' }}>
               {isAdmin ? "Doctor Schedule Overview" : user?.role === "DOCTOR" ? "Schedule" : "Appointments"}
             </h1>
             <p className="text-zinc-500 mt-2 text-sm sm:text-base font-medium">

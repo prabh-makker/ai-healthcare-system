@@ -135,7 +135,7 @@ function PrescriptionsContent() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-12 pt-16"
         >
-          <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
+          <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: '#4169E1' }}>
             Prescription Management
           </h1>
           <p className="text-zinc-500 mt-2 font-medium">

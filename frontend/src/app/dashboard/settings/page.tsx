@@ -102,7 +102,7 @@ export default function SettingsPage() {
         className="mb-8 sm:mb-12"
       >
         <motion.h1
-          style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}
+          style={{ fontSize: '48px', fontWeight: 'bold', color: '#4169E1' }}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}

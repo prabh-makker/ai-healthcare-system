@@ -80,7 +80,7 @@ function ActiveCasesContent() {
           className="mb-12 flex justify-between items-start"
         >
           <div>
-            <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: 'white' }}>
+            <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: '#4169E1' }}>
               Active Cases
             </h1>
             <p className="text-zinc-500 mt-2 font-medium">
