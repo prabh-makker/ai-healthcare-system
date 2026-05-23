@@ -145,9 +145,9 @@ export default function Login() {
   // Role-based theme configuration
   const roleThemes = {
     PATIENT: {
-      bg: "bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30",
-      textGradient: "linear-gradient(135deg, #ffffff 0%, #f43f5e 50%, #8b5cf6 100%)",
-      textColor: "text-rose-400",
+      bg: "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30",
+      textGradient: "linear-gradient(135deg, #ffffff 0%, #10b981 50%, #8b5cf6 100%)",
+      textColor: "text-emerald-400",
       icon: <Activity size={36} className="text-white drop-shadow-lg" />,
       title: "Patient Login",
       subtitle: "Access your personal health records.",
@@ -319,7 +319,7 @@ export default function Login() {
             <motion.div variants={itemVariants} className="flex p-1 bg-white/5 rounded-2xl mb-8 border border-white/[0.08] relative">
               <motion.div
                 className={`absolute inset-y-1 left-1 rounded-xl shadow-lg ${
-                  role === "PATIENT" ? "bg-rose-500/20 border border-rose-500/30" : "bg-sky-500/20 border border-sky-500/30"
+                  role === "PATIENT" ? "bg-emerald-500/20 border border-emerald-500/30" : "bg-sky-500/20 border border-sky-500/30"
                 }`}
                 style={{ width: "calc(50% - 0.25rem)" }}
                 initial={false}
@@ -330,7 +330,7 @@ export default function Login() {
                 type="button"
                 onClick={() => setRole("PATIENT")}
                 className={`flex-1 flex items-center justify-center space-x-2 py-3 rounded-xl relative z-10 transition-colors ${
-                  role === "PATIENT" ? "text-rose-400" : "text-zinc-500 hover:text-zinc-300"
+                  role === "PATIENT" ? "text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 <Activity size={16} />
