@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Pill, Search, AlertCircle } from "lucide-react";
+import { Pill, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardBg from "@/components/DashboardBg";
@@ -38,7 +38,6 @@ interface Prescription {
 
 function MedicationsContent() {
   const { user } = useAuth();
-  const [search, setSearch] = useState("");
   const [medications, setMedications] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,11 +98,6 @@ function MedicationsContent() {
     fetchMedications();
   }, []);
 
-  const filtered = useMemo(
-    () => medications.filter((med) => med.medication_name.toLowerCase().includes(search.toLowerCase())),
-    [medications, search]
-  );
-
   const activeCount = useMemo(
     () => medications.filter((m) => m.status === "active").length,
     [medications]
@@ -123,17 +117,6 @@ function MedicationsContent() {
               {user?.email?.split("@")[0]} — {activeCount} active medication{activeCount !== 1 ? "s" : ""}
             </p>
           </motion.div>
-          <div className="flex items-center glass-card px-4 py-2.5 rounded-2xl text-zinc-400 focus-within:text-[var(--foreground)] transition-colors">
-            <Search size={18} />
-            <input
-              type="text"
-              placeholder="Search medications..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="bg-transparent border-none outline-none ml-3 text-sm w-48 font-medium"
-              style={{ color: "var(--foreground)" }}
-            />
-          </div>
         </header>
 
         {/* Loading State */}
@@ -181,7 +164,7 @@ function MedicationsContent() {
               </span>
             </h2>
 
-            {filtered.length === 0 ? (
+            {medications.length === 0 ? (
               <div className="py-12 text-center">
                 <p className="text-zinc-600 font-medium">
                   {search ? "No medications match your search" : "No medications prescribed yet"}
@@ -189,7 +172,7 @@ function MedicationsContent() {
               </div>
             ) : (
               <div className="space-y-4">
-                {filtered.map((med, idx) => (
+                {medications.map((med, idx) => (
                   <motion.div
                     key={med.id}
                     custom={idx}
