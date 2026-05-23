@@ -78,7 +78,7 @@ def seed(target_records=60, target_appts=40):
             db.add(MedicalRecord(
                 id=str(uuid.uuid4()),
                 patient_id=random.choice(patient_ids),
-                doctor_id=random.choice(doctor_ids) if doctor_ids and random.random() > 0.25 else None,
+                doctor_id=random.choice(doctor_ids) if doctor_ids else None,
                 symptoms=random.sample(symptoms, sample_size),
                 ai_prediction=diag,
                 confidence_score=round(base_score + random.uniform(-4, 4), 2),

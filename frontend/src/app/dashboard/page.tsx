@@ -11,6 +11,7 @@ import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { api } from "@/lib/api";
 import NotificationBell from "@/components/NotificationBell";
 
@@ -544,10 +545,16 @@ function ShimmerButton({ href, children, gradFrom, gradTo, shadow }: {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [mounted, setMounted] = useState(false);
   const isDoctor = user?.role === "DOCTOR";
+
+  // Theme-aware header gradient
+  const headerGradient = theme === "light"
+    ? "linear-gradient(135deg, #1e40af, #0c4a6e, #0f766e)"
+    : "linear-gradient(135deg, #bae6fd, #7dd3fc, #0ea5e9, #06b6d4)";
 
   // Admin sees rich admin dashboard at /dashboard/admin
   useEffect(() => {
@@ -765,7 +772,7 @@ export default function Dashboard() {
             </div>
             <h1
               className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight"
-              style={{ backgroundImage: "linear-gradient(135deg, #bae6fd, #7dd3fc, #0ea5e9, #06b6d4)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
+              style={{ backgroundImage: headerGradient, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
             >
               Clinical Dashboard
             </h1>
@@ -841,7 +848,7 @@ export default function Dashboard() {
           <h1
             className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight"
             style={{
-              backgroundImage: "linear-gradient(90deg, #60ffc0 0%, #0077BE 30%, #00CED1 60%)",
+              backgroundImage: headerGradient,
               WebkitBackgroundClip: "text",
               backgroundClip: "text",
               color: "transparent",
