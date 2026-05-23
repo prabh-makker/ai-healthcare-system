@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Users, Search, Activity, AlertCircle } from "lucide-react";
+import { Users, Activity, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -29,7 +29,6 @@ function PatientsContent() {
   const { user } = useAuth();
   const router = useRouter();
   const [patients, setPatients] = useState<PatientData[]>([]);
-  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -46,19 +45,6 @@ function PatientsContent() {
       })
       .finally(() => setLoading(false));
   }, []);
-
-  // Memoize filtered results
-  const filtered = useMemo(() => {
-    if (!search) return patients;
-    const lower = search.toLowerCase();
-    return patients.filter((p) =>
-      (p.email?.toLowerCase() || "").includes(lower) ||
-      (p.first_name?.toLowerCase() || "").includes(lower) ||
-      (p.last_name?.toLowerCase() || "").includes(lower) ||
-      (p.profile?.blood_group?.toLowerCase() || "").includes(lower) ||
-      (p.profile?.chronic_conditions || []).some((c) => c?.toLowerCase().includes(lower))
-    );
-  }, [patients, search]);
 
   const rowVariants = {
     hidden: { opacity: 0, x: -12 },
@@ -84,19 +70,8 @@ function PatientsContent() {
               Patient Registry
             </h1>
             <p className="text-zinc-500 mt-2 font-medium">
-              {filtered.length} of {patients.length} patient{patients.length !== 1 ? "s" : ""} in system
+              {patients.length} patient{patients.length !== 1 ? "s" : ""} in system
             </p>
-          </div>
-          <div className="flex items-center glass-card px-4 py-2.5 rounded-2xl text-zinc-400 focus-within:text-[var(--foreground)] transition-colors">
-            <Search size={18} />
-            <input
-              type="text"
-              placeholder="Search by name, email, condition..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="bg-transparent border-none outline-none ml-3 text-sm w-80 font-medium"
-              style={{ color: "var(--foreground)" }}
-            />
           </div>
         </motion.header>
 
@@ -120,14 +95,14 @@ function PatientsContent() {
                   All Patients
                 </span>
               </h2>
-              <p className="text-xs text-zinc-500">{filtered.length} patient{filtered.length !== 1 ? "s" : ""}</p>
+              <p className="text-xs text-zinc-500">{patients.length} patient{patients.length !== 1 ? "s" : ""}</p>
             </div>
 
-            {filtered.length === 0 ? (
+            {patients.length === 0 ? (
               <div className="py-12 text-center">
                 <AlertCircle className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
                 <p className="text-zinc-600 font-medium">
-                  {search ? "No patients match your search" : "No patients registered"}
+                  No patients registered
                 </p>
               </div>
             ) : (
@@ -144,7 +119,7 @@ function PatientsContent() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {filtered.map((p, idx) => (
+                    {patients.map((p, idx) => (
                       <motion.tr
                         key={p.id}
                         custom={idx}

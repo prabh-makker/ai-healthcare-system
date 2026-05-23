@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, AlertCircle, Plus, X } from "lucide-react";
+import { AlertCircle, Plus, X } from "lucide-react";
 import { api, APIError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -25,8 +25,6 @@ function MyPatientsContent() {
   const router = useRouter();
   const { user } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
-  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
@@ -36,7 +34,6 @@ function MyPatientsContent() {
       setLoading(true);
       const data = await api.getMyPatients(0, 50);
       setPatients(data);
-      setFilteredPatients(data);
     } catch (err: any) {
       if (err instanceof APIError) {
         setError(err.message);
@@ -56,23 +53,6 @@ function MyPatientsContent() {
     setShowRegisterModal(false);
     fetchPatients();
   };
-
-  // Filter patients by search
-  useEffect(() => {
-    const filtered = patients.filter(
-      (patient) => {
-        const fullName = `${patient.first_name || ""} ${patient.last_name || ""}`.toLowerCase();
-        return (
-          fullName.includes(search.toLowerCase()) ||
-          (patient.email?.toLowerCase() || "").includes(search.toLowerCase()) ||
-          (patient.chronic_conditions?.some((cond) =>
-            cond?.toLowerCase().includes(search.toLowerCase())
-          ) ?? false)
-        );
-      }
-    );
-    setFilteredPatients(filtered);
-  }, [search, patients]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -111,7 +91,7 @@ function MyPatientsContent() {
               My Patients
             </h1>
             <p className="text-zinc-500 mt-2 font-medium">
-              {filteredPatients.length} patient{filteredPatients.length !== 1 ? "s" : ""} assigned to you
+              {patients.length} patient{patients.length !== 1 ? "s" : ""} assigned to you
             </p>
           </div>
           <motion.button
@@ -123,24 +103,6 @@ function MyPatientsContent() {
             <Plus size={20} strokeWidth={3} />
             <span>Register Patient</span>
           </motion.button>
-        </motion.div>
-
-        {/* Search Bar */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-12 flex items-center glass-card px-4 py-2.5 rounded-2xl text-zinc-400 focus-within:text-[var(--foreground)] transition-colors"
-        >
-          <Search size={18} />
-          <input
-            type="text"
-            placeholder="Search patients by name, email, or condition..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="bg-transparent border-none outline-none ml-3 text-sm w-full font-medium"
-            style={{ color: "var(--foreground)" }}
-          />
         </motion.div>
 
         {/* Loading State */}
@@ -166,14 +128,14 @@ function MyPatientsContent() {
         )}
 
         {/* Patients Grid */}
-        {!loading && !error && filteredPatients.length > 0 && (
+        {!loading && !error && patients.length > 0 && (
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="visible"
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            {filteredPatients.map((patient) => (
+            {patients.map((patient) => (
               <motion.div
                 key={patient.id}
                 variants={itemVariants}
@@ -237,7 +199,7 @@ function MyPatientsContent() {
         )}
 
         {/* Empty State */}
-        {!loading && !error && filteredPatients.length === 0 && (
+        {!loading && !error && patients.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -245,16 +207,8 @@ function MyPatientsContent() {
           >
             <AlertCircle size={48} className="text-zinc-600 mb-4" />
             <p className="text-zinc-500 text-lg font-medium">
-              {search ? "No patients match your search" : "No patients assigned yet"}
+              No patients assigned yet
             </p>
-            {search && (
-              <button
-                onClick={() => setSearch("")}
-                className="mt-4 text-sky-400 hover:text-sky-300 transition-colors text-sm font-semibold"
-              >
-                Clear search
-              </button>
-            )}
           </motion.div>
         )}
 
