@@ -115,9 +115,6 @@ const TAB_CONFIG: Array<{ id: AdminTab; label: string; icon: React.ElementType }
 function AdminContent() {
   const router = useRouter();
   const { theme } = useTheme();
-  const headerGradient = theme === "light"
-    ? "linear-gradient(135deg, #1e40af, #0c4a6e, #0f766e)"
-    : "linear-gradient(135deg, #bae6fd, #7dd3fc, #0ea5e9, #06b6d4)";
   const [adminTab, setAdminTab] = useState<AdminTab>("overview");
   const [userStatusFilter, setUserStatusFilter] = useState<string>("ALL");
   const [userRoleFilter, setUserRoleFilter] = useState<string>("ALL");
@@ -380,14 +377,7 @@ function AdminContent() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 style={{
-            fontSize: '48px',
-            fontWeight: 'bold',
-            backgroundImage: headerGradient,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
-          }}>
+          <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: '#4169E1' }}>
             Admin Dashboard
           </h1>
           <p className="text-zinc-500 mt-2 font-medium">System overview &amp; management</p>
