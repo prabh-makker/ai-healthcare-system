@@ -105,6 +105,38 @@ def admin_doctors_appointment_summary(
     return result
 
 
+@router.post("/maintenance/update-past-appointments", include_in_schema=False)
+def update_past_appointments(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """Admin: Update all past appointments to 'completed' status."""
+    from datetime import date
+    today = date.today()
+
+    # Find all appointments with past dates that are still marked as "upcoming"
+    past_upcoming = db.query(Appointment).filter(
+        Appointment.status == "upcoming"
+    ).all()
+
+    updated_count = 0
+    for appt in past_upcoming:
+        try:
+            appt_date = datetime.strptime(appt.date, "%Y-%m-%d").date()
+            if appt_date < today:
+                appt.status = "completed"
+                db.add(appt)
+                updated_count += 1
+        except:
+            pass
+
+    db.commit()
+    return {
+        "message": f"Updated {updated_count} past appointments to completed status",
+        "updated_count": updated_count
+    }
+
+
 @router.get("", include_in_schema=False)
 @router.get("/")
 def list_appointments(
@@ -114,10 +146,25 @@ def list_appointments(
     current_user: User = Depends(get_current_user),
 ):
     from datetime import datetime
+    from sqlalchemy import and_
     # Validate pagination parameters
     validate_pagination(skip, limit)
 
     today = datetime.now().date()
+
+    # IMPORTANT: Update ALL past appointments to "completed" status (not just paginated results)
+    # This ensures consistency across the entire database
+    all_past_upcoming = db.query(Appointment).filter(
+        Appointment.status == "upcoming",
+        Appointment.date < today.isoformat()
+    ).all()
+
+    for appt in all_past_upcoming:
+        appt.status = "completed"
+        db.add(appt)
+
+    if all_past_upcoming:
+        db.commit()
 
     if current_user.role == UserRole.ADMIN:
         records = (
@@ -127,16 +174,6 @@ def list_appointments(
             .limit(limit)
             .all()
         )
-        # Auto-update status for past appointments
-        for appt in records:
-            try:
-                appt_date = datetime.strptime(appt.date, "%Y-%m-%d").date()
-                if appt_date < today and appt.status == "upcoming":
-                    appt.status = "completed"
-                    db.add(appt)
-            except:
-                pass
-        db.commit()
     elif current_user.role == UserRole.DOCTOR:
         # Doctors see appointments directly assigned to them (by doctor_id)
         # OR appointments of their assigned patients (DoctorPatient relation)
@@ -159,16 +196,6 @@ def list_appointments(
             .limit(limit)
             .all()
         )
-        # Auto-update status for past appointments
-        for appt in records:
-            try:
-                appt_date = datetime.strptime(appt.date, "%Y-%m-%d").date()
-                if appt_date < today and appt.status == "upcoming":
-                    appt.status = "completed"
-                    db.add(appt)
-            except:
-                pass
-        db.commit()
     else:
         # Patients see only their own appointments
         records = (
@@ -179,16 +206,6 @@ def list_appointments(
             .limit(limit)
             .all()
         )
-        # Auto-update status for past appointments
-        for appt in records:
-            try:
-                appt_date = datetime.strptime(appt.date, "%Y-%m-%d").date()
-                if appt_date < today and appt.status == "upcoming":
-                    appt.status = "completed"
-                    db.add(appt)
-            except:
-                pass
-        db.commit()
     # Batch-load all patient info in one query to avoid N+1
     patient_ids = list({str(r.patient_id) for r in records})
     patients = db.query(User).filter(User.id.in_(patient_ids)).all() if patient_ids else []
